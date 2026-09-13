@@ -14,33 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          created_at: string
+          id: string
+          promo_enabled: boolean
+          promo_prices: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          promo_enabled?: boolean
+          promo_prices?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          promo_enabled?: boolean
+          promo_prices?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      community_gallery: {
+        Row: {
+          created_at: string
+          generation_id: string | null
+          id: string
+          media_type: string
+          media_url: string | null
+          moderated_at: string | null
+          prompt: string
+          rejection_reason: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_id?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string | null
+          moderated_at?: string | null
+          prompt: string
+          rejection_reason?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_id?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string | null
+          moderated_at?: string | null
+          prompt?: string
+          rejection_reason?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_gallery_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_usage: {
         Row: {
           created_at: string
           id: string
+          images_used: number
           seconds_used: number
           tier: string
           updated_at: string
           usage_date: string
           user_id: string
+          video_pause_until: string | null
+          videos_used: number
         }
         Insert: {
           created_at?: string
           id?: string
+          images_used?: number
           seconds_used?: number
           tier?: string
           updated_at?: string
           usage_date?: string
           user_id: string
+          video_pause_until?: string | null
+          videos_used?: number
         }
         Update: {
           created_at?: string
           id?: string
+          images_used?: number
           seconds_used?: number
           tier?: string
           updated_at?: string
           usage_date?: string
           user_id?: string
+          video_pause_until?: string | null
+          videos_used?: number
         }
         Relationships: []
       }
@@ -490,9 +576,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      refund_media_quota: {
+        Args: { _media_type: string; _user_id: string }
+        Returns: undefined
+      }
       refund_quota: {
         Args: { _seconds: number; _user_id: string }
         Returns: undefined
+      }
+      reserve_media_quota: {
+        Args: { _media_type: string; _user_id: string }
+        Returns: {
+          allowed: boolean
+          images_used: number
+          reason: string
+          retry_at: string
+          videos_used: number
+        }[]
       }
       reserve_quota: {
         Args: { _seconds: number; _user_id: string }
