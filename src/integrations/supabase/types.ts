@@ -130,6 +130,62 @@ export type Database = {
         }
         Relationships: []
       }
+      developer_earnings: {
+        Row: {
+          amount_eur: number
+          created_at: string
+          developer_id: string
+          id: string
+          order_id: string | null
+          rate: number
+        }
+        Insert: {
+          amount_eur?: number
+          created_at?: string
+          developer_id: string
+          id?: string
+          order_id?: string | null
+          rate?: number
+        }
+        Update: {
+          amount_eur?: number
+          created_at?: string
+          developer_id?: string
+          id?: string
+          order_id?: string | null
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_earnings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_fingerprints: {
+        Row: {
+          created_at: string
+          fingerprint: string
+          first_user_id: string
+          free_used: boolean
+        }
+        Insert: {
+          created_at?: string
+          fingerprint: string
+          first_user_id: string
+          free_used?: boolean
+        }
+        Update: {
+          created_at?: string
+          fingerprint?: string
+          first_user_id?: string
+          free_used?: boolean
+        }
+        Relationships: []
+      }
       generations: {
         Row: {
           approved: boolean
@@ -214,8 +270,10 @@ export type Database = {
           payment_method: string
           period: string
           product_id: string
+          provider: string
           provider_message: string | null
           provider_response: Json | null
+          provider_session_id: string | null
           provider_transaction_id: string | null
           status: string
           tier: string
@@ -241,8 +299,10 @@ export type Database = {
           payment_method: string
           period?: string
           product_id: string
+          provider?: string
           provider_message?: string | null
           provider_response?: Json | null
+          provider_session_id?: string | null
           provider_transaction_id?: string | null
           status?: string
           tier: string
@@ -268,8 +328,10 @@ export type Database = {
           payment_method?: string
           period?: string
           product_id?: string
+          provider?: string
           provider_message?: string | null
           provider_response?: Json | null
+          provider_session_id?: string | null
           provider_transaction_id?: string | null
           status?: string
           tier?: string
@@ -339,6 +401,51 @@ export type Database = {
           tier?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      payout_requests: {
+        Row: {
+          admin_note: string | null
+          amount_eur: number
+          created_at: string
+          developer_id: string
+          id: string
+          method: string
+          mobile: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_eur: number
+          created_at?: string
+          developer_id: string
+          id?: string
+          method?: string
+          mobile?: string | null
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_eur?: number
+          created_at?: string
+          developer_id?: string
+          id?: string
+          method?: string
+          mobile?: string | null
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -551,6 +658,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_devices: {
+        Row: {
+          created_at: string
+          fingerprint: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fingerprint: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fingerprint?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_quotas: {
         Row: {
           created_at: string
@@ -666,7 +791,13 @@ export type Database = {
       tier_daily_seconds: { Args: { _tier: string }; Returns: number }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "support" | "finance"
+      app_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "support"
+        | "finance"
+        | "developer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -794,7 +925,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "support", "finance"],
+      app_role: [
+        "admin",
+        "moderator",
+        "user",
+        "support",
+        "finance",
+        "developer",
+      ],
     },
   },
 } as const
