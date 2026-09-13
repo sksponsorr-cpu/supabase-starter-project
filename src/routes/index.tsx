@@ -63,18 +63,21 @@ function Login() {
   const google = async () => {
     setBusy(true);
     setMessage(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: next
-        ? `${window.location.origin}/?next=${encodeURIComponent(next)}`
-        : window.location.origin,
+    // Le projet utilise un Supabase personnel : on passe par l'OAuth Supabase
+    // directement (le broker Lovable n'est disponible qu'avec Lovable Cloud).
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: next
+          ? `${window.location.origin}/?next=${encodeURIComponent(next)}`
+          : window.location.origin,
+      },
     });
-    if (result.error) {
+    if (error) {
       setMessage("Connexion Google impossible pour le moment.");
       setBusy(false);
-      return;
     }
-    if (result.redirected) return;
-    goNext();
+    // En cas de succès, le navigateur est redirigé vers Google.
   };
 
   const submitEmail = async (e: React.FormEvent) => {
