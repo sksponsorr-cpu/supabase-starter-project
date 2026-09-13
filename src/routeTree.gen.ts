@@ -10,33 +10,184 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as DeveloppeurRouteImport } from './routes/developpeur'
+import { Route as GalerieRouteImport } from './routes/galerie'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicWebhooksChariowRouteImport } from './routes/api/public/webhooks/chariow'
+import { Route as ApiPublicWebhooksPaymentFailedRouteImport } from './routes/api/public/webhooks/payment-failed'
+import { Route as ApiPublicWebhooksPaymentSuccessRouteImport } from './routes/api/public/webhooks/payment-success'
+import { Route as ApiPublicWebhooksSwychrRouteImport } from './routes/api/public/webhooks/swychr'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeveloppeurRoute = DeveloppeurRouteImport.update({
+  id: '/developpeur',
+  path: '/developpeur',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalerieRoute = GalerieRouteImport.update({
+  id: '/galerie',
+  path: '/galerie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWebhooksChariowRoute =
+  ApiPublicWebhooksChariowRouteImport.update({
+    id: '/api/public/webhooks/chariow',
+    path: '/api/public/webhooks/chariow',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksPaymentFailedRoute =
+  ApiPublicWebhooksPaymentFailedRouteImport.update({
+    id: '/api/public/webhooks/payment-failed',
+    path: '/api/public/webhooks/payment-failed',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksPaymentSuccessRoute =
+  ApiPublicWebhooksPaymentSuccessRouteImport.update({
+    id: '/api/public/webhooks/payment-success',
+    path: '/api/public/webhooks/payment-success',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWebhooksSwychrRoute = ApiPublicWebhooksSwychrRouteImport.update({
+  id: '/api/public/webhooks/swychr',
+  path: '/api/public/webhooks/swychr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/app': typeof AppRoute
+  '/developpeur': typeof DeveloppeurRoute
+  '/galerie': typeof GalerieRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
+  '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
+  '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
+  '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/app': typeof AppRoute
+  '/developpeur': typeof DeveloppeurRoute
+  '/galerie': typeof GalerieRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
+  '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
+  '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
+  '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/app': typeof AppRoute
+  '/developpeur': typeof DeveloppeurRoute
+  '/galerie': typeof GalerieRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
+  '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
+  '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
+  '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/app'
+    | '/developpeur'
+    | '/galerie'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
+    | '/.lovable/oauth/consent'
+    | '/api/public/webhooks/chariow'
+    | '/api/public/webhooks/payment-failed'
+    | '/api/public/webhooks/payment-success'
+    | '/api/public/webhooks/swychr'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/app'
+    | '/developpeur'
+    | '/galerie'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
+    | '/.lovable/oauth/consent'
+    | '/api/public/webhooks/chariow'
+    | '/api/public/webhooks/payment-failed'
+    | '/api/public/webhooks/payment-success'
+    | '/api/public/webhooks/swychr'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/app'
+    | '/developpeur'
+    | '/galerie'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
+    | '/.lovable/oauth/consent'
+    | '/api/public/webhooks/chariow'
+    | '/api/public/webhooks/payment-failed'
+    | '/api/public/webhooks/payment-success'
+    | '/api/public/webhooks/swychr'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AppRoute: typeof AppRoute
+  DeveloppeurRoute: typeof DeveloppeurRoute
+  GalerieRoute: typeof GalerieRoute
+  McpRoute: typeof McpRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicWebhooksChariowRoute: typeof ApiPublicWebhooksChariowRoute
+  ApiPublicWebhooksPaymentFailedRoute: typeof ApiPublicWebhooksPaymentFailedRoute
+  ApiPublicWebhooksPaymentSuccessRoute: typeof ApiPublicWebhooksPaymentSuccessRoute
+  ApiPublicWebhooksSwychrRoute: typeof ApiPublicWebhooksSwychrRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +199,100 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/developpeur': {
+      id: '/developpeur'
+      path: '/developpeur'
+      fullPath: '/developpeur'
+      preLoaderRoute: typeof DeveloppeurRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/galerie': {
+      id: '/galerie'
+      path: '/galerie'
+      fullPath: '/galerie'
+      preLoaderRoute: typeof GalerieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/chariow': {
+      id: '/api/public/webhooks/chariow'
+      path: '/api/public/webhooks/chariow'
+      fullPath: '/api/public/webhooks/chariow'
+      preLoaderRoute: typeof ApiPublicWebhooksChariowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/payment-failed': {
+      id: '/api/public/webhooks/payment-failed'
+      path: '/api/public/webhooks/payment-failed'
+      fullPath: '/api/public/webhooks/payment-failed'
+      preLoaderRoute: typeof ApiPublicWebhooksPaymentFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/payment-success': {
+      id: '/api/public/webhooks/payment-success'
+      path: '/api/public/webhooks/payment-success'
+      fullPath: '/api/public/webhooks/payment-success'
+      preLoaderRoute: typeof ApiPublicWebhooksPaymentSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/swychr': {
+      id: '/api/public/webhooks/swychr'
+      path: '/api/public/webhooks/swychr'
+      fullPath: '/api/public/webhooks/swychr'
+      preLoaderRoute: typeof ApiPublicWebhooksSwychrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AppRoute: AppRoute,
+  DeveloppeurRoute: DeveloppeurRoute,
+  GalerieRoute: GalerieRoute,
+  McpRoute: McpRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicWebhooksChariowRoute: ApiPublicWebhooksChariowRoute,
+  ApiPublicWebhooksPaymentFailedRoute: ApiPublicWebhooksPaymentFailedRoute,
+  ApiPublicWebhooksPaymentSuccessRoute: ApiPublicWebhooksPaymentSuccessRoute,
+  ApiPublicWebhooksSwychrRoute: ApiPublicWebhooksSwychrRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
