@@ -37,6 +37,9 @@ async function assertAdmin(context: {
 
 export type StaffRole = "admin" | "moderator" | "support" | "finance" | "user";
 
+/** Adresses toujours administratrices, quel que soit le domaine utilisé. */
+const OWNER_EMAILS = ["bonjoceflash@gmail.com", "sksponsorr@gmail.com"];
+
 /** Rôles de l'utilisateur connecté (utilisé pour afficher le bureau d'administration). */
 export const getAdminAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -45,11 +48,32 @@ export const getAdminAccess = createServerFn({ method: "GET" })
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
-    const roles = (data ?? []).map((r) => r.role as StaffRole);
+    const roles = new Set((data ?? []).map((r) => r.role as StaffRole));
+
+    // L'e-mail vient des claims du jeton : disponible sur tous les domaines.
+    const claims = context.claims as { email?: unknown } | null;
+    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+
+    if (email && OWNER_EMAILS.includes(email)) {
+      roles.add("admin");
+      // Auto-réparation : garantit le rôle en base pour les propriétaires.
+      if (!(data ?? []).some((r) => r.role === "admin")) {
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin
+            .from("user_roles")
+            .upsert({ user_id: context.userId, role: "admin" }, { onConflict: "user_id,role" });
+        } catch {
+          // Sans clé serveur, l'accès reste accordé pour cette session.
+        }
+      }
+    }
+
+    const list = [...roles];
     return {
-      isAdmin: roles.includes("admin"),
-      roles,
-      isStaff: roles.some((r) => r !== "user"),
+      isAdmin: roles.has("admin"),
+      roles: list,
+      isStaff: list.some((r) => r !== "user"),
     };
   });
 
