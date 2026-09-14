@@ -212,9 +212,9 @@ export const startPayment = createServerFn({ method: "POST" })
 
     // URL de callback transmise au prestataire : le jeton HMAC authentifie l'appel.
     const { callbackToken } = await import("@/lib/payments/token.server");
-    // L'aperçu avec authentification renvoie 401 aux appels externes. Cette
-    // adresse de développement stable autorise explicitement les webhooks.
-    const callbackOrigin = "https://project--0eb49e5c-6fd1-4a1b-aac6-53a815ad5253-dev.lovable.app";
+    // L'aperçu authentifié renvoie 401 aux appels externes : on utilise le
+    // domaine public réel (sam-flash.lat en production).
+    const callbackOrigin = await resolvePublicOrigin();
     const callbackUrl = `${callbackOrigin}/api/public/webhooks/payment-success?transaction_id=${transactionId}&token=${callbackToken(transactionId)}`;
 
     const { createPaymentLink } = await import("@/lib/services/swychr.server");
@@ -261,8 +261,6 @@ export const startPayment = createServerFn({ method: "POST" })
     };
   });
 
-/** Origine publique stable utilisée pour les retours prestataire. */
-const PUBLIC_ORIGIN = "https://project--0eb49e5c-6fd1-4a1b-aac6-53a815ad5253-dev.lovable.app";
 
 /**
  * Paiement par carte bancaire (Chariow) : enregistre la commande puis renvoie
@@ -333,8 +331,8 @@ export const startCardPayment = createServerFn({ method: "POST" })
       userId: context.userId,
       email,
       fullName: data.fullName,
-      successUrl: `${PUBLIC_ORIGIN}/checkout/success?transaction_id=${transactionId}`,
-      callbackUrl: `${PUBLIC_ORIGIN}/api/public/webhooks/chariow`,
+      successUrl: `${publicOrigin}/checkout/success?transaction_id=${transactionId}`,
+      callbackUrl: `${publicOrigin}/api/public/webhooks/chariow`,
     });
 
     if (!result.ok) {
