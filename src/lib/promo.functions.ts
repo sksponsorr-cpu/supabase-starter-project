@@ -13,8 +13,8 @@ const SETTINGS_ID = "global";
 export const PROMO_DAYS = 2;
 
 function publicClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient<Database>(process.env["SUPABASE_URL"]!, key, {
+  const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_ANON_KEY"])!;
+  return createClient<Database>((process.env["SUPABASE_URL"] ?? process.env["EXTERNAL_SUPABASE_URL"])!, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       fetch: (input, init) => {
