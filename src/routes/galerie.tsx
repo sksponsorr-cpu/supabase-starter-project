@@ -92,7 +92,7 @@ function GalleryPage() {
         </Link>
         <div>
           <span className="block text-lg font-semibold tracking-tight">Galerie communautaire</span>
-          <span className="block text-[11px] text-muted-foreground">powered by xai grok</span>
+          <span className="block text-[11px] text-muted-foreground">Créations IA</span>
         </div>
         <Sparkles className="ml-auto h-5 w-5 text-primary" />
       </header>

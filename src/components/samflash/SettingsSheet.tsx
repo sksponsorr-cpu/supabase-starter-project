@@ -584,7 +584,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             </div>
 
             <p className="py-8 text-center text-sm text-muted-foreground/60">
-              sam flash 2.0 powered by xia Grok
+              Sam flash 2.0 — Studio IA
               <br />
               VERSION 2.0.0 (BUILD 4426)
             </p>

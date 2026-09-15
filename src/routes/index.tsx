@@ -24,7 +24,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Sam flash 2.0 powered by xia Grok : générez des vidéos et images IA en quelques secondes depuis votre mobile.",
+          "Sam flash 2.0 — Générez des vidéos et images IA en quelques secondes depuis votre mobile.",
       },
       { property: "og:title", content: "Sam flash 2.0 — Créez images et vidéos IA" },
       {
@@ -114,29 +114,29 @@ function Login() {
 
   return (
     <main
-      className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-background px-6 py-12"
+      className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-background px-4 py-8 md:px-6 md:py-12"
       style={{
         backgroundImage: `linear-gradient(to bottom, oklch(0.16 0.06 265 / 0.75), oklch(0.12 0.05 265 / 0.95)), url(${nightSky})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="animate-float">
+      <div className="flex flex-1 flex-col items-center justify-center text-center w-full max-w-md mx-auto">
+        <div className="animate-float flex flex-col items-center">
           <img
             src={logoAsset}
             alt="Logo Sam flash 2.0"
-            className="mx-auto mb-5 h-28 w-28 rounded-full object-cover shadow-2xl"
+            className="mx-auto mb-5 h-24 w-24 md:h-28 md:w-28 rounded-full object-cover shadow-2xl"
           />
-          <h1 className="max-w-xs text-4xl font-semibold leading-tight tracking-tight text-foreground">
+          <h1 className="max-w-xs text-3xl md:text-4xl font-semibold leading-tight tracking-tight text-foreground">
             Sam flash 2.0
           </h1>
-          <p className="mt-2 text-sm tracking-[0.2em] text-muted-foreground">powered by xia Grok</p>
-          <p className="mt-6 font-mono text-base text-muted-foreground">Understand the Universe_</p>
+          <p className="mt-2 text-xs md:text-sm tracking-[0.1em] md:tracking-[0.2em] text-muted-foreground px-4">Générez vidéos et images par IA</p>
+          <p className="mt-6 font-mono text-sm md:text-base text-muted-foreground">Understand the Universe_</p>
         </div>
       </div>
 
-      <div className="animate-float space-y-3">
+      <div className="animate-float space-y-3 w-full max-w-sm mx-auto">
         {mode === "providers" ? (
           <>
             <button

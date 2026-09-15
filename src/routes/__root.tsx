@@ -80,14 +80,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Sam flash 2.0 — Studio IA" },
+      { name: "description", content: "Sam flash 2.0 — Générez vidéos et images par IA." },
+      { property: "og:title", content: "Sam flash 2.0 — Studio IA" },
+      { property: "og:description", content: "Sam flash 2.0 — Générez vidéos et images par IA." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

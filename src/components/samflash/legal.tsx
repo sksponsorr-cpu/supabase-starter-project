@@ -7,7 +7,7 @@ export const TERMS: LegalDoc = {
     {
       h: "1. Objet",
       p: [
-        "Les présentes Conditions Générales d'Utilisation (« CGU ») régissent l'accès et l'utilisation de l'application « Sam flash 2.0 powered by xia Grok » (le « Service »), plateforme de génération de contenus (images et vidéos) assistée par intelligence artificielle.",
+        "Les présentes Conditions Générales d'Utilisation (« CGU ») régissent l'accès et l'utilisation de l'application « Sam flash 2.0 » (le « Service »), plateforme de génération de contenus (images et vidéos) assistée par intelligence artificielle.",
         "Toute création de compte ou utilisation du Service vaut acceptation pleine et entière des présentes CGU.",
       ],
     },
@@ -71,7 +71,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "1. Responsable du traitement",
       p: [
-        "L'éditeur de « Sam flash 2.0 powered by xia Grok » est responsable du traitement des données personnelles collectées via l'application. Contact : privacy@samflash.app",
+        "L'éditeur de « Sam flash 2.0 » est responsable du traitement des données personnelles collectées via l'application. Contact : privacy@samflash.app",
       ],
     },
     {
@@ -95,7 +95,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "4. Sous-traitants et transferts",
       p: [
-        "Hébergement, base de données, authentification et stockage : Supabase. Génération de contenus : fournisseurs de modèles d'IA (dont xAI/Grok et la passerelle IA de Lovable). Paiements : prestataire de paiement mobile et bancaire.",
+        "Hébergement, base de données, authentification et stockage : Supabase. Génération de contenus : fournisseurs de modèles d'IA tiers. Paiements : prestataire de paiement mobile et bancaire.",
         "Certains prestataires peuvent être situés hors de votre pays de résidence ; les transferts sont alors encadrés par des garanties contractuelles appropriées.",
       ],
     },
@@ -148,7 +148,7 @@ export function LegalView({ doc }: { doc: LegalDoc }) {
         ))}
       </div>
       <p className="py-8 text-center text-sm text-muted-foreground/60">
-        sam flash 2.0 powered by xia Grok
+        Sam flash 2.0 — Studio IA
       </p>
     </div>
   );

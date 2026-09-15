@@ -182,18 +182,18 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </span>
             )}
           </h2>
-          <p className="mt-1 text-sm font-medium text-primary/90">powered by xia grok</p>
+          <p className="mt-1 text-sm font-medium text-primary/90">Studio IA</p>
           <p className="mt-2 text-xl font-medium text-foreground/90">{plan.tagline}</p>
         </div>
 
 
-        <div className="mx-auto mt-6 flex w-full max-w-sm rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
+        <div className="mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
           {PLANS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setActive(p.id)}
-              className={`flex-1 rounded-full py-2.5 text-[15px] font-medium transition-colors ${
+              className={`flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-colors ${
                 active === p.id
                   ? "bg-secondary text-foreground shadow-[var(--shadow-glow)]"
                   : "text-muted-foreground"
@@ -222,7 +222,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
         <div className="mt-6">
           {hasYearly ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setPeriod("monthly")}
@@ -326,7 +326,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           Conditions d'utilisation · Politique de confidentialité · Restaurer les achats
         </p>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          sam flash 2.0 powered by xia Grok
+          Sam flash 2.0 — Studio IA
         </p>
       </div>
     </div>

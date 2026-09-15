@@ -107,7 +107,7 @@ function AppFeed() {
             Sam flash 2.0
           </span>
           <span className="block text-[11px] leading-tight text-muted-foreground">
-            powered by xai grok
+            Studio IA
           </span>
         </div>
         <button

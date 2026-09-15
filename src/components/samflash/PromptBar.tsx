@@ -177,7 +177,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-4">
+    <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-4 md:pb-6 w-full max-w-3xl mx-auto">
       {sent && (
         <div className="mx-auto mb-2 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
           {sent}
@@ -240,20 +240,20 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
           placeholder={
             t("promptPlaceholder")
           }
-          className={`block w-full resize-none overflow-y-auto bg-transparent px-2 pb-3 text-[17px] leading-6 outline-none transition-[min-height] duration-300 ease-out [field-sizing:content] placeholder:text-muted-foreground ${
+          className={`block w-full resize-none overflow-y-auto bg-transparent px-2 pb-3 text-[16px] sm:text-[17px] leading-6 outline-none transition-[min-height] duration-300 ease-out [field-sizing:content] placeholder:text-muted-foreground ${
             promptFocused || text ? "min-h-24 max-h-56" : "min-h-11 max-h-56"
           }`}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
           <button
             type="button"
             aria-label="Ajouter"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary"
+            className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary"
           >
             <Plus className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-1 rounded-full bg-secondary p-1">
+          <div className="flex items-center gap-1 rounded-full bg-secondary p-1 shrink-0 overflow-x-auto">
             <button
               type="button"
               aria-label="Image"
@@ -261,12 +261,12 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
                 setMode("image");
                 focusInput();
               }}
-              className={`flex items-center gap-2 rounded-full px-3 py-2 ${
+              className={`flex items-center gap-2 rounded-full px-2 sm:px-3 py-2 ${
                 mode === "image" ? "bg-foreground text-background" : "text-muted-foreground"
               }`}
             >
-              <ImageIcon className="h-5 w-5" />
-              {mode === "image" && <span className="text-sm font-medium">{t("image")}</span>}
+              <ImageIcon className="h-5 w-5 shrink-0" />
+              {mode === "image" && <span className="text-xs sm:text-sm font-medium">{t("image")}</span>}
             </button>
             <button
               type="button"
@@ -276,17 +276,17 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
                 setRes((r) => (r === "1080p" ? "720p" : r));
                 focusInput();
               }}
-              className={`flex items-center gap-2 rounded-full px-3 py-2 ${
+              className={`flex items-center gap-2 rounded-full px-2 sm:px-3 py-2 ${
                 mode === "video" ? "bg-foreground text-background" : "text-muted-foreground"
               }`}
             >
-              <Video className="h-5 w-5" />
-              {mode === "video" && <span className="text-sm font-medium">{t("video")}</span>}
+              <Video className="h-5 w-5 shrink-0" />
+              {mode === "video" && <span className="text-xs sm:text-sm font-medium">{t("video")}</span>}
             </button>
             <button
               type="button"
               aria-label="Emoji"
-              className="rounded-full px-3 py-2 text-muted-foreground"
+              className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
             >
               <Smile className="h-5 w-5" />
             </button>
@@ -296,7 +296,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
             aria-label={t("enhance")}
             title={t("enhance")}
             onClick={() => void runEnhance()}
-            className="group relative ml-auto flex h-11 items-center gap-2 rounded-full bg-secondary px-3 text-foreground transition-colors disabled:opacity-40"
+            className="group relative ml-auto flex h-11 items-center gap-2 rounded-full bg-secondary px-3 text-foreground transition-colors disabled:opacity-40 shrink-0"
             disabled={!text.trim() || enhancing || busy}
           >
             {enhancing ? (
@@ -310,7 +310,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
             type="button"
             aria-label={t("send")}
             onClick={() => void submit()}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
             disabled={!text.trim() || busy || enhancing}
           >
 
