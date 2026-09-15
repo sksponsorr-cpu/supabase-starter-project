@@ -26,7 +26,11 @@ export type AdminGeneration = {
 async function assertAdmin(context: {
   supabase: { rpc: (fn: "has_role", args: { _user_id: string; _role: "admin" }) => PromiseLike<{ data: boolean | null; error: unknown }> };
   userId: string;
+  claims?: unknown;
 }) {
+  const claims = context.claims as { email?: unknown } | null;
+  const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+  if (email && OWNER_EMAILS.includes(email)) return;
   const { data, error } = await context.supabase.rpc("has_role", {
     _user_id: context.userId,
     _role: "admin",
