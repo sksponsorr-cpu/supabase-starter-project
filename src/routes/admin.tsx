@@ -171,37 +171,42 @@ function AdminPage() {
       const finance = admin || access.roles.includes("finance");
       const support = admin || access.roles.includes("support");
 
-      if (admin) {
-        const [s, r, o, m, i, p, c] = await Promise.all([
-          fetchStats({}),
-          fetchRecent({}),
-          fetchOrders({}),
-          fetchMembers({}),
-          fetchInvites({}),
-          fetchPayouts({}),
-          fetchCommissions({}),
-        ]);
-        setStats(s as AdminStats);
-        setItems(r as AdminGeneration[]);
-        setOrders(o as AdminOrder[]);
-        setMembers(m as TeamMember[]);
-        setInvites(i as TeamInvitation[]);
-        setPayouts(p as PayoutRequest[]);
-        setCommissionTotal(c.total);
+      try {
+        if (admin) {
+          const [s, r, o, m, i, p, c] = await Promise.all([
+            fetchStats({}),
+            fetchRecent({}),
+            fetchOrders({}),
+            fetchMembers({}),
+            fetchInvites({}),
+            fetchPayouts({}),
+            fetchCommissions({}),
+          ]);
+          setStats(s as AdminStats);
+          setItems(r as AdminGeneration[]);
+          setOrders(o as AdminOrder[]);
+          setMembers(m as TeamMember[]);
+          setInvites(i as TeamInvitation[]);
+          setPayouts(p as PayoutRequest[]);
+          setCommissionTotal(c.total);
+        }
+        if (admin || access.roles.includes("moderator")) {
+          setQueue((await fetchQueue({})) as ModerationItem[]);
+        }
+        if (admin) setPromoEnabled((await fetchPromo({})).enabled);
+        if (finance) setPrices((await fetchPrices({})) as AdminPrice[]);
+        if (support) setTickets((await fetchTickets({})) as SupportMessage[]);
+      } catch {
+        // Les données peuvent échouer sans masquer le bureau d'administration.
       }
-      if (admin || access.roles.includes("moderator")) {
-        setQueue((await fetchQueue({})) as ModerationItem[]);
-      }
-      if (admin) setPromoEnabled((await fetchPromo({})).enabled);
-      if (finance) setPrices((await fetchPrices({})) as AdminPrice[]);
-      if (support) setTickets((await fetchTickets({})) as SupportMessage[]);
     } catch {
-      setIsStaff(false);
+      setIsStaff(owner);
     } finally {
       setLoading(false);
     }
   }, [
     session,
+    owner,
     fetchAccess,
     fetchStats,
     fetchRecent,
