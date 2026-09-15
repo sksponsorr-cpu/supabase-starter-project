@@ -394,7 +394,7 @@ function AdminPage() {
               <div key={i} className="h-24 animate-pulse rounded-3xl bg-secondary/50" />
             ))}
           </div>
-        ) : isStaff === false ? (
+        ) : !owner && isStaff === false ? (
           <p className="pt-24 text-center text-sm text-muted-foreground">
             Accès réservé à l'équipe.
           </p>
