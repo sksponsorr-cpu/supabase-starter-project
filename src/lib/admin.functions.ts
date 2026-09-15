@@ -42,7 +42,7 @@ async function assertAdmin(context: {
 export type StaffRole = "admin" | "moderator" | "support" | "finance" | "user";
 
 /** Adresses toujours administratrices, quel que soit le domaine utilisé. */
-const OWNER_EMAILS = ["bonjoceflash@gmail.com", "sksponsorr@gmail.com"];
+import { OWNER_EMAILS } from "@/lib/owners";
 
 /** Rôles de l'utilisateur connecté (utilisé pour afficher le bureau d'administration). */
 export const getAdminAccess = createServerFn({ method: "GET" })
