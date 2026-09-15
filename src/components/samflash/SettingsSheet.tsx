@@ -158,7 +158,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const submitSupport = useServerFn(createSupportMessage);
   const submitReply = useServerFn(replyToSupportMessage);
 
-  const [isStaff, setIsStaff] = useState(false);
+  const owner = isOwnerEmail(user?.email);
+  const [isStaffRemote, setIsStaffRemote] = useState(false);
+  const isStaff = owner || isStaffRemote;
   const [tickets, setTickets] = useState<SupportMessage[]>([]);
   const [replies, setReplies] = useState<SupportReply[]>([]);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
