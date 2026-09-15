@@ -29,6 +29,7 @@ import {
   type AdminOrder,
   type StaffRole,
 } from "@/lib/admin.functions";
+import { isOwnerEmail } from "@/lib/owners";
 import {
   listTeamMembers,
   listInvitations,
@@ -159,10 +160,14 @@ function AdminPage() {
     if (!session) return;
     setLoading(true);
     try {
-      const access = await fetchAccess({});
+      const access = await fetchAccess({}).catch(() => ({
+        isAdmin: owner,
+        isStaff: owner,
+        roles: (owner ? ["admin"] : []) as StaffRole[],
+      }));
       setRoles(access.roles);
-      setIsStaff(access.isStaff);
-      const admin = access.isAdmin;
+      setIsStaff(access.isStaff || owner);
+      const admin = owner || access.isAdmin;
       const finance = admin || access.roles.includes("finance");
       const support = admin || access.roles.includes("support");
 
