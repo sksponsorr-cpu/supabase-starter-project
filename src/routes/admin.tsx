@@ -94,7 +94,8 @@ const ROLE_LABEL: Record<TeamRole, string> = {
 };
 
 function AdminPage() {
-  const { session, loading: authLoading } = useAuth();
+  const { session, user, loading: authLoading } = useAuth();
+  const owner = isOwnerEmail(user?.email);
   const navigate = useNavigate();
   const fetchAccess = useServerFn(getAdminAccess);
   const fetchStats = useServerFn(getAdminStats);
@@ -145,8 +146,8 @@ function AdminPage() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [commissionTotal, setCommissionTotal] = useState(0);
 
-  const isAdmin = roles.includes("admin");
-  const canModerate = roles.includes("admin") || roles.includes("moderator");
+  const isAdmin = owner || roles.includes("admin");
+  const canModerate = isAdmin || roles.includes("moderator");
   const canPrices = isAdmin || roles.includes("finance");
   const canSupport = isAdmin || roles.includes("support");
 
