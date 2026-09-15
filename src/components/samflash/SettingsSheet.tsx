@@ -36,6 +36,7 @@ import {
 import { playChime } from "@/lib/chime";
 import { useServerFn } from "@tanstack/react-start";
 import { getAdminAccess } from "@/lib/admin.functions";
+import { isOwnerEmail } from "@/lib/owners";
 import { getMyPlan, type MyPlan } from "@/lib/subscription.functions";
 import {
   createSupportMessage,
@@ -158,7 +159,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const submitSupport = useServerFn(createSupportMessage);
   const submitReply = useServerFn(replyToSupportMessage);
 
-  const [isStaff, setIsStaff] = useState(false);
+  const owner = isOwnerEmail(user?.email);
+  const [isStaffRemote, setIsStaffRemote] = useState(false);
+  const isStaff = owner || isStaffRemote;
   const [tickets, setTickets] = useState<SupportMessage[]>([]);
   const [replies, setReplies] = useState<SupportReply[]>([]);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
@@ -173,8 +176,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!user) return;
     void fetchAccess()
-      .then((a) => setIsStaff(a.isStaff))
-      .catch(() => setIsStaff(false));
+      .then((a) => setIsStaffRemote(a.isStaff))
+      .catch(() => setIsStaffRemote(false));
   }, [user, fetchAccess]);
 
   useEffect(() => {

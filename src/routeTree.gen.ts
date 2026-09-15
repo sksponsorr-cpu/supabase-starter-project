@@ -16,6 +16,7 @@ import { Route as DeveloppeurRouteImport } from './routes/developpeur'
 import { Route as GalerieRouteImport } from './routes/galerie'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWebhooksChariowRouteImport } from './routes/api/public/webhooks/chariow'
 import { Route as ApiPublicWebhooksPaymentFailedRouteImport } from './routes/api/public/webhooks/payment-failed'
@@ -58,6 +59,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
+  id: '/checkout/success',
+  path: '/checkout/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/galerie': typeof GalerieRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/galerie': typeof GalerieRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/galerie': typeof GalerieRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/webhooks/chariow': typeof ApiPublicWebhooksChariowRoute
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/galerie'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
+    | '/checkout/success'
     | '/.lovable/oauth/consent'
     | '/api/public/webhooks/chariow'
     | '/api/public/webhooks/payment-failed'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/galerie'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
+    | '/checkout/success'
     | '/.lovable/oauth/consent'
     | '/api/public/webhooks/chariow'
     | '/api/public/webhooks/payment-failed'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/galerie'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
+    | '/checkout/success'
     | '/.lovable/oauth/consent'
     | '/api/public/webhooks/chariow'
     | '/api/public/webhooks/payment-failed'
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   GalerieRoute: typeof GalerieRoute
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicWebhooksChariowRoute: typeof ApiPublicWebhooksChariowRoute
   ApiPublicWebhooksPaymentFailedRoute: typeof ApiPublicWebhooksPaymentFailedRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout/success': {
+      id: '/checkout/success'
+      path: '/checkout/success'
+      fullPath: '/checkout/success'
+      preLoaderRoute: typeof CheckoutSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  CheckoutSuccessRoute: CheckoutSuccessRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicWebhooksChariowRoute: ApiPublicWebhooksChariowRoute,
   ApiPublicWebhooksPaymentFailedRoute: ApiPublicWebhooksPaymentFailedRoute,

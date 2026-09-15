@@ -26,7 +26,11 @@ export type AdminGeneration = {
 async function assertAdmin(context: {
   supabase: { rpc: (fn: "has_role", args: { _user_id: string; _role: "admin" }) => PromiseLike<{ data: boolean | null; error: unknown }> };
   userId: string;
+  claims?: unknown;
 }) {
+  const claims = context.claims as { email?: unknown } | null;
+  const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+  if (email && OWNER_EMAILS.includes(email)) return;
   const { data, error } = await context.supabase.rpc("has_role", {
     _user_id: context.userId,
     _role: "admin",
@@ -38,7 +42,7 @@ async function assertAdmin(context: {
 export type StaffRole = "admin" | "moderator" | "support" | "finance" | "user";
 
 /** Adresses toujours administratrices, quel que soit le domaine utilisé. */
-const OWNER_EMAILS = ["bonjoceflash@gmail.com", "sksponsorr@gmail.com"];
+import { OWNER_EMAILS } from "@/lib/owners";
 
 /** Rôles de l'utilisateur connecté (utilisé pour afficher le bureau d'administration). */
 export const getAdminAccess = createServerFn({ method: "GET" })

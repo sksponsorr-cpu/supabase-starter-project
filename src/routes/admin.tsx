@@ -29,6 +29,7 @@ import {
   type AdminOrder,
   type StaffRole,
 } from "@/lib/admin.functions";
+import { isOwnerEmail } from "@/lib/owners";
 import {
   listTeamMembers,
   listInvitations,
@@ -94,7 +95,8 @@ const ROLE_LABEL: Record<TeamRole, string> = {
 };
 
 function AdminPage() {
-  const { session, loading: authLoading } = useAuth();
+  const { session, user, loading: authLoading } = useAuth();
+  const owner = isOwnerEmail(user?.email);
   const navigate = useNavigate();
   const fetchAccess = useServerFn(getAdminAccess);
   const fetchStats = useServerFn(getAdminStats);
@@ -145,8 +147,8 @@ function AdminPage() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [commissionTotal, setCommissionTotal] = useState(0);
 
-  const isAdmin = roles.includes("admin");
-  const canModerate = roles.includes("admin") || roles.includes("moderator");
+  const isAdmin = owner || roles.includes("admin");
+  const canModerate = isAdmin || roles.includes("moderator");
   const canPrices = isAdmin || roles.includes("finance");
   const canSupport = isAdmin || roles.includes("support");
 
@@ -158,44 +160,53 @@ function AdminPage() {
     if (!session) return;
     setLoading(true);
     try {
-      const access = await fetchAccess({});
+      const access = await fetchAccess({}).catch(() => ({
+        isAdmin: owner,
+        isStaff: owner,
+        roles: (owner ? ["admin"] : []) as StaffRole[],
+      }));
       setRoles(access.roles);
-      setIsStaff(access.isStaff);
-      const admin = access.isAdmin;
+      setIsStaff(access.isStaff || owner);
+      const admin = owner || access.isAdmin;
       const finance = admin || access.roles.includes("finance");
       const support = admin || access.roles.includes("support");
 
-      if (admin) {
-        const [s, r, o, m, i, p, c] = await Promise.all([
-          fetchStats({}),
-          fetchRecent({}),
-          fetchOrders({}),
-          fetchMembers({}),
-          fetchInvites({}),
-          fetchPayouts({}),
-          fetchCommissions({}),
-        ]);
-        setStats(s as AdminStats);
-        setItems(r as AdminGeneration[]);
-        setOrders(o as AdminOrder[]);
-        setMembers(m as TeamMember[]);
-        setInvites(i as TeamInvitation[]);
-        setPayouts(p as PayoutRequest[]);
-        setCommissionTotal(c.total);
+      try {
+        if (admin) {
+          const [s, r, o, m, i, p, c] = await Promise.all([
+            fetchStats({}),
+            fetchRecent({}),
+            fetchOrders({}),
+            fetchMembers({}),
+            fetchInvites({}),
+            fetchPayouts({}),
+            fetchCommissions({}),
+          ]);
+          setStats(s as AdminStats);
+          setItems(r as AdminGeneration[]);
+          setOrders(o as AdminOrder[]);
+          setMembers(m as TeamMember[]);
+          setInvites(i as TeamInvitation[]);
+          setPayouts(p as PayoutRequest[]);
+          setCommissionTotal(c.total);
+        }
+        if (admin || access.roles.includes("moderator")) {
+          setQueue((await fetchQueue({})) as ModerationItem[]);
+        }
+        if (admin) setPromoEnabled((await fetchPromo({})).enabled);
+        if (finance) setPrices((await fetchPrices({})) as AdminPrice[]);
+        if (support) setTickets((await fetchTickets({})) as SupportMessage[]);
+      } catch {
+        // Les données peuvent échouer sans masquer le bureau d'administration.
       }
-      if (admin || access.roles.includes("moderator")) {
-        setQueue((await fetchQueue({})) as ModerationItem[]);
-      }
-      if (admin) setPromoEnabled((await fetchPromo({})).enabled);
-      if (finance) setPrices((await fetchPrices({})) as AdminPrice[]);
-      if (support) setTickets((await fetchTickets({})) as SupportMessage[]);
     } catch {
-      setIsStaff(false);
+      setIsStaff(owner);
     } finally {
       setLoading(false);
     }
   }, [
     session,
+    owner,
     fetchAccess,
     fetchStats,
     fetchRecent,
@@ -383,7 +394,7 @@ function AdminPage() {
               <div key={i} className="h-24 animate-pulse rounded-3xl bg-secondary/50" />
             ))}
           </div>
-        ) : isStaff === false ? (
+        ) : !owner && isStaff === false ? (
           <p className="pt-24 text-center text-sm text-muted-foreground">
             Accès réservé à l'équipe.
           </p>
