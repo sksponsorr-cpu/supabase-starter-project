@@ -89,6 +89,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [notice] = useState<string | null>(null);
   const [prices, setPrices] = useState<PriceRow[]>([]);
+  const [pricesLoaded, setPricesLoaded] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [promo, setPromo] = useState<{ enabled: boolean; prices: Record<string, number | null> }>({
     enabled: false,
