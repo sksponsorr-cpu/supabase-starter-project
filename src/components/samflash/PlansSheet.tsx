@@ -107,9 +107,38 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   }, [active]);
 
   useEffect(() => {
-    fetchPrices({})
-      .then((rows) => setPrices(rows as PriceRow[]))
-      .catch(() => setPrices([]));
+    let cancelled = false;
+    const refresh = () =>
+      fetchPrices({})
+        .then((rows) => {
+          if (cancelled) return;
+          setPrices(rows as PriceRow[]);
+          setPricesLoaded(true);
+        })
+        .catch(() => {
+          if (!cancelled) setPricesLoaded(true);
+        });
+
+    void refresh();
+
+    // Tout changement de tarif dans le bureau d'administration arrive ici en direct.
+    const channel = supabase
+      .channel("product_prices_live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_prices" }, () => {
+        void refresh();
+      })
+      .subscribe();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void supabase.removeChannel(channel);
+    };
   }, [fetchPrices]);
 
   useEffect(() => {
