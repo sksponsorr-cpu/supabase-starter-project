@@ -21,6 +21,14 @@ export type TeamInvitation = {
 
 const roleSchema = z.enum(["admin", "moderator", "support", "finance", "developer"]);
 
+const ROLE_LABEL: Record<TeamRole, string> = {
+  admin: "Administrateur",
+  moderator: "Modérateur",
+  support: "Support",
+  finance: "Finance",
+  developer: "Développeur",
+};
+
 /** Membres de l'équipe (comptes existants disposant d'un rôle). */
 export const listTeamMembers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
