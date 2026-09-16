@@ -137,7 +137,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const basePriceLabel = price ? `${price.amount_eur.toFixed(2)} € /mois` : plan.monthly;
+  // Aucun prix « de secours » n'est affiché avant le chargement : cela évitait
+  // de montrer l'ancien tarif puis de basculer sur le nouveau.
+  const basePriceLabel = price
+    ? `${price.amount_eur.toFixed(2)} € /mois`
+    : pricesLoaded
+      ? plan.monthly
+      : "…";
   const monthlyLabel =
     promoAmount !== null
       ? promoAmount === 0
@@ -145,11 +151,14 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         : `${promoAmount.toFixed(2)} € /mois`
       : basePriceLabel;
   const yearlyAmount = price?.amount_eur_yearly ?? null;
-  const yearlyLabel = yearlyAmount !== null ? `${yearlyAmount.toFixed(2)} € /an` : plan.yearly?.price;
+  const yearlyLabel =
+    yearlyAmount !== null ? `${yearlyAmount.toFixed(2)} € /an` : pricesLoaded ? plan.yearly?.price : "…";
   const yearlyPerMonth =
     yearlyAmount !== null
       ? `${(yearlyAmount / 12).toFixed(2)} € /mois`
-      : plan.yearly?.perMonth;
+      : pricesLoaded
+        ? plan.yearly?.perMonth
+        : "";
   const hasYearly = yearlyAmount !== null || Boolean(plan.yearly);
 
   return (
