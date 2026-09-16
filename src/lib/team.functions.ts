@@ -84,7 +84,8 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       _user_id: context.userId,
       _role: "admin",
     });
-    if (isAdmin !== true) return { ok: false as const, message: "Accès refusé." };
+    if (isAdmin !== true)
+      return { ok: false as const, message: "Accès refusé.", inviteLink: null as string | null };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
@@ -97,8 +98,13 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       const { error } = await supabaseAdmin
         .from("user_roles")
         .upsert({ user_id: existing.id, role: data.role }, { onConflict: "user_id,role" });
-      if (error) return { ok: false as const, message: "Attribution du rôle impossible." };
-      return { ok: true as const, message: "Rôle attribué au compte existant." };
+      if (error)
+        return { ok: false as const, message: "Attribution du rôle impossible.", inviteLink: null };
+      return {
+        ok: true as const,
+        message: "Rôle attribué au compte existant.",
+        inviteLink: null,
+      };
     }
 
     const { error } = await context.supabase
