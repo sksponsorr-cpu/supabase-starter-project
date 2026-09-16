@@ -99,11 +99,17 @@ function Login() {
         },
       });
       setBusy(false);
-      setMessage(
-        error
-          ? "Inscription impossible. Vérifiez vos informations et réessayez."
-          : "Compte créé. Vérifiez votre e-mail pour confirmer votre inscription.",
-      );
+      if (error) {
+        if (error.message.includes("User already registered") || error.status === 422) {
+          setMessage("Cet e-mail est déjà utilisé. Veuillez vous connecter.");
+        } else if (error.message.includes("Password should be")) {
+          setMessage("Le mot de passe est trop faible (minimum 8 caractères).");
+        } else {
+          setMessage("Inscription impossible. Vérifiez vos informations et réessayez.");
+        }
+      } else {
+        setMessage("Compte créé. Vérifiez votre e-mail pour confirmer votre inscription.");
+      }
       return;
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -213,7 +219,9 @@ function Login() {
         )}
 
         {message && (
-          <p className="pt-2 text-center text-sm text-muted-foreground">{message}</p>
+          <div className={`mt-3 rounded-xl p-3 text-sm text-center ${message.startsWith("Compte") ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+            {message}
+          </div>
         )}
 
         <p className="pt-4 text-center text-xs text-muted-foreground">

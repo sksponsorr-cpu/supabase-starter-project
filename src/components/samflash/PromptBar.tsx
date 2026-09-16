@@ -183,7 +183,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
           {sent}
         </div>
       )}
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+      <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
           {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
             <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>
@@ -253,7 +253,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
           >
             <Plus className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-1 rounded-full bg-secondary p-1 shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-1 rounded-full bg-secondary p-1 shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               aria-label="Image"

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "@/lib/toast";
-import { ChevronRight, Play, Share2, Sparkles, Trash2, User } from "lucide-react";
+import { ChevronRight, Play, Share2, Sparkles, Trash2, Menu } from "lucide-react";
 import { submitToGallery } from "@/lib/community.functions";
 import { deleteGeneration } from "@/lib/generation.functions";
 import { registerDevice } from "@/lib/device.functions";
@@ -125,7 +125,7 @@ function AppFeed() {
           onClick={() => setSettingsOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary"
         >
-          <User className="h-5 w-5 text-muted-foreground" />
+          <Menu className="h-5 w-5 text-muted-foreground" />
         </button>
       </header>
 
