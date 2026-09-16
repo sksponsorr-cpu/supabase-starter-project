@@ -820,16 +820,26 @@ function AdminPage() {
                       key={g.id}
                       className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card/50 p-3 backdrop-blur-xl"
                     >
-                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-secondary">
+                      <button
+                        type="button"
+                        onClick={() => setPreview(g)}
+                        aria-label="Prévisualiser la création"
+                        className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-secondary"
+                      >
                         {g.media_url &&
                           (g.media_type === "video" ? (
-                            <video
-                              src={g.media_url}
-                              muted
-                              playsInline
-                              preload="metadata"
-                              className="h-full w-full object-cover"
-                            />
+                            <>
+                              <video
+                                src={g.media_url}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="h-full w-full object-cover"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-background/40">
+                                <Play className="h-6 w-6" />
+                              </span>
+                            </>
                           ) : (
                             <img
                               src={g.media_url}
@@ -838,7 +848,7 @@ function AdminPage() {
                               className="h-full w-full object-cover"
                             />
                           ))}
-                      </div>
+                      </button>
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-sm">{g.prompt}</p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
