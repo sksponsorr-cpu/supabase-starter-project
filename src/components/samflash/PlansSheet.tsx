@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { activatePromoOffer, getPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
 import { toast } from "@/lib/toast";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
@@ -89,6 +90,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [notice] = useState<string | null>(null);
   const [prices, setPrices] = useState<PriceRow[]>([]);
+  const [pricesLoaded, setPricesLoaded] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [promo, setPromo] = useState<{ enabled: boolean; prices: Record<string, number | null> }>({
     enabled: false,
@@ -106,9 +108,38 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   }, [active]);
 
   useEffect(() => {
-    fetchPrices({})
-      .then((rows) => setPrices(rows as PriceRow[]))
-      .catch(() => setPrices([]));
+    let cancelled = false;
+    const refresh = () =>
+      fetchPrices({})
+        .then((rows) => {
+          if (cancelled) return;
+          setPrices(rows as PriceRow[]);
+          setPricesLoaded(true);
+        })
+        .catch(() => {
+          if (!cancelled) setPricesLoaded(true);
+        });
+
+    void refresh();
+
+    // Tout changement de tarif dans le bureau d'administration arrive ici en direct.
+    const channel = supabase
+      .channel("product_prices_live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_prices" }, () => {
+        void refresh();
+      })
+      .subscribe();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void supabase.removeChannel(channel);
+    };
   }, [fetchPrices]);
 
   useEffect(() => {
@@ -137,7 +168,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const basePriceLabel = price ? `${price.amount_eur.toFixed(2)} € /mois` : plan.monthly;
+  // Aucun prix « de secours » n'est affiché avant le chargement : cela évitait
+  // de montrer l'ancien tarif puis de basculer sur le nouveau.
+  const basePriceLabel = price
+    ? `${price.amount_eur.toFixed(2)} € /mois`
+    : pricesLoaded
+      ? plan.monthly
+      : "…";
   const monthlyLabel =
     promoAmount !== null
       ? promoAmount === 0
@@ -145,11 +182,14 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         : `${promoAmount.toFixed(2)} € /mois`
       : basePriceLabel;
   const yearlyAmount = price?.amount_eur_yearly ?? null;
-  const yearlyLabel = yearlyAmount !== null ? `${yearlyAmount.toFixed(2)} € /an` : plan.yearly?.price;
+  const yearlyLabel =
+    yearlyAmount !== null ? `${yearlyAmount.toFixed(2)} € /an` : pricesLoaded ? plan.yearly?.price : "…";
   const yearlyPerMonth =
     yearlyAmount !== null
       ? `${(yearlyAmount / 12).toFixed(2)} € /mois`
-      : plan.yearly?.perMonth;
+      : pricesLoaded
+        ? plan.yearly?.perMonth
+        : "";
   const hasYearly = yearlyAmount !== null || Boolean(plan.yearly);
 
   return (

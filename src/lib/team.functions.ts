@@ -21,6 +21,14 @@ export type TeamInvitation = {
 
 const roleSchema = z.enum(["admin", "moderator", "support", "finance", "developer"]);
 
+const ROLE_LABEL: Record<TeamRole, string> = {
+  admin: "Administrateur",
+  moderator: "Modérateur",
+  support: "Support",
+  finance: "Finance",
+  developer: "Développeur",
+};
+
 /** Membres de l'équipe (comptes existants disposant d'un rôle). */
 export const listTeamMembers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -76,7 +84,8 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       _user_id: context.userId,
       _role: "admin",
     });
-    if (isAdmin !== true) return { ok: false as const, message: "Accès refusé." };
+    if (isAdmin !== true)
+      return { ok: false as const, message: "Accès refusé.", inviteLink: null as string | null };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
@@ -89,22 +98,34 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       const { error } = await supabaseAdmin
         .from("user_roles")
         .upsert({ user_id: existing.id, role: data.role }, { onConflict: "user_id,role" });
-      if (error) return { ok: false as const, message: "Attribution du rôle impossible." };
-      return { ok: true as const, message: "Rôle attribué au compte existant." };
+      if (error)
+        return { ok: false as const, message: "Attribution du rôle impossible.", inviteLink: null };
+      return {
+        ok: true as const,
+        message: "Rôle attribué au compte existant.",
+        inviteLink: null,
+      };
     }
 
     const { error } = await context.supabase
       .from("team_invitations")
       .insert({ email, role: data.role, invited_by: context.userId });
-    if (error) return { ok: false as const, message: "Invitation impossible." };
+    if (error) return { ok: false as const, message: "Invitation impossible.", inviteLink: null };
 
-    const redirectTo = "https://project--0eb49e5c-6fd1-4a1b-aac6-53a815ad5253.lovable.app/?next=/admin";
-    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: { team_role: data.role },
+    const { resolvePublicOrigin } = await import("@/lib/public-origin.server");
+    const origin = await resolvePublicOrigin();
+    const redirectTo = `${origin}/?next=/admin`;
+    const roleLabel = ROLE_LABEL[data.role];
+
+    // 1) Lien d'invitation officiel (crée le compte côté Supabase Auth).
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo, data: { team_role: data.role } },
     });
+    const inviteLink = linkData?.properties?.action_link ?? null;
 
-    if (inviteError) {
+    if (linkError || !inviteLink) {
       await supabaseAdmin
         .from("team_invitations")
         .delete()
@@ -113,11 +134,41 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
         .is("accepted_at", null);
       return {
         ok: false as const,
-        message: "L’e-mail d’invitation n’a pas pu être envoyé. Réessayez dans quelques instants.",
+        message: `Invitation impossible : ${linkError?.message ?? "lien d'accès non généré"}.`,
+        inviteLink: null,
       };
     }
 
-    return { ok: true as const, message: "Invitation envoyée par e-mail." };
+    // 2) Envoi de l'e-mail : Resend si configuré, sinon SMTP Supabase.
+    const { hasResend, sendEmail, invitationHtml } = await import("@/lib/email.server");
+    if (hasResend()) {
+      const sent = await sendEmail({
+        to: email,
+        subject: "Votre invitation Sam flash 2.0",
+        html: invitationHtml(inviteLink, roleLabel),
+      });
+      if (sent.ok) return { ok: true as const, message: "Invitation envoyée par e-mail.", inviteLink };
+      return {
+        ok: true as const,
+        message: `${sent.message ?? "E-mail non envoyé."} Partagez le lien d'accès ci-dessous.`,
+        inviteLink,
+      };
+    }
+
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: { team_role: data.role },
+    });
+    if (inviteError) {
+      return {
+        ok: true as const,
+        message:
+          "L’e-mail automatique n’a pas pu partir (service d’e-mail non configuré). Partagez le lien d’accès ci-dessous.",
+        inviteLink,
+      };
+    }
+
+    return { ok: true as const, message: "Invitation envoyée par e-mail.", inviteLink };
   });
 
 /** Retire un rôle à un collaborateur. */

@@ -11,6 +11,7 @@ import {
   type ModerationItem,
 } from "@/lib/community.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/galerie")({
   head: () => ({
@@ -66,6 +67,18 @@ function GalleryPage() {
 
   useEffect(() => {
     void load();
+
+    // Une création approuvée apparaît immédiatement dans la galerie publique.
+    const channel = supabase
+      .channel("community_gallery_live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_gallery" }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [load]);
 
   const act = async (id: string, action: "approve" | "reject") => {
@@ -122,8 +135,9 @@ function GalleryPage() {
                       className="h-full w-full object-cover"
                       muted
                       loop
+                      autoPlay
                       playsInline
-                      controls
+                      preload="metadata"
                     />
                   ) : g.media_url ? (
                     <img
