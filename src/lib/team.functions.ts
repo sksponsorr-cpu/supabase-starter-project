@@ -110,7 +110,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("team_invitations")
       .insert({ email, role: data.role, invited_by: context.userId });
-    if (error) return { ok: false as const, message: "Invitation impossible." };
+    if (error) return { ok: false as const, message: "Invitation impossible.", inviteLink: null };
 
     const { resolvePublicOrigin } = await import("@/lib/public-origin.server");
     const origin = await resolvePublicOrigin();
