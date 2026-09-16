@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { activatePromoOffer, getPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
 import { toast } from "@/lib/toast";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
