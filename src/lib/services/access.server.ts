@@ -95,6 +95,54 @@ export async function checkGenerationAccess(
     return { ...base, allowed: false, code: "device_free_used", message: DEVICE_MESSAGE };
   }
 
+  // LIMITES À VIE POUR LES UTILISATEURS GRATUITS
+  if (!isSubscribed) {
+    const { count: imageCount } = await supabaseAdmin
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("media_type", "image")
+      .neq("status", "error");
+
+    const { count: videoCount } = await supabaseAdmin
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("media_type", "video")
+      .neq("status", "error");
+
+    if (mediaType === "image" && (imageCount ?? 0) >= 3) {
+      return {
+        ...base,
+        allowed: false,
+        code: "subscription_required",
+        message: "Limite à vie de 3 images gratuites atteinte. Passez à une offre supérieure pour continuer.",
+      };
+    }
+
+    if (mediaType === "video") {
+      if ((videoCount ?? 0) >= 1) {
+        return {
+          ...base,
+          allowed: false,
+          code: "subscription_required",
+          message: "Limite à vie d'une vidéo gratuite atteinte. Passez à une offre supérieure pour continuer.",
+        };
+      }
+      if (seconds > 3) {
+        return {
+          ...base,
+          allowed: false,
+          code: "subscription_required",
+          message: "Les vidéos gratuites sont limitées à 3 secondes maximum. Passez à une offre supérieure pour des vidéos plus longues.",
+        };
+      }
+    }
+
+    return { ...base, allowed: true, code: "ok", message: null };
+  }
+
+  // LOGIQUE POUR LES UTILISATEURS PAYANTS (Super Grok / Superhearly)
   if (mediaType === "video") {
     if (!isSubscribed && expired) {
       return {
