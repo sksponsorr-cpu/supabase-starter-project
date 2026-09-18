@@ -320,3 +320,52 @@ export const listAdminSubscriptions = createServerFn({ method: "GET" })
       email: emailMap.get(sub.user_id) ?? null,
     }));
   });
+
+export type TimeSeriesData = {
+  date: string;
+  generations: number;
+  images: number;
+  videos: number;
+  failed: number;
+};
+
+export const getAdminTimeSeries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<TimeSeriesData[]> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Calcul pour les 14 derniers jours
+    const now = new Date();
+    const past = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
+    const startDateStr = past.toISOString().slice(0, 10) + "T00:00:00Z";
+
+    const { data } = await supabaseAdmin
+      .from("generations")
+      .select("created_at, media_type, status")
+      .gte("created_at", startDateStr);
+
+    const map = new Map<string, TimeSeriesData>();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
+      const dStr = d.toISOString().slice(0, 10);
+      map.set(dStr, { date: dStr, generations: 0, images: 0, videos: 0, failed: 0 });
+    }
+
+    if (data) {
+      for (const row of data) {
+        const dStr = row.created_at.slice(0, 10);
+        const entry = map.get(dStr);
+        if (entry) {
+          entry.generations++;
+          if (row.status === "error") {
+            entry.failed++;
+          } else {
+            if (row.media_type === "image") entry.images++;
+            else if (row.media_type === "video") entry.videos++;
+          }
+        }
+      }
+    }
+    return Array.from(map.values());
+  });

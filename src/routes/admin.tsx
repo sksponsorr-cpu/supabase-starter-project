@@ -2,20 +2,37 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import {
   ArrowLeft,
   RefreshCw,
   ShieldCheck,
   Gauge,
   Tag,
   Users,
+  User,
   LifeBuoy,
   CreditCard,
   Images,
+  Image as ImageIcon,
+  Video,
   Check,
   X,
   Trash2,
   Wallet,
   Crown,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import {
   getAdminAccess,
@@ -25,11 +42,13 @@ import {
   updateAdminPrice,
   listAdminOrders,
   listAdminSubscriptions,
+  getAdminTimeSeries,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
   type AdminOrder,
   type AdminSubscription,
+  type TimeSeriesData,
   type StaffRole,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
@@ -125,10 +144,12 @@ function AdminPage() {
   const fetchCommissions = useServerFn(getCommissionSummary);
   const decide = useServerFn(decidePayout);
   const fetchSubscriptions = useServerFn(listAdminSubscriptions);
+  const fetchTimeSeries = useServerFn(getAdminTimeSeries);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([]);
   const [items, setItems] = useState<AdminGeneration[]>([]);
   const [prices, setPrices] = useState<AdminPrice[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -178,7 +199,7 @@ function AdminPage() {
 
       try {
         if (admin) {
-          const [s, r, o, m, i, p, c, subs] = await Promise.all([
+          const [s, r, o, m, i, p, c, subs, ts] = await Promise.all([
             fetchStats({}),
             fetchRecent({}),
             fetchOrders({}),
@@ -187,6 +208,7 @@ function AdminPage() {
             fetchPayouts({}),
             fetchCommissions({}),
             fetchSubscriptions({}),
+            fetchTimeSeries({}),
           ]);
           setStats(s as AdminStats);
           setItems(r as AdminGeneration[]);
@@ -196,6 +218,7 @@ function AdminPage() {
           setPayouts(p as PayoutRequest[]);
           setCommissionTotal(c.total);
           setSubscriptions(subs as AdminSubscription[]);
+          setTimeSeries(ts as TimeSeriesData[]);
         }
         if (admin || access.roles.includes("moderator")) {
           setQueue((await fetchQueue({})) as ModerationItem[]);
@@ -311,15 +334,14 @@ function AdminPage() {
     [openTicket, fetchReplies],
   );
 
-  const cards: { label: string; value: string }[] = stats
+  const cards = stats
     ? [
-        { label: "Utilisateurs", value: String(stats.users) },
-        { label: "Générations", value: String(stats.generations) },
-        { label: "Aujourd'hui", value: String(stats.generationsToday) },
-        { label: "Échecs", value: String(stats.errors) },
-        { label: "En modération", value: String(stats.pendingModeration) },
-        { label: "Abonnements actifs", value: String(stats.activeSubscriptions) },
-        { label: "Temps consommé (jour)", value: formatSeconds(stats.secondsToday) },
+        { label: "Utilisateurs", value: String(stats.users), icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { label: "Générations", value: String(stats.generations), icon: Images, color: "text-purple-500", bg: "bg-purple-500/10" },
+        { label: "Aujourd'hui", value: String(stats.generationsToday), icon: Clock, color: "text-teal-500", bg: "bg-teal-500/10" },
+        { label: "Échecs", value: String(stats.errors), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+        { label: "En modération", value: String(stats.pendingModeration), icon: ShieldCheck, color: "text-orange-500", bg: "bg-orange-500/10" },
+        { label: "Abonnements actifs", value: String(stats.activeSubscriptions), icon: Crown, color: "text-green-500", bg: "bg-green-500/10" },
       ]
     : [];
 
@@ -341,6 +363,13 @@ function AdminPage() {
   ].filter((s) => s.show);
 
   const active = sections.some((s) => s.id === tab) ? tab : (sections[0]?.id ?? "overview");
+
+  // Données pour le PieChart (calcul sur les 14 jours)
+  const pieData = [
+    { name: "Images", value: timeSeries.reduce((acc, curr) => acc + curr.images, 0), color: "#a855f7" }, // purple-500
+    { name: "Vidéos", value: timeSeries.reduce((acc, curr) => acc + curr.videos, 0), color: "#3b82f6" }, // blue-500
+    { name: "Échecs", value: timeSeries.reduce((acc, curr) => acc + curr.failed, 0), color: "#ef4444" }, // red-500
+  ].filter(d => d.value > 0);
 
   return (
     <div
@@ -428,15 +457,90 @@ function AdminPage() {
                   {cards.map((c) => (
                     <div
                       key={c.label}
-                      className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl"
+                      className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col"
                     >
-                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {c.label}
-                      </p>
-                      <p className="mt-2 text-3xl font-semibold tracking-tight">{c.value}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`flex items-center justify-center h-8 w-8 rounded-full ${c.bg} ${c.color}`}>
+                          <c.icon className="h-4 w-4" />
+                        </div>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {c.label}
+                        </p>
+                      </div>
+                      <p className="mt-auto text-3xl font-semibold tracking-tight">{c.value}</p>
                     </div>
                   ))}
                 </div>
+
+                {timeSeries.length > 0 && (
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
+                      <h3 className="text-sm font-medium mb-4">Générations sur les 14 derniers jours</h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={timeSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorImages" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="colorVideos" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis 
+                              dataKey="date" 
+                              tickFormatter={(val: string) => new Date(val).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit' })}
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                            />
+                            <YAxis 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                            />
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
+                              labelFormatter={(label) => new Date(label as string).toLocaleDateString("fr-FR")}
+                            />
+                            <Area type="monotone" dataKey="images" name="Images" stroke="#a855f7" strokeWidth={2} fillOpacity={1} fill="url(#colorImages)" />
+                            <Area type="monotone" dataKey="videos" name="Vidéos" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorVideos)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col">
+                      <h3 className="text-sm font-medium mb-4">Répartition</h3>
+                      <div className="flex-1 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} 
+                            />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
