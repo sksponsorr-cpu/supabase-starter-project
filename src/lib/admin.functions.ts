@@ -276,3 +276,47 @@ export const listAdminOrders = createServerFn({ method: "GET" })
       amount_local: Number(row.amount_local),
     }));
   });
+
+export type AdminSubscription = {
+  id: string;
+  user_id: string;
+  tier: string;
+  status: string;
+  ends_at: string | null;
+  created_at: string;
+  email: string | null;
+};
+
+export const listAdminSubscriptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminSubscription[]> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    
+    const { data: subs } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id, user_id, tier, status, ends_at, created_at")
+      .order("ends_at", { ascending: true })
+      .limit(100);
+
+    const subscriptions = subs ?? [];
+    
+    // Récupération des e-mails en mémoire
+    const userIds = [...new Set(subscriptions.map(s => s.user_id))];
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email")
+      .in("id", userIds);
+      
+    const emailMap = new Map(profiles?.map(p => [p.id, p.email]));
+
+    return subscriptions.map(sub => ({
+      id: sub.id,
+      user_id: sub.user_id,
+      tier: sub.tier,
+      status: sub.status,
+      ends_at: sub.ends_at,
+      created_at: sub.created_at,
+      email: emailMap.get(sub.user_id) ?? null,
+    }));
+  });

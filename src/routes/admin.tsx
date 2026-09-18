@@ -15,6 +15,7 @@ import {
   X,
   Trash2,
   Wallet,
+  Crown,
 } from "lucide-react";
 import {
   getAdminAccess,
@@ -23,10 +24,12 @@ import {
   listAdminPrices,
   updateAdminPrice,
   listAdminOrders,
+  listAdminSubscriptions,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
   type AdminOrder,
+  type AdminSubscription,
   type StaffRole,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
@@ -121,6 +124,7 @@ function AdminPage() {
   const fetchPayouts = useServerFn(listPayoutRequests);
   const fetchCommissions = useServerFn(getCommissionSummary);
   const decide = useServerFn(decidePayout);
+  const fetchSubscriptions = useServerFn(listAdminSubscriptions);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
@@ -128,6 +132,7 @@ function AdminPage() {
   const [items, setItems] = useState<AdminGeneration[]>([]);
   const [prices, setPrices] = useState<AdminPrice[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [subscriptions, setSubscriptions] = useState<AdminSubscription[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invites, setInvites] = useState<TeamInvitation[]>([]);
   const [tickets, setTickets] = useState<SupportMessage[]>([]);
@@ -173,7 +178,7 @@ function AdminPage() {
 
       try {
         if (admin) {
-          const [s, r, o, m, i, p, c] = await Promise.all([
+          const [s, r, o, m, i, p, c, subs] = await Promise.all([
             fetchStats({}),
             fetchRecent({}),
             fetchOrders({}),
@@ -181,6 +186,7 @@ function AdminPage() {
             fetchInvites({}),
             fetchPayouts({}),
             fetchCommissions({}),
+            fetchSubscriptions({}),
           ]);
           setStats(s as AdminStats);
           setItems(r as AdminGeneration[]);
@@ -189,6 +195,7 @@ function AdminPage() {
           setInvites(i as TeamInvitation[]);
           setPayouts(p as PayoutRequest[]);
           setCommissionTotal(c.total);
+          setSubscriptions(subs as AdminSubscription[]);
         }
         if (admin || access.roles.includes("moderator")) {
           setQueue((await fetchQueue({})) as ModerationItem[]);
@@ -321,6 +328,7 @@ function AdminPage() {
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
+    { id: "subscriptions", label: "Abonnements", icon: Crown, show: isAdmin },
     {
       id: "orders",
       label: "Paiements",
@@ -765,6 +773,62 @@ function AdminPage() {
                   {tickets.length === 0 && (
                     <li className="py-6 text-center text-sm text-muted-foreground">
                       Aucun message de support.
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {active === "subscriptions" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Abonnements</h2>
+                <ul className="mt-4 space-y-2">
+                  {subscriptions.map((sub) => {
+                    let colorClass = "text-foreground";
+                    let statusLabel = sub.status;
+                    let pillClass = "bg-secondary";
+
+                    if (sub.ends_at) {
+                      const end = new Date(sub.ends_at);
+                      const now = new Date();
+                      const diffDays = (end.getTime() - now.getTime()) / (1000 * 3600 * 24);
+
+                      if (diffDays < 0) {
+                        colorClass = "text-muted-foreground";
+                        statusLabel = "expiré";
+                        pillClass = "bg-secondary text-muted-foreground";
+                      } else if (diffDays <= 7) {
+                        colorClass = "text-orange-500";
+                        pillClass = "bg-orange-500/20 text-orange-500";
+                      }
+                    }
+
+                    return (
+                      <li
+                        key={sub.id}
+                        className={`rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl ${colorClass}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] ${pillClass}`}>
+                            {statusLabel}
+                          </span>
+                          <span className="text-[11px] uppercase tracking-wider opacity-80">
+                            {sub.tier}
+                          </span>
+                          <span className="ml-auto text-[11px] opacity-70">
+                            {sub.ends_at ? new Date(sub.ends_at).toLocaleDateString("fr-FR") : "À vie"}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate font-medium">{sub.email ?? sub.user_id}</p>
+                        <p className="text-[11px] opacity-70">
+                          Depuis le {new Date(sub.created_at).toLocaleDateString("fr-FR")}
+                        </p>
+                      </li>
+                    );
+                  })}
+                  {subscriptions.length === 0 && (
+                    <li className="py-6 text-center text-sm text-muted-foreground">
+                      Aucun abonnement trouvé.
                     </li>
                   )}
                 </ul>
