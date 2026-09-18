@@ -44,7 +44,7 @@ export type QuotaReason =
   | "subscription_expired";
 
 export type GenerationResult =
-  | { ok: true; id: string | null; status: "ready"; mediaUrl: string; seconds: number }
+  | { ok: true; id: string | null; status: "ready" | "pending"; mediaUrl?: string; seconds: number }
   | {
       ok: false;
       reason: "quota";
@@ -90,7 +90,8 @@ export async function withFreshUrls<T extends GenerationRow>(rows: T[]): Promise
 }
 
 type MediaOutcome =
-  | { ok: true; bytes: Uint8Array | null; contentType: string; mediaUrl: string | null }
+  | { ok: true; isImmediate: true; bytes: Uint8Array | null; contentType: string; mediaUrl: string | null }
+  | { ok: true; isImmediate: false; requestId: string; statusUrl: string; responseUrl: string }
   | { ok: false; error: string };
 
 /** Génération image : Fal.ai (Grok Imagine, repli Flux Schnell). */
@@ -101,11 +102,21 @@ async function generateImage(input: GenerationInput): Promise<MediaOutcome> {
   }
   const result = await generateImageWithFal(input);
   if (!result.ok) return { ok: false, error: result.error };
+  if (result.isImmediate) {
+    return {
+      ok: true,
+      isImmediate: true,
+      bytes: result.bytes,
+      contentType: result.contentType,
+      mediaUrl: result.bytes ? null : result.mediaUrl,
+    };
+  }
   return {
     ok: true,
-    bytes: result.bytes,
-    contentType: result.contentType,
-    mediaUrl: result.bytes ? null : result.mediaUrl,
+    isImmediate: false,
+    requestId: result.requestId,
+    statusUrl: result.statusUrl,
+    responseUrl: result.responseUrl,
   };
 }
 
@@ -117,11 +128,21 @@ async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
   }
   const result = await generateVideoWithFal(input);
   if (!result.ok) return { ok: false, error: result.error };
+  if (result.isImmediate) {
+    return {
+      ok: true,
+      isImmediate: true,
+      bytes: result.bytes,
+      contentType: result.contentType,
+      mediaUrl: result.bytes ? null : result.mediaUrl,
+    };
+  }
   return {
     ok: true,
-    bytes: result.bytes,
-    contentType: result.contentType,
-    mediaUrl: result.bytes ? null : result.mediaUrl,
+    isImmediate: false,
+    requestId: result.requestId,
+    statusUrl: result.statusUrl,
+    responseUrl: result.responseUrl,
   };
 }
 
@@ -239,41 +260,58 @@ export async function runGeneration(
       input.mediaType === "image" ? await generateImage(input) : await generateVideo(input);
     if (!outcome.ok) throw new Error(outcome.error);
 
-    let mediaUrl = outcome.mediaUrl;
-    let storagePath: string | null = null;
+    if (outcome.isImmediate) {
+      let mediaUrl = outcome.mediaUrl;
+      let storagePath: string | null = null;
 
-    if (outcome.bytes) {
-      const path = `${userId}/${crypto.randomUUID()}.${extensionFor(outcome.contentType)}`;
-      const { error: upErr } = await supabaseAdmin.storage
-        .from("generations")
-        .upload(path, outcome.bytes, { contentType: outcome.contentType });
-      if (upErr) throw new Error(upErr.message);
+      if (outcome.bytes) {
+        const path = `${userId}/${crypto.randomUUID()}.${extensionFor(outcome.contentType)}`;
+        const { error: upErr } = await supabaseAdmin.storage
+          .from("generations")
+          .upload(path, outcome.bytes, { contentType: outcome.contentType });
+        if (upErr) throw new Error(upErr.message);
 
-      const { data: signed } = await supabaseAdmin.storage
-        .from("generations")
-        .createSignedUrl(path, SIGNED_URL_TTL);
-      storagePath = path;
-      mediaUrl = signed?.signedUrl ?? null;
-    }
+        const { data: signed } = await supabaseAdmin.storage
+          .from("generations")
+          .createSignedUrl(path, SIGNED_URL_TTL);
+        storagePath = path;
+        mediaUrl = signed?.signedUrl ?? null;
+      }
 
-    if (!mediaUrl) throw new Error("Média indisponible : aucun crédit n'a été débité");
+      if (!mediaUrl) throw new Error("Média indisponible : aucun crédit n'a été débité");
 
-    const id = await persist({ mediaUrl, storagePath, status: "ready", errorMessage: null });
+      const id = await persist({ mediaUrl, storagePath, status: "ready", errorMessage: null });
 
-    // Toute création réussie part automatiquement en modération.
-    if (id) {
-      await supabaseAdmin.from("community_gallery").insert({
-        generation_id: id,
-        user_id: userId,
-        prompt: input.prompt,
-        media_type: input.mediaType,
-        media_url: mediaUrl,
-        storage_path: storagePath,
-        status: "en_attente",
+      if (id) {
+        await supabaseAdmin.from("community_gallery").insert({
+          generation_id: id,
+          user_id: userId,
+          prompt: input.prompt,
+          media_type: input.mediaType,
+          media_url: mediaUrl,
+          storage_path: storagePath,
+          status: "en_attente",
+        });
+      }
+
+      return { ok: true, id, status: "ready", mediaUrl, seconds };
+    } else {
+      // Async / queued case
+      const payloadStr = JSON.stringify({
+        request_id: outcome.requestId,
+        status_url: outcome.statusUrl,
+        response_url: outcome.responseUrl,
       });
-    }
 
-    return { ok: true, id, status: "ready", mediaUrl, seconds };
+      const id = await persist({
+        mediaUrl: null,
+        storagePath: null,
+        status: "pending",
+        errorMessage: `fal:${payloadStr}`,
+      });
+
+      return { ok: true, id, status: "pending", seconds };
+    }
   } catch (error) {
     await refund();
     const message = error instanceof Error ? error.message : "Génération impossible";

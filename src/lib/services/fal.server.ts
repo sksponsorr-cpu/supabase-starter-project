@@ -113,18 +113,31 @@ type FalPayload = {
 };
 
 function extractMedia(payload: FalPayload, kind: "image" | "video") {
-  if (kind === "image") {
-    return payload.images?.[0] ?? payload.image ?? payload.output ?? null;
-  }
-  return payload.video ?? payload.videos?.[0] ?? payload.output ?? null;
+async function finalize(
+  media: { url?: string; content_type?: string },
+  kind: "image" | "video",
+): Promise<FalStartResult & { isImmediate: true }> {
+  const fallbackType = kind === "video" ? "video/mp4" : "image/jpeg";
+  const downloaded = await download(media.url!, media.content_type ?? fallbackType);
+  if (!downloaded) return { ok: false, error: "Média généré mais inaccessible." };
+  return {
+    ok: true,
+    isImmediate: true,
+    mediaUrl: media.url!,
+    contentType: downloaded.contentType,
+    bytes: downloaded.bytes,
+  };
 }
 
-/** Soumet une requête à la file Fal.ai puis attend le résultat. */
-async function runModel(
+/** 
+ * Lance la génération sur Fal.ai.
+ * Retourne soit le média immédiat, soit les informations de file d'attente.
+ */
+export async function startModel(
   model: string,
   input: Record<string, unknown>,
   kind: "image" | "video",
-): Promise<FalResult> {
+): Promise<FalStartResult> {
   if (!isFalConfigured()) return { ok: false, error: "Moteur de génération indisponible." };
 
   let submit: Response;
@@ -154,62 +167,78 @@ async function runModel(
     return finalize(immediate, kind);
   }
 
-  const statusUrl = submitJson.status_url ?? `${QUEUE_BASE}/${model}/requests/${submitJson.request_id}/status`;
-  const responseUrl = submitJson.response_url ?? `${QUEUE_BASE}/${model}/requests/${submitJson.request_id}`;
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-    let statusRes: Response;
-    try {
-      statusRes = await fetch(statusUrl, { headers: headers() });
-    } catch {
-      continue;
-    }
-    const statusJson = (await parseJson(statusRes)) as { status?: string };
-    if (!statusRes.ok) {
-      return { ok: false, error: readError(statusJson, statusRes.status, "Suivi de génération échoué") };
-    }
-
-    const status = (statusJson.status ?? "").toUpperCase();
-    if (status === "COMPLETED") {
-      const resultRes = await fetch(responseUrl, { headers: headers() });
-      const resultJson = (await parseJson(resultRes)) as FalPayload;
-      if (!resultRes.ok) {
-        return { ok: false, error: readError(resultJson, resultRes.status, "Résultat indisponible") };
-      }
-      const media = extractMedia(resultJson, kind);
-      if (!media?.url) return { ok: false, error: "Aucun média renvoyé par le moteur." };
-      return finalize(media, kind);
-    }
-
-    if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
-      return { ok: false, error: readError(statusJson, 500, `Génération ${status.toLowerCase()}`) };
-    }
+  if (!submitJson.request_id) {
+    return { ok: false, error: "Aucun request_id renvoyé par Fal.ai" };
   }
 
-  return { ok: false, error: "La génération a dépassé le délai d'attente. Réessayez." };
-}
+  const statusUrl = submitJson.status_url ?? `${QUEUE_BASE}/${model}/requests/${submitJson.request_id}/status`;
+  const responseUrl = submitJson.response_url ?? `${QUEUE_BASE}/${model}/requests/${submitJson.request_id}`;
 
-async function finalize(
-  media: { url?: string; content_type?: string },
-  kind: "image" | "video",
-): Promise<FalResult> {
-  const fallbackType = kind === "video" ? "video/mp4" : "image/jpeg";
-  const downloaded = await download(media.url!, media.content_type ?? fallbackType);
-  if (!downloaded) return { ok: false, error: "Média généré mais inaccessible." };
   return {
     ok: true,
-    mediaUrl: media.url!,
-    contentType: downloaded.contentType,
-    bytes: downloaded.bytes,
+    isImmediate: false,
+    requestId: submitJson.request_id,
+    statusUrl,
+    responseUrl,
   };
 }
 
+/** 
+ * Vérifie l'état d'une requête Fal en cours et finalise le téléchargement si terminé.
+ */
+export async function checkModelStatus(
+  statusUrl: string,
+  responseUrl: string,
+  kind: "image" | "video"
+): Promise<FalStatusResult> {
+  let statusRes: Response;
+  try {
+    statusRes = await fetch(statusUrl, { headers: headers() });
+  } catch {
+    return { status: "pending" };
+  }
+
+  const statusJson = (await parseJson(statusRes)) as { status?: string };
+  if (!statusRes.ok) {
+    return { status: "error", error: readError(statusJson, statusRes.status, "Suivi de génération échoué") };
+  }
+
+  const status = (statusJson.status ?? "").toUpperCase();
+  if (status === "IN_PROGRESS" || status === "IN_QUEUE") {
+    return { status: "pending" };
+  }
+
+  if (status === "COMPLETED") {
+    const resultRes = await fetch(responseUrl, { headers: headers() });
+    const resultJson = (await parseJson(resultRes)) as FalPayload;
+    if (!resultRes.ok) {
+      return { status: "error", error: readError(resultJson, resultRes.status, "Résultat indisponible") };
+    }
+    const media = extractMedia(resultJson, kind);
+    if (!media?.url) return { status: "error", error: "Aucun média renvoyé par le moteur." };
+    
+    const fallbackType = kind === "video" ? "video/mp4" : "image/jpeg";
+    const downloaded = await download(media.url, media.content_type ?? fallbackType);
+    if (!downloaded) return { status: "error", error: "Média généré mais inaccessible." };
+    
+    return {
+      status: "completed",
+      mediaUrl: media.url,
+      contentType: downloaded.contentType,
+      bytes: downloaded.bytes,
+    };
+  }
+
+  if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
+    return { status: "error", error: readError(statusJson, 500, `Génération ${status.toLowerCase()}`) };
+  }
+
+  return { status: "pending" };
+}
+
 /** Image (text-to-image) avec repli automatique sur Flux Schnell. */
-export async function generateImageWithFal(req: FalMediaRequest): Promise<FalResult> {
-  const primary = await runModel(
+export async function generateImageWithFal(req: FalMediaRequest): Promise<FalStartResult> {
+  const primary = await startModel(
     FAL_MODELS.image,
     {
       prompt: req.prompt,
@@ -220,7 +249,7 @@ export async function generateImageWithFal(req: FalMediaRequest): Promise<FalRes
   );
   if (primary.ok) return primary;
 
-  const fallback = await runModel(
+  const fallback = await startModel(
     FAL_MODELS.imageFallback,
     {
       prompt: req.prompt,
@@ -231,7 +260,20 @@ export async function generateImageWithFal(req: FalMediaRequest): Promise<FalRes
   );
   if (fallback.ok) return fallback;
 
-  return { ok: false, error: `${primary.error} · repli : ${fallback.error}` };
+  return { ok: false, error: `${primary.error} ; repli : ${fallback.error}` };
+}
+
+function normalizeAspect(ratio: string): string {
+  const parts = ratio.split(":");
+  if (parts.length !== 2) return "16:9";
+  const num = Number(parts[0]);
+  const den = Number(parts[1]);
+  if (num > den && num / den > 1.8) return "21:9";
+  if (num > den && num / den < 1.4) return "4:3";
+  if (num > den) return "16:9";
+  if (num < den && den / num > 1.4) return "9:16";
+  if (num < den) return "3:4";
+  return "1:1";
 }
 
 function aspectToFluxSize(ratio: string): string {
@@ -253,12 +295,12 @@ function aspectToFluxSize(ratio: string): string {
 }
 
 /** Vidéo depuis un prompt texte (480p/720p, 6 s max). */
-export async function generateVideoWithFal(req: FalMediaRequest): Promise<FalResult> {
+export async function generateVideoWithFal(req: FalMediaRequest): Promise<FalStartResult> {
   const duration = normalizeVideoDuration(req.duration);
   const resolution = normalizeVideoResolution(req.resolution);
 
   if (req.videoUrl) {
-    return runModel(
+    return startModel(
       FAL_MODELS.editVideo,
       {
         prompt: req.prompt,
@@ -271,7 +313,7 @@ export async function generateVideoWithFal(req: FalMediaRequest): Promise<FalRes
   }
 
   if (req.imageUrl) {
-    return runModel(
+    return startModel(
       FAL_MODELS.imageToVideo,
       {
         prompt: req.prompt,
@@ -284,7 +326,7 @@ export async function generateVideoWithFal(req: FalMediaRequest): Promise<FalRes
     );
   }
 
-  return runModel(
+  return startModel(
     FAL_MODELS.textToVideo,
     {
       prompt: req.prompt,

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { generateMedia } from "@/lib/generation.functions";
+import { generateMedia, checkGenerationStatus } from "@/lib/generation.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
 import { enhancePrompt } from "@/lib/prompt.functions";
 import { useI18n } from "@/lib/i18n";
@@ -80,6 +80,7 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
   };
 
   const generate = useServerFn(generateMedia);
+  const checkStatus = useServerFn(checkGenerationStatus);
   const enhance = useServerFn(enhancePrompt);
   const checkAccess = useServerFn(getGenerationAccess);
 
@@ -149,10 +150,44 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
       const result = await generate({
         data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio },
       });
+
       if (result.ok) {
-        playChime("success");
-        setSent(t("genDone"));
-        onGenerated?.();
+        if (result.status === "ready") {
+          playChime("success");
+          setSent(t("genDone"));
+          onGenerated?.();
+        } else if (result.status === "pending" && result.id) {
+          // Polling
+          let attempts = 0;
+          const maxAttempts = 30; // 90 secondes max
+          let isDone = false;
+
+          while (attempts < maxAttempts && !isDone) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            attempts++;
+            const statusResult = await checkStatus({ data: { id: result.id } }).catch(() => null);
+
+            if (!statusResult || !statusResult.ok) continue; // Ignore network errors during polling
+
+            if (statusResult.status === "ready") {
+              isDone = true;
+              playChime("success");
+              setSent(t("genDone"));
+              onGenerated?.();
+            } else if (statusResult.status === "error") {
+              isDone = true;
+              playChime("error");
+              setText(prompt);
+              setSent(statusResult.error ?? t("genFail"));
+            }
+          }
+
+          if (!isDone) {
+            playChime("error");
+            setText(prompt);
+            setSent("La génération prend plus de temps que prévu, réessayez plus tard.");
+          }
+        }
       } else if (result.reason === "quota") {
         playChime("error");
         setText(prompt);
