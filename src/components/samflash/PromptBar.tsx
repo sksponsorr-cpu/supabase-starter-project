@@ -1,13 +1,12 @@
 import { useRef, useState } from "react";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { generateMedia, checkGenerationStatus } from "@/lib/generation.functions";
+import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
 import { enhancePrompt } from "@/lib/prompt.functions";
 import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
-
 
 const chip = (active: boolean) =>
   `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
@@ -27,50 +26,43 @@ function quotaMessage(
   retryAt: string | null,
   remainingSeconds?: number,
 ) {
-  const when = retryAt
-    ? new Date(retryAt).toLocaleString("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
-  if (code === "subscription_expired") {
-    return "Votre abonnement est arrivé à expiration. Veuillez vous réabonner pour continuer à utiliser les fonctionnalités pro de Sam Flash 2.0.";
+  if (code === "video_pause") {
+    if (!retryAt) return "Vos générations sont en pause. Réessayez plus tard.";
+    const diff = new Date(retryAt).getTime() - Date.now();
+    const min = Math.max(1, Math.ceil(diff / 60000));
+    return `Pause de refroidissement. Réessayez dans ${min} min.`;
   }
   if (code === "video_seconds") {
-    const left = remainingSeconds ?? 0;
-    if (left > 0) {
-      return `⚠️ Limite quotidienne atteinte : il vous reste seulement ${left} secondes de génération vidéo. Veuillez revenir lorsque votre quota sera renouvelé${when ? ` (le ${when})` : ""}.`;
-    }
-    return `🚫 Limite quotidienne atteinte : vous avez utilisé toutes vos secondes de génération vidéo pour cette période.${when ? ` Votre quota sera renouvelé le ${when}.` : ""}`;
+    if (remainingSeconds === 0) return "Votre forfait de minutes vidéo est épuisé pour ce mois.";
+    return `Pas assez de secondes restantes (${remainingSeconds} s). Souscrivez à une offre supérieure.`;
   }
-  if (code === "image_daily")
-    return "Limite de 5 images par jour atteinte. Revenez demain ou passez à une offre supérieure.";
-  if (code === "video_daily")
-    return "Limite de 9 vidéos par jour atteinte. Revenez demain ou passez à une offre supérieure.";
-  return when
-    ? `Pause de 3 h après 5 vidéos. Nouvelle génération possible à ${when}.`
-    : "Pause de 3 h après 5 vidéos. Réessayez un peu plus tard.";
+  if (code === "subscription_required" || code === "device_free_used") {
+    return "Quota gratuit épuisé. Abonnez-vous pour continuer !";
+  }
+  if (code === "subscription_expired") {
+    return "Votre abonnement a expiré. Renouvelez-le pour continuer !";
+  }
+  return "Votre quota est épuisé pour aujourd'hui.";
 }
 
 type Props = {
   onStart?: (info: { prompt: string; mediaType: "image" | "video" }) => void;
+  onCancelReady?: (cancelFn: () => void) => void;
   onSettled?: () => void;
   onGenerated?: () => void;
   onQuotaExceeded?: () => void;
 };
 
-export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: Props) {
+export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQuotaExceeded }: Props) {
   const { t, lang } = useI18n();
   const [res, setRes] = useState("720p");
   const [dur, setDur] = useState("6s");
   const [ratio, setRatio] = useState("2:3");
   const [mode, setMode] = useState<"image" | "video">("video");
   const [text, setText] = useState("");
-  const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   const [promptFocused, setPromptFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const focusInput = () => inputRef.current?.focus();
@@ -81,29 +73,23 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
 
   const generate = useServerFn(generateMedia);
   const checkStatus = useServerFn(checkGenerationStatus);
+  const cancelGen = useServerFn(cancelGeneration);
   const enhance = useServerFn(enhancePrompt);
   const checkAccess = useServerFn(getGenerationAccess);
 
   const runEnhance = async () => {
     const prompt = text.trim();
-    if (!prompt || enhancing || busy) return;
+    if (!prompt || enhancing) return;
     setEnhancing(true);
-    setSent(t("enhancing"));
+    playChime("send");
     try {
-      const result = await enhance({ data: { prompt, mediaType: mode, language: lang } });
-      if (result.ok) {
-        setText(result.prompt);
-        playChime("success");
-        setSent(t("enhanceDone"));
-        focusInput();
-      } else {
-        setSent(result.message ?? t("enhanceFail"));
-      }
-    } catch (error) {
-      setSent(error instanceof Error ? error.message : t("enhanceFail"));
+      const better = await enhance({ data: { prompt, lang } });
+      if (better) setText(better);
+      playChime("success");
+    } catch {
+      playChime("error");
     } finally {
       setEnhancing(false);
-      setTimeout(() => setSent(null), 2600);
     }
   };
 
@@ -146,6 +132,8 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
         ? `${t("video")} ${res} · ${dur} · ${ratio}…`
         : `${t("image")} ${res} · ${ratio}…`,
     );
+
+    let isDone = false;
     try {
       const result = await generate({
         data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio },
@@ -157,13 +145,22 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
           setSent(t("genDone"));
           onGenerated?.();
         } else if (result.status === "pending" && result.id) {
+          onCancelReady?.(() => {
+            isDone = true;
+            void cancelGen({ data: { id: result.id! } });
+            setBusy(false);
+            onSettled?.();
+            setSent(null);
+          });
+
           // Polling
           let attempts = 0;
           const maxAttempts = 30; // 90 secondes max
-          let isDone = false;
 
           while (attempts < maxAttempts && !isDone) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
+            if (isDone) break;
+
             attempts++;
             const statusResult = await checkStatus({ data: { id: result.id } }).catch(() => null);
 
@@ -201,13 +198,17 @@ export function PromptBar({ onStart, onSettled, onGenerated, onQuotaExceeded }: 
         setSent(result.message ?? t("genFail"));
       }
     } catch (error) {
-      playChime("error");
-      setText(prompt);
-      setSent(error instanceof Error ? error.message : t("genFail"));
+      if (!isDone) {
+        playChime("error");
+        setText(prompt);
+        setSent(error instanceof Error ? error.message : t("genFail"));
+      }
     } finally {
-      setBusy(false);
-      onSettled?.();
-      setTimeout(() => setSent(null), 2600);
+      if (!isDone) {
+        setBusy(false);
+        onSettled?.();
+        setTimeout(() => setSent(null), 2600);
+      }
     }
   };
 

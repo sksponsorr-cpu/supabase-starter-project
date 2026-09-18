@@ -45,6 +45,7 @@ export const Route = createFileRoute("/app")({
 function AppFeed() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  const [cancelFn, setCancelFn] = useState<(() => void) | null>(null);
   const [pending, setPending] = useState<{ prompt: string; mediaType: "image" | "video" } | null>(
     null,
   );
@@ -157,6 +158,7 @@ function AppFeed() {
               prompt={pending.prompt}
               mediaType={pending.mediaType}
               estimate={pending.mediaType === "video" ? 75 : 25}
+              onCancel={cancelFn || undefined}
             />
           )}
           {feedLoading && items.length === 0
@@ -238,7 +240,8 @@ function AppFeed() {
 
       <PromptBar
         onStart={(p) => setPending(p)}
-        onSettled={() => setPending(null)}
+        onCancelReady={(fn) => setCancelFn(() => fn)}
+        onSettled={() => { setPending(null); setCancelFn(null); }}
         onGenerated={() => void refresh()}
         onQuotaExceeded={() => setPlansOpen(true)}
       />

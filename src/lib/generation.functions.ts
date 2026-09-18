@@ -222,3 +222,56 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Erreur de suivi" };
     }
   });
+export const cancelGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("ID manquant");
+    return { id: String(input.id) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("generations")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!row) return { ok: false as const, error: "Introuvable" };
+    if (row.status !== "pending") return { ok: false as const, error: "Génération déjà terminée" };
+
+    if (row.error_message?.startsWith("fal:")) {
+      try {
+        const payload = JSON.parse(row.error_message.slice(4));
+        const statusUrl = payload.status_url;
+        if (statusUrl) {
+          const cancelUrl = statusUrl.replace(/\/status$/, "/cancel");
+          const { FAL_MODELS } = await import("@/lib/services/fal.server");
+          await fetch(cancelUrl, {
+            method: "POST",
+            headers: {
+              Authorization: \Key \\,
+              "Content-Type": "application/json",
+            },
+          });
+        }
+      } catch (e) {
+        // Ignorer si l'annulation API échoue, on continue l'annulation en base
+      }
+    }
+
+    const { secondsFor } = await import("@/lib/services/generation.server");
+    const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "6s" } as any);
+    if (row.media_type === "video") {
+      await supabaseAdmin.rpc("refund_video_seconds", { _user_id: context.userId, _seconds: seconds });
+    } else {
+      await supabaseAdmin.rpc("refund_media_quota", { _user_id: context.userId, _media_type: row.media_type });
+    }
+
+    await supabaseAdmin
+      .from("generations")
+      .update({ status: "cancelled", error_message: "Génération annulée" })
+      .eq("id", data.id);
+
+    return { ok: true as const };
+  });

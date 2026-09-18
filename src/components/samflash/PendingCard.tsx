@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { X } from "lucide-react";
 
 type Props = {
   prompt: string;
   mediaType: "image" | "video";
   /** Durée estimée en secondes, utilisée pour animer la barre de progression. */
   estimate?: number;
+  onCancel?: () => void;
 };
 
 /** Aperçu temps réel d'une génération en cours (progression estimée, effet shimmer). */
-export function PendingCard({ prompt, mediaType, estimate = 45 }: Props) {
+export function PendingCard({ prompt, mediaType, estimate = 45, onCancel }: Props) {
   const { t } = useI18n();
   const [progress, setProgress] = useState(4);
 
@@ -25,13 +27,22 @@ export function PendingCard({ prompt, mediaType, estimate = 45 }: Props) {
   }, [estimate, prompt]);
 
   return (
-    <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl">
+    <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl group">
       <div
         aria-hidden
         className="absolute inset-0 animate-[promptShimmer_1.6s_linear_infinite] bg-[linear-gradient(110deg,transparent_25%,color-mix(in_oklch,var(--primary)_22%,transparent)_45%,transparent_65%)] bg-[length:250%_100%]"
       />
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/50 hover:bg-background/80 text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors border border-border/50"
+          title="Annuler la génération"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
       <div className="relative flex h-full flex-col justify-end gap-2 p-3">
-        <p className="text-[11px] text-muted-foreground line-clamp-3">{prompt}</p>
+        <p className="text-[11px] text-muted-foreground line-clamp-3 pr-6">{prompt}</p>
         <div className="flex items-center justify-between text-[11px] font-medium">
           <span>{mediaType === "video" ? t("renderingVideo") : t("renderingImage")}</span>
           <span className="tabular-nums text-muted-foreground">{Math.round(progress)}%</span>
