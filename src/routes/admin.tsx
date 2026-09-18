@@ -402,29 +402,33 @@ function AdminPage() {
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
+      </header>
 
+      <div className="mx-auto flex max-w-6xl flex-col md:flex-row items-start w-full">
         {sections.length > 0 && (
-          <nav className="mx-auto max-w-5xl overflow-x-auto px-3 pb-3">
-            <div className="flex w-max gap-1 rounded-full bg-secondary/60 p-1">
+          <nav className="w-full md:w-64 flex-shrink-0 md:sticky md:top-[70px] md:h-[calc(100vh-70px)] md:border-r md:border-border/60 md:px-4 md:py-6 overflow-y-auto z-10 bg-background/50 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-b border-border/60 md:border-b-0 sticky top-[60px]">
+            {/* Conteneur interne pour le style glassmorphism sur desktop */}
+            <div className="flex md:flex-col gap-1 md:gap-2 overflow-x-auto md:overflow-visible px-4 py-3 md:p-4 hide-scrollbar md:rounded-3xl md:bg-card/30 md:border md:border-border/50 md:backdrop-blur-xl">
               {sections.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => setTab(s.id)}
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
-                    active === s.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                  className={`flex items-center gap-3 whitespace-nowrap rounded-full md:rounded-xl px-4 py-2 md:py-3 text-[13px] md:text-[14px] font-medium transition-all ${
+                    active === s.id 
+                      ? "bg-card border border-border/70 text-foreground shadow-sm md:shadow-md" 
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                   }`}
                 >
-                  <s.icon className="h-4 w-4" />
+                  <s.icon className="h-4 w-4 md:h-[18px] md:w-[18px]" />
                   {s.label}
                 </button>
               ))}
             </div>
           </nav>
         )}
-      </header>
 
-      <main className="mx-auto max-w-5xl px-4">
+        <main className="flex-1 min-w-0 w-full px-4 py-6 md:px-8">
         {loading ? (
           <div className="grid grid-cols-2 gap-3 pt-6 sm:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -1181,6 +1185,7 @@ function AdminPage() {
           </>
         )}
       </main>
+      </div>
     </div>
   );
 }
