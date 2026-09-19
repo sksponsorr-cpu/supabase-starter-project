@@ -34,6 +34,16 @@ export type FalResult =
   | { ok: true; mediaUrl: string; contentType: string; bytes: Uint8Array | null }
   | { ok: false; error: string };
 
+export type FalStartResult =
+  | { ok: false; error: string }
+  | { ok: true; isImmediate: true; mediaUrl: string; contentType: string; bytes: Uint8Array | null }
+  | { ok: true; isImmediate: false; requestId: string; statusUrl: string; responseUrl: string };
+
+export type FalStatusResult =
+  | { status: "pending" }
+  | { status: "error"; error: string }
+  | { status: "completed"; mediaUrl: string; contentType: string; bytes: Uint8Array | null };
+
 const QUEUE_BASE = "https://queue.fal.run";
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 8 * 60 * 1000;
@@ -61,10 +71,7 @@ export function normalizeVideoDuration(duration: string): number {
   return Math.min(6, parsed);
 }
 
-function normalizeAspect(ratio: string): string {
-  const allowed = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"];
-  return allowed.includes(ratio) ? ratio : "9:16";
-}
+
 
 function readError(payload: unknown, status: number, fallback: string): string {
   const obj = payload as { detail?: unknown; error?: unknown; message?: unknown } | null;
