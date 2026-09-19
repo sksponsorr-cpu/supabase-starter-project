@@ -113,6 +113,11 @@ type FalPayload = {
 };
 
 function extractMedia(payload: FalPayload, kind: "image" | "video") {
+  if (kind === "image") {
+    return payload.images?.[0] ?? payload.output ?? undefined;
+  }
+  return payload.video ?? payload.videos?.[0] ?? payload.output ?? undefined;
+}
 async function finalize(
   media: { url?: string; content_type?: string },
   kind: "image" | "video",
