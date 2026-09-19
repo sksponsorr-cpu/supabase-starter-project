@@ -195,7 +195,7 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       let mediaUrl = statusRes.mediaUrl;
       let storagePath: string | null = null;
       if (statusRes.bytes) {
-        const path = ${context.userId}/.;
+        const path = `${context.userId}/${crypto.randomUUID()}.${statusRes.contentType.includes("video") ? "mp4" : "jpg"}`;
         await supabaseAdmin.storage.from("generations").upload(path, statusRes.bytes, { contentType: statusRes.contentType });
         const { data: signed } = await supabaseAdmin.storage.from("generations").createSignedUrl(path, 60 * 60 * 6);
         storagePath = path;
@@ -250,7 +250,7 @@ export const cancelGeneration = createServerFn({ method: "POST" })
           await fetch(cancelUrl, {
             method: "POST",
             headers: {
-              Authorization: \Key \\,
+              Authorization: `Key ${process.env["FAL_KEY"]}`,
               "Content-Type": "application/json",
             },
           });
