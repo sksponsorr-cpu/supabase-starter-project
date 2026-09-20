@@ -369,3 +369,109 @@ export const getAdminTimeSeries = createServerFn({ method: "GET" })
     }
     return Array.from(map.values());
   });
+
+export type FinancialMetrics = {
+  mrr: number;
+  revenueThisMonth: number;
+  totalRevenue: number;
+  activeSubscribersByTier: Record<string, number>;
+  churnRate: number;
+  monthlyRevenueHistory: { month: string; revenue: number }[];
+};
+
+export const getFinancialDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FinancialMetrics> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Fetch all successful orders
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("amount_eur, period, created_at, status")
+      .eq("status", "payee");
+
+    // Fetch all subscriptions
+    const { data: subs } = await supabaseAdmin
+      .from("subscriptions")
+      .select("tier, status, created_at, is_active");
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let mrr = 0;
+    let revenueThisMonth = 0;
+    let totalRevenue = 0;
+    const monthlyRevenueMap = new Map<string, number>();
+
+    // Initialiser les 6 derniers mois pour le graphique
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = d.toISOString().slice(0, 7); // YYYY-MM
+      monthlyRevenueMap.set(monthStr, 0);
+    }
+
+    if (orders) {
+      for (const order of orders) {
+        const amount = Number(order.amount_eur) || 0;
+        const createdDate = new Date(order.created_at);
+        const monthStr = order.created_at.slice(0, 7); // YYYY-MM
+
+        // Total revenue
+        totalRevenue += amount;
+
+        // Revenue this month
+        if (createdDate >= firstOfThisMonth) {
+          revenueThisMonth += amount;
+        }
+
+        // MRR (orders in last 30 days)
+        if (createdDate >= thirtyDaysAgo) {
+          if (order.period === "yearly" || order.period === "annually") {
+            mrr += amount / 12;
+          } else {
+            mrr += amount;
+          }
+        }
+
+        // Monthly history
+        if (monthlyRevenueMap.has(monthStr)) {
+          monthlyRevenueMap.set(monthStr, monthlyRevenueMap.get(monthStr)! + amount);
+        }
+      }
+    }
+
+    const activeSubscribersByTier: Record<string, number> = {};
+    let totalSubs = 0;
+    let inactiveSubs = 0;
+
+    if (subs) {
+      for (const sub of subs) {
+        totalSubs++;
+        const isActive = sub.status === "active" || sub.is_active === true;
+        
+        if (isActive) {
+          const tier = sub.tier || "unknown";
+          activeSubscribersByTier[tier] = (activeSubscribersByTier[tier] || 0) + 1;
+        } else {
+          inactiveSubs++;
+        }
+      }
+    }
+
+    const churnRate = totalSubs > 0 ? (inactiveSubs / totalSubs) * 100 : 0;
+    const monthlyRevenueHistory = Array.from(monthlyRevenueMap.entries()).map(([month, revenue]) => ({
+      month,
+      revenue: Math.round(revenue * 100) / 100,
+    }));
+
+    return {
+      mrr: Math.round(mrr * 100) / 100,
+      revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      activeSubscribersByTier,
+      churnRate: Math.round(churnRate * 100) / 100,
+      monthlyRevenueHistory,
+    };
+  });

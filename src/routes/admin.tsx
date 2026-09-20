@@ -33,6 +33,7 @@ import {
   Crown,
   AlertCircle,
   Clock,
+  TrendingUp,
 } from "lucide-react";
 import {
   getAdminAccess,
@@ -43,6 +44,7 @@ import {
   listAdminOrders,
   listAdminSubscriptions,
   getAdminTimeSeries,
+  getFinancialDashboard,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
@@ -50,6 +52,7 @@ import {
   type AdminSubscription,
   type TimeSeriesData,
   type StaffRole,
+  type FinancialMetrics,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
 import {
@@ -145,6 +148,7 @@ function AdminPage() {
   const decide = useServerFn(decidePayout);
   const fetchSubscriptions = useServerFn(listAdminSubscriptions);
   const fetchTimeSeries = useServerFn(getAdminTimeSeries);
+  const fetchFinancial = useServerFn(getFinancialDashboard);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
@@ -165,13 +169,14 @@ function AdminPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [priceNotice, setPriceNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<string>("overview");
+  const [tab, setTab] = useState<string>("financial");
   const [queue, setQueue] = useState<ModerationItem[]>([]);
   const [modBusy, setModBusy] = useState<string | null>(null);
   const [promoEnabled, setPromoEnabled] = useState(false);
   const [promoSaving, setPromoSaving] = useState(false);
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [commissionTotal, setCommissionTotal] = useState(0);
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
 
   const isAdmin = owner || roles.includes("admin");
   const canModerate = isAdmin || roles.includes("moderator");
@@ -199,7 +204,7 @@ function AdminPage() {
 
       try {
         if (admin) {
-          const [s, r, o, m, i, p, c, subs, ts] = await Promise.all([
+          const [s, r, o, m, i, p, c, subs, ts, fin] = await Promise.all([
             fetchStats({}),
             fetchRecent({}),
             fetchOrders({}),
@@ -209,6 +214,7 @@ function AdminPage() {
             fetchCommissions({}),
             fetchSubscriptions({}),
             fetchTimeSeries({}),
+            fetchFinancial({}),
           ]);
           setStats(s as AdminStats);
           setItems(r as AdminGeneration[]);
@@ -216,18 +222,57 @@ function AdminPage() {
           setMembers(m as TeamMember[]);
           setInvites(i as TeamInvitation[]);
           setPayouts(p as PayoutRequest[]);
-          setCommissionTotal(c.total);
+          setCommissionTotal((c as { total: number }).total);
           setSubscriptions(subs as AdminSubscription[]);
           setTimeSeries(ts as TimeSeriesData[]);
+          setFinancialMetrics(fin as FinancialMetrics);
         }
-        if (admin || access.roles.includes("moderator")) {
-          setQueue((await fetchQueue({})) as ModerationItem[]);
-        }
-        if (admin) setPromoEnabled((await fetchPromo({})).enabled);
-        if (finance) setPrices((await fetchPrices({})) as AdminPrice[]);
-        if (support) setTickets((await fetchTickets({})) as SupportMessage[]);
       } catch {
-        // Les données peuvent échouer sans masquer le bureau d'administration.
+        // ignore errors
+      }
+
+      try {
+        if (finance && !admin) {
+          const [o, p, c] = await Promise.all([
+            fetchOrders({}),
+            fetchPayouts({}),
+            fetchCommissions({}),
+          ]);
+          setOrders(o as AdminOrder[]);
+          setPayouts(p as PayoutRequest[]);
+          setCommissionTotal((c as { total: number }).total);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (support) {
+          const t = await fetchTickets({});
+          setTickets(t as SupportMessage[]);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (canModerate) {
+          const q = await fetchQueue({});
+          setQueue(q as ModerationItem[]);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (canPrices) {
+          const pr = await fetchPrices({});
+          setPrices(pr as AdminPrice[]);
+          const promo = await fetchPromo({});
+          setPromoEnabled((promo as { enabled: boolean }).enabled);
+        }
+      } catch {
+        // ignore
       }
     } catch {
       setIsStaff(owner);
@@ -249,7 +294,47 @@ function AdminPage() {
     fetchPromo,
     fetchPayouts,
     fetchCommissions,
+    fetchSubscriptions,
+    fetchTimeSeries,
+    fetchFinancial,
+    isAdmin,
+    canModerate,
+    canPrices,
+    canSupport,
   ]);
+
+  useEffect(() => {
+    void load();
+    const interval = setInterval(() => void load(), 30000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  if (loading && !isStaff) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isStaff) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
+        <ShieldCheck className="mx-auto h-12 w-12 text-muted-foreground/30" />
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Accès restreint</h1>
+        <p className="mt-2 text-muted-foreground">
+          Cette zone est réservée à l'équipe.
+        </p>
+        <Link
+          to="/app"
+          className="mt-6 flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-105"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour à l'application
+        </Link>
+      </div>
+    );
+  }
 
   const actOnItem = useCallback(
     async (id: string, action: "approve" | "reject" | "delete") => {
@@ -347,6 +432,7 @@ function AdminPage() {
 
   const sections = [
     { id: "overview", label: "Vue d'ensemble", icon: Gauge, show: isAdmin },
+    { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
@@ -449,6 +535,100 @@ function AdminPage() {
                   .map((r) => ROLE_LABEL[r as TeamRole] ?? r)
                   .join(" · ")}
               </p>
+            )}
+
+            {active === "financial" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Tableau de bord financier</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Métriques SaaS et revenus.
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
+                    <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
+                    <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
+                      {financialMetrics?.mrr.toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {financialMetrics?.revenueThisMonth.toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {financialMetrics?.totalRevenue.toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Taux de désabonnement</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {financialMetrics?.churnRate.toFixed(1)} %
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-3">
+                    <span className="text-sm font-medium text-muted-foreground">Abonnés actifs par offre</span>
+                    <div className="mt-3 flex flex-wrap gap-4 justify-center">
+                      {Object.entries(financialMetrics?.activeSubscribersByTier || {}).map(([tier, count]) => (
+                        <div key={tier} className="flex flex-col items-center">
+                          <span className="text-xl font-bold">{count}</span>
+                          <span className="text-[11px] uppercase text-muted-foreground">{tier}</span>
+                        </div>
+                      ))}
+                      {Object.keys(financialMetrics?.activeSubscribersByTier || {}).length === 0 && (
+                        <span className="text-sm text-muted-foreground">Aucun abonné actif</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl">
+                  <h3 className="text-lg font-semibold tracking-tight mb-4">Évolution du revenu (6 derniers mois)</h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={financialMetrics?.monthlyRevenueHistory || []}>
+                        <defs>
+                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis
+                          dataKey="month"
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value} €`}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            borderRadius: "0.75rem",
+                            color: "hsl(var(--foreground))",
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--primary))"
+                          fillOpacity={1}
+                          fill="url(#colorRev)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
             )}
 
             {active === "overview" && isAdmin && (
