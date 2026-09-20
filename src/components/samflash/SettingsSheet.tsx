@@ -59,12 +59,14 @@ type View =
   | "privacy"
   | "generic";
 
+export const cardBase = "rounded-2xl border border-border/70 bg-card/50 backdrop-blur-xl transition-all";
+
 const rowBase =
-  "flex w-full items-center gap-3 px-4 py-3.5 text-left text-[17px] text-foreground transition-colors active:bg-accent";
+  `flex w-full items-center gap-3 px-4 py-3.5 text-left text-[17px] text-foreground hover:bg-card/80 active:scale-[0.98] ${cardBase}`;
 
 function Group({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-card divide-y divide-border">{children}</div>
+    <div className="space-y-2">{children}</div>
   );
 }
 
@@ -881,7 +883,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 { key: "news", label: "Nouveautés produit" },
                 { key: "offers", label: "Offres Sam flash Pro" },
               ].map((n) => (
-                <div key={n.key} className="flex items-center px-4 py-3.5 text-[17px]">
+                <div key={n.key} className={`flex items-center px-4 py-3.5 text-[17px] ${cardBase}`}>
                   {n.label}
                   <span className="ml-auto">
                     <Toggle
@@ -905,7 +907,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 <p className="px-1 text-sm text-muted-foreground">{t("customizeSub")}</p>
                 <div className="mt-4">
                   <Group>
-                    <div className="px-4 py-3.5">
+                    <div className={`px-4 py-3.5 ${cardBase}`}>
                       <span className="text-[17px]">{t("tone")}</span>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {["Naturel", "Cinématique", "Créatif", "Précis"].map((tone) => (
@@ -1118,7 +1120,7 @@ function SettingToggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center px-4 py-3.5 text-[17px]">
+    <div className={`flex items-center px-4 py-3.5 text-[17px] ${cardBase}`}>
       <span className="pr-3">{label}</span>
       <span className="ml-auto">
         <Toggle on={on} onChange={onChange} />

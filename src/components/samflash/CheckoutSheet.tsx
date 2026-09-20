@@ -12,6 +12,7 @@ import {
   formatLocalAmount,
   normalizeMobile,
   operatorPrefixes,
+  getFlagEmoji,
 } from "@/lib/payments/countries";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -334,20 +335,25 @@ export function CheckoutSheet({
         {step === "country" && (
           <>
             <p className="mb-3 text-sm text-muted-foreground">Sélectionnez votre pays</p>
-            <ul className="space-y-2">
-              {SUPPORTED_COUNTRIES.map((c) => (
-                <li key={c.code}>
-                  <button
-                    type="button"
-                    onClick={() => void chooseCountry(c.code)}
-                    className="flex w-full items-center justify-between rounded-2xl border border-border bg-card/40 px-4 py-3 text-left"
-                  >
-                    <span>{c.name}</span>
-                    <span className="text-xs text-muted-foreground">{c.currency}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+              <ul className="space-y-2">
+                {SUPPORTED_COUNTRIES.map((c) => (
+                  <li key={c.code}>
+                    <button
+                      type="button"
+                      onClick={() => void chooseCountry(c.code)}
+                      className="flex w-full items-center justify-between rounded-2xl border border-border/70 bg-card/50 px-4 py-3 text-left backdrop-blur-xl transition-all hover:bg-card/80 active:scale-[0.98]"
+                    >
+                      <span className="flex items-center gap-3 font-medium">
+                        <span className="text-xl leading-none">{getFlagEmoji(c.code)}</span>
+                        {c.name}
+                      </span>
+                      <span className="rounded-full bg-secondary/80 px-2.5 py-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        {c.currency}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
           </>
         )}
 

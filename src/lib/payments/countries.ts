@@ -37,6 +37,14 @@ export function findCountry(code: string): SupportedCountry | undefined {
   return SUPPORTED_COUNTRIES.find((c) => c.code === code.toUpperCase());
 }
 
+export function getFlagEmoji(countryCode: string): string {
+  return countryCode
+    .toUpperCase()
+    .split("")
+    .map((char) => String.fromCodePoint(char.charCodeAt(0) + 127397))
+    .join("");
+}
+
 /**
  * Nettoie un numéro saisi et renvoie sa forme locale (sans indicatif ni 0
  * initial) et sa forme internationale stricte (ex. 243XXXXXXXXX).
