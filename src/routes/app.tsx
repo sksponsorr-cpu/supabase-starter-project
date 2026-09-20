@@ -13,6 +13,7 @@ import { SupportReplyNotifier } from "@/components/samflash/SupportReplyNotifier
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { SettingsSheet } from "@/components/samflash/SettingsSheet";
+import { Sidebar } from "@/components/samflash/Sidebar";
 import { PromptBar } from "@/components/samflash/PromptBar";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
@@ -94,48 +95,30 @@ function AppFeed() {
 
   return (
     <div
-      className="min-h-screen bg-background pb-64"
+      className="flex min-h-screen bg-background"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <header className="sticky top-0 z-30 flex items-center gap-3 bg-background/60 px-4 py-3 backdrop-blur-xl">
-        <img
-          src={logoAsset}
-          alt="Logo Sam flash 2.0"
-          className="h-10 w-10 rounded-full object-cover shadow-md"
-        />
-        <div className="min-w-0">
-          <span className="block text-xl font-semibold leading-tight tracking-tight">
-            Sam flash 2.0
-          </span>
-          <span className="block text-[11px] leading-tight text-muted-foreground">
-            Studio IA
-          </span>
+      <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
+      
+      <div className="flex-1 pl-16 md:pl-60 transition-all flex flex-col overflow-x-hidden">
+        <PromoBanner enabled={!!session} />
+
+        <div className="mt-8 md:mt-12 flex flex-col items-center px-4">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Qu'allons-nous créer ?</h1>
+          <p className="text-muted-foreground mb-8 text-center text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
         </div>
-        <button
-          type="button"
-          aria-label={t("seePlans")}
-          onClick={() => setPlansOpen(true)}
-          className="ml-auto flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-medium"
-        >
-          <Sparkles className="h-4 w-4 text-primary" />
-          {t("subscriptionBtn")}
-        </button>
-        <button
-          type="button"
-          aria-label={t("openSettings")}
-          onClick={() => setSettingsOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary"
-        >
-          <Menu className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </header>
 
-      <PromoBanner enabled={!!session} />
+        <PromptBar
+          onStart={(p) => setPending(p)}
+          onCancelReady={(fn) => setCancelFn(() => fn)}
+          onSettled={() => { setPending(null); setCancelFn(null); }}
+          onGenerated={() => void refresh()}
+          onQuotaExceeded={() => setPlansOpen(true)}
+        />
 
-
-      <section className="pt-6">
+        <section className="mt-8 px-4 pb-20">
         <div className="flex items-center gap-2 px-4">
-          <h1 className="text-2xl font-semibold">{t("myCreations")}</h1>
+          <h1 className="text-xl font-semibold">{t("myCreations")}</h1>
           <Link
             to="/galerie"
             className="ml-auto rounded-full bg-secondary px-3 py-1.5 text-xs font-medium"
@@ -152,7 +135,7 @@ function AppFeed() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 px-4">
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {pending && (
             <PendingCard
               prompt={pending.prompt}
@@ -238,14 +221,6 @@ function AppFeed() {
         </div>
       </section>
 
-      <PromptBar
-        onStart={(p) => setPending(p)}
-        onCancelReady={(fn) => setCancelFn(() => fn)}
-        onSettled={() => { setPending(null); setCancelFn(null); }}
-        onGenerated={() => void refresh()}
-        onQuotaExceeded={() => setPlansOpen(true)}
-      />
-
       <SupportReplyNotifier enabled={!!session} />
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
       {plansOpen && <PlansSheet onClose={() => setPlansOpen(false)} />}
@@ -256,6 +231,7 @@ function AppFeed() {
           onChanged={() => void refresh()}
         />
       )}
+      </div>
     </div>
   );
 }

@@ -213,37 +213,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-4 md:pb-6 w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
       {sent && (
-        <div className="mx-auto mb-2 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
+        <div className="mx-auto mb-4 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
           {sent}
         </div>
       )}
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-          {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
-            <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-        {mode === "video" && (
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-            {["3s", "6s"].map((d) => (
-              <button key={d} type="button" onClick={() => setDur(d)} className={chip(dur === d)}>
-                {d}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-          {["9:16", "2:3", "3:4", "1:1", "16:9"].map((r) => (
-            <button key={r} type="button" onClick={() => setRatio(r)} className={chip(ratio === r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
+
 
       <div
         className={`relative overflow-hidden rounded-[28px] border bg-card/60 p-3 backdrop-blur-2xl transition-[border-color,box-shadow,background-color] duration-300 ease-out ${
@@ -352,6 +328,32 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
           </button>
+        </div>
+      </div>
+      
+      <div className="mt-3 flex justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
+          {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
+            <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>
+              {r}
+            </button>
+          ))}
+        </div>
+        {mode === "video" && (
+          <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
+            {["3s", "6s"].map((d) => (
+              <button key={d} type="button" onClick={() => setDur(d)} className={chip(dur === d)}>
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
+          {["9:16", "2:3", "3:4", "1:1", "16:9"].map((r) => (
+            <button key={r} type="button" onClick={() => setRatio(r)} className={chip(ratio === r)}>
+              {r}
+            </button>
+          ))}
         </div>
       </div>
     </div>
