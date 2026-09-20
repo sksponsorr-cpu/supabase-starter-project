@@ -54,8 +54,8 @@ function HistoryPage() {
     <div className="flex min-h-screen bg-background">
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
       
-      <div className="flex-1 pl-16 md:pl-60 transition-all flex flex-col overflow-x-hidden">
-        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-4">
+      <div className="flex-1 md:pl-60 transition-all flex flex-col overflow-x-hidden">
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-4 md:px-6 pl-16">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-muted-foreground" />
             <h1 className="text-xl font-semibold">Historique</h1>

@@ -100,7 +100,7 @@ function AppFeed() {
     >
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
       
-      <div className="flex-1 pl-16 md:pl-60 transition-all flex flex-col overflow-x-hidden">
+      <div className="flex-1 md:pl-60 transition-all flex flex-col overflow-x-hidden">
         <PromoBanner enabled={!!session} />
 
         <div className="mt-8 md:mt-12 flex flex-col items-center px-4">
