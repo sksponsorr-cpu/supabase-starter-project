@@ -309,32 +309,6 @@ function AdminPage() {
     return () => clearInterval(interval);
   }, [load]);
 
-  if (loading && !isStaff) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!isStaff) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
-        <ShieldCheck className="mx-auto h-12 w-12 text-muted-foreground/30" />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Accès restreint</h1>
-        <p className="mt-2 text-muted-foreground">
-          Cette zone est réservée à l'équipe.
-        </p>
-        <Link
-          to="/app"
-          className="mt-6 flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-105"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour à l'application
-        </Link>
-      </div>
-    );
-  }
 
   const actOnItem = useCallback(
     async (id: string, action: "approve" | "reject" | "delete") => {
@@ -547,25 +521,25 @@ function AdminPage() {
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
                     <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
                     <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
-                      {financialMetrics?.mrr.toFixed(2)} €
+                      {(financialMetrics?.mrr ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {financialMetrics?.revenueThisMonth.toFixed(2)} €
+                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {financialMetrics?.totalRevenue.toFixed(2)} €
+                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Taux de désabonnement</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {financialMetrics?.churnRate.toFixed(1)} %
+                      {(financialMetrics?.churnRate ?? 0).toFixed(1)} %
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-3">
