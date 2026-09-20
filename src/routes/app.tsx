@@ -104,8 +104,8 @@ function AppFeed() {
         <PromoBanner enabled={!!session} />
 
         <div className="mt-8 md:mt-12 flex flex-col items-center px-4">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Qu'allons-nous créer ?</h1>
-          <p className="text-muted-foreground mb-8 text-center text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 text-center">Qu'allons-nous créer ?</h1>
+          <p className="text-muted-foreground mb-8 text-center text-xs sm:text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
         </div>
 
         <PromptBar
@@ -116,9 +116,9 @@ function AppFeed() {
           onQuotaExceeded={() => setPlansOpen(true)}
         />
 
-        <section className="mt-8 px-4 pb-20">
-        <div className="flex items-center gap-2 px-4">
-          <h1 className="text-xl font-semibold">{t("myCreations")}</h1>
+        <section className="mt-4 sm:mt-8 px-2 sm:px-4 pb-20">
+        <div className="flex items-center gap-2 px-2 sm:px-4 mb-4">
+          <h1 className="text-lg sm:text-xl font-semibold">{t("myCreations")}</h1>
           <Link
             to="/galerie"
             className="ml-auto rounded-full bg-secondary px-3 py-1.5 text-xs font-medium"
@@ -135,7 +135,7 @@ function AppFeed() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4">
           {pending && (
             <PendingCard
               prompt={pending.prompt}

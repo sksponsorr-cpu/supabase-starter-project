@@ -9,7 +9,7 @@ import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
 
 const chip = (active: boolean) =>
-  `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+  `shrink-0 rounded-full px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-medium transition-colors ${
     active ? "bg-foreground text-background" : "text-muted-foreground"
   }`;
 
@@ -83,10 +83,17 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     setEnhancing(true);
     playChime("send");
     try {
-      const better = await enhance({ data: { prompt, lang } });
-      if (better) setText(better);
-      playChime("success");
-    } catch {
+      const result = await enhance({ data: { prompt, mediaType: mode, language: lang } });
+      if (result.ok && result.prompt) {
+        setText(result.prompt);
+        playChime("success");
+      } else {
+        toast.error(result.message || "Erreur d'optimisation");
+        playChime("error");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Échec de l'optimisation");
       playChime("error");
     } finally {
       setEnhancing(false);
@@ -337,8 +344,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           </button>
         </div>
       </div>
-      
-      <div className="mt-3 flex justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mt-3 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
         <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
           {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
             <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>

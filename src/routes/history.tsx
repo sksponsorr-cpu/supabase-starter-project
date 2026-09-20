@@ -62,13 +62,13 @@ function HistoryPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 py-4 sm:p-6">
           {feedLoading && items.length === 0 ? (
             <div className="flex justify-center py-20"><span className="animate-pulse text-muted-foreground">Chargement...</span></div>
           ) : items.length === 0 ? (
             <div className="flex justify-center py-20 text-muted-foreground">Aucune génération récente.</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4">
               {items.map((g) => (
                 <div
                   key={g.id}
