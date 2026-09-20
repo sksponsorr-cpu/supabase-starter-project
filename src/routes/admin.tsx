@@ -305,7 +305,7 @@ function AdminPage() {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => void load(), 30000);
+    const interval = setInterval(() => void load(), 120000);
     return () => clearInterval(interval);
   }, [load]);
 
@@ -521,19 +521,19 @@ function AdminPage() {
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
                     <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
                     <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
-                      {(financialMetrics?.mrr ?? 0).toFixed(2)} €
+                      {(financialMetrics?.mrr ?? 0).toFixed(2)} FCFA
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
+                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} FCFA
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
+                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} FCFA
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
@@ -581,7 +581,7 @@ function AdminPage() {
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(value) => `${value} €`}
+                          tickFormatter={(value) => `${value} FCFA`}
                         />
                         <RechartsTooltip
                           contentStyle={{
@@ -634,7 +634,7 @@ function AdminPage() {
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
                       <h3 className="text-sm font-medium mb-4">Générations sur les 14 derniers jours</h3>
-                      <div className="h-64">
+                      <div className="h-80">
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={timeSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
@@ -652,19 +652,19 @@ function AdminPage() {
                               tickFormatter={(val: string) => new Date(val).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit' })}
                               axisLine={false} 
                               tickLine={false} 
-                              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
                             />
                             <YAxis 
                               axisLine={false} 
                               tickLine={false} 
-                              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
                             />
                             <RechartsTooltip 
                               contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
                               labelFormatter={(label) => new Date(label as string).toLocaleDateString("fr-FR")}
                             />
-                            <Area type="monotone" dataKey="images" name="Images" stroke="#a855f7" strokeWidth={2} fillOpacity={1} fill="url(#colorImages)" />
-                            <Area type="monotone" dataKey="videos" name="Vidéos" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorVideos)" />
+                            <Area type="monotone" dataKey="images" name="Images" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorImages)" />
+                            <Area type="monotone" dataKey="videos" name="Vidéos" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorVideos)" />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
