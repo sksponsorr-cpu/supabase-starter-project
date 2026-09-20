@@ -295,22 +295,29 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               <Video className="h-5 w-5 shrink-0" />
               {mode === "video" && <span className="text-xs sm:text-sm font-medium">{t("video")}</span>}
             </button>
+              <button
+                type="button"
+                aria-label="Emoji"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setText((prev) => prev + " ✨");
+                }}
+                className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+            </div>
             <button
               type="button"
-              aria-label="Emoji"
-              className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
+              aria-label={t("enhance")}
+              title={t("enhance")}
+              onClick={(e) => {
+                e.preventDefault();
+                void runEnhance();
+              }}
+              className="group relative ml-auto flex h-11 items-center gap-2 rounded-full bg-secondary px-3 text-foreground transition-colors disabled:opacity-40 shrink-0"
+              disabled={!text.trim() || enhancing || busy}
             >
-              <Smile className="h-5 w-5" />
-            </button>
-          </div>
-          <button
-            type="button"
-            aria-label={t("enhance")}
-            title={t("enhance")}
-            onClick={() => void runEnhance()}
-            className="group relative ml-auto flex h-11 items-center gap-2 rounded-full bg-secondary px-3 text-foreground transition-colors disabled:opacity-40 shrink-0"
-            disabled={!text.trim() || enhancing || busy}
-          >
             {enhancing ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
