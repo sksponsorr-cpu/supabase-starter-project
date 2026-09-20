@@ -12,7 +12,7 @@ export function Sidebar({
   const { pathname } = useLocation();
 
   const links = [
-    { href: "/app", icon: Wand2, label: "Créer" },
+    { href: "/app", icon: Wand2, label: "CrÃ©er" },
     { href: "/galerie", icon: Image, label: "Galerie" },
     { href: "/history", icon: Clock, label: "Historique" },
   ];
@@ -39,10 +39,14 @@ export function Sidebar({
             <Link
               key={link.href}
               to={link.href}
-              className={lex items-center justify-center rounded-xl p-3 md:justify-start md:px-4 md:py-3 transition-colors }
+              className={`flex items-center justify-center rounded-xl p-3 md:justify-start md:px-4 md:py-3 transition-colors ${
+                active
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+              }`}
               title={link.label}
             >
-              <link.icon className={h-6 w-6 shrink-0 md:h-5 md:w-5 } />
+              <link.icon className={`h-6 w-6 shrink-0 md:h-5 md:w-5 ${active ? "text-primary" : ""}`} />
               <span className="hidden ml-3 font-medium md:block">{link.label}</span>
             </Link>
           );
@@ -61,10 +65,10 @@ export function Sidebar({
         <button
           onClick={onOpenSettings}
           className="flex w-full items-center justify-center rounded-xl p-3 text-muted-foreground hover:bg-secondary/50 hover:text-foreground md:justify-start md:px-4 md:py-3 transition-colors"
-          title="Paramètres"
+          title="ParamÃ¨tres"
         >
           <Settings className="h-6 w-6 shrink-0 md:h-5 md:w-5" />
-          <span className="hidden ml-3 font-medium md:block">Paramètres</span>
+          <span className="hidden ml-3 font-medium md:block">ParamÃ¨tres</span>
         </button>
       </div>
     </aside>
