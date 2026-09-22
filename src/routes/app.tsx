@@ -103,9 +103,9 @@ function AppFeed() {
       <div className="flex-1 md:pl-60 transition-all flex flex-col overflow-x-hidden">
         <PromoBanner enabled={!!session} />
 
-        <div className="mt-8 md:mt-12 flex flex-col items-center px-4">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 text-center">Qu'allons-nous créer ?</h1>
-          <p className="text-muted-foreground mb-8 text-center text-xs sm:text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
+        <div className="pt-16 md:pt-0 mt-4 md:mt-12 flex flex-col items-center px-4">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight mb-2 text-center">Qu'allons-nous créer ?</h1>
+          <p className="text-muted-foreground mb-6 md:mb-8 text-center text-[11px] sm:text-xs md:text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
         </div>
 
         <PromptBar
@@ -118,7 +118,7 @@ function AppFeed() {
 
         <section className="mt-4 sm:mt-8 px-2 sm:px-4 pb-20">
         <div className="flex items-center gap-2 px-2 sm:px-4 mb-4">
-          <h1 className="text-lg sm:text-xl font-semibold">{t("myCreations")}</h1>
+          <h1 className="text-base sm:text-lg md:text-xl font-semibold">{t("myCreations")}</h1>
           <Link
             to="/galerie"
             className="ml-auto rounded-full bg-secondary px-3 py-1.5 text-xs font-medium"
