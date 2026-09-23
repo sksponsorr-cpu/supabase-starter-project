@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
@@ -64,7 +64,25 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [enhancing, setEnhancing] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const [promptFocused, setPromptFocused] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      toast.success(`Image ajoutée : ${file.name}`);
+    }
+  };
+
+  const handleMicClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isListening) return;
+    setIsListening(true);
+    // Simulation simple de reconnaissance vocale
+    setTimeout(() => setIsListening(false), 3000);
+  };
+
   const focusInput = () => inputRef.current?.focus();
   const blurInput = () => {
     inputRef.current?.blur();
@@ -265,10 +283,12 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         />
 
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+          <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={handleFileChange} />
           <button
             type="button"
+            onClick={() => fileRef.current?.click()}
             aria-label="Ajouter"
-            className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -302,17 +322,27 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               <Video className="h-5 w-5 shrink-0" />
               {mode === "video" && <span className="text-xs sm:text-sm font-medium">{t("video")}</span>}
             </button>
-              <button
-                type="button"
-                aria-label="Emoji"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setText((prev) => prev + " ✨");
-                }}
-                className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
-              >
-                <Smile className="h-5 w-5" />
-              </button>
+            <button
+              type="button"
+              aria-label="Micro"
+              onClick={handleMicClick}
+              className={`rounded-full px-2 sm:px-3 py-2 shrink-0 transition-colors ${
+                isListening ? "text-red-500 animate-pulse" : "text-muted-foreground hover:bg-secondary/50"
+              }`}
+            >
+              <Mic className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Emoji"
+              onClick={(e) => {
+                e.preventDefault();
+                setText((prev) => prev + " ✨");
+              }}
+              className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
+            >
+              <Smile className="h-5 w-5" />
+            </button>
             </div>
             <button
               type="button"
