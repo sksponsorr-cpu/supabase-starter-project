@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic } from "lucide-react";
+import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
@@ -9,7 +9,7 @@ import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
 
 const chip = (active: boolean) =>
-  `shrink-0 rounded-full px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-medium transition-colors ${
+  `shrink-0 rounded-full px-2.5 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs font-medium transition-colors ${
     active ? "bg-foreground text-background" : "text-muted-foreground"
   }`;
 
@@ -65,13 +65,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [sent, setSent] = useState<string | null>(null);
   const [promptFocused, setPromptFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      toast.success(`Image ajoutée : ${file.name}`);
+      setAttachedImage(URL.createObjectURL(file));
     }
   };
 
@@ -247,7 +248,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
 
       <div
-        className={`relative overflow-hidden rounded-[28px] border bg-card/60 p-3 backdrop-blur-2xl transition-[border-color,box-shadow,background-color] duration-300 ease-out ${
+        className={`relative overflow-hidden rounded-[28px] border bg-card/60 p-2 sm:p-3 backdrop-blur-2xl transition-[border-color,box-shadow,background-color] duration-300 ease-out flex flex-col gap-1 sm:gap-2 ${
           promptFocused
             ? "border-ring/50 bg-card/80 shadow-[0_10px_40px_-18px_color-mix(in_oklch,var(--ring)_55%,transparent)] ring-1 ring-ring/20"
             : "border-border"
@@ -258,6 +259,23 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             aria-hidden
             className="pointer-events-none absolute inset-0 animate-[promptShimmer_1.2s_linear_infinite] bg-[linear-gradient(110deg,transparent_25%,color-mix(in_oklch,var(--primary)_28%,transparent)_45%,transparent_65%)] bg-[length:250%_100%]"
           />
+        )}
+
+        {attachedImage && (
+          <div className="relative inline-block shrink-0 self-start ml-2 mt-1">
+            <img src={attachedImage} alt="Attachment" className="h-14 w-14 rounded-xl object-cover border border-border shadow-sm" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAttachedImage(null);
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border shadow-sm text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
         )}
 
         <textarea
@@ -274,76 +292,78 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             }
           }}
           disabled={enhancing}
-          placeholder={
-            t("promptPlaceholder")
-          }
-          className={`block w-full resize-none overflow-y-auto bg-transparent px-2 pb-3 text-[16px] sm:text-[17px] leading-6 outline-none transition-[min-height] duration-300 ease-out [field-sizing:content] placeholder:text-muted-foreground ${
-            promptFocused || text ? "min-h-24 max-h-56" : "min-h-11 max-h-56"
+          placeholder={t("promptPlaceholder")}
+          className={`block w-full resize-none overflow-y-auto bg-transparent px-2 pb-1 text-[15px] sm:text-[16px] leading-6 outline-none transition-[min-height] duration-300 ease-out [field-sizing:content] placeholder:text-muted-foreground ${
+            promptFocused || text ? "min-h-20 max-h-56" : "min-h-10 max-h-56"
           }`}
         />
 
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-          <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={handleFileChange} />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            aria-label="Ajouter"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-1 rounded-full bg-secondary p-1 shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-full items-center justify-between gap-1 overflow-visible">
+          <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
+            <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={handleFileChange} />
             <button
               type="button"
-              aria-label="Image"
-              onClick={() => {
-                setMode("image");
-                focusInput();
-              }}
-              className={`flex items-center gap-2 rounded-full px-2 sm:px-3 py-2 ${
-                mode === "image" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
+              onClick={() => fileRef.current?.click()}
+              aria-label="Ajouter"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
             >
-              <ImageIcon className="h-5 w-5 shrink-0" />
-              {mode === "image" && <span className="text-xs sm:text-sm font-medium">{t("image")}</span>}
+              <Plus className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              aria-label="Vidéo"
-              onClick={() => {
-                setMode("video");
-                setRes((r) => (r === "1080p" ? "720p" : r));
-                focusInput();
-              }}
-              className={`flex items-center gap-2 rounded-full px-2 sm:px-3 py-2 ${
-                mode === "video" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
-            >
-              <Video className="h-5 w-5 shrink-0" />
-              {mode === "video" && <span className="text-xs sm:text-sm font-medium">{t("video")}</span>}
-            </button>
-            <button
-              type="button"
-              aria-label="Micro"
-              onClick={handleMicClick}
-              className={`rounded-full px-2 sm:px-3 py-2 shrink-0 transition-colors ${
-                isListening ? "text-red-500 animate-pulse" : "text-muted-foreground hover:bg-secondary/50"
-              }`}
-            >
-              <Mic className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Emoji"
-              onClick={(e) => {
-                e.preventDefault();
-                setText((prev) => prev + " ✨");
-              }}
-              className="rounded-full px-2 sm:px-3 py-2 text-muted-foreground shrink-0 hidden sm:block"
-            >
-              <Smile className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-0.5 rounded-full bg-secondary p-1 shrink-0">
+              <button
+                type="button"
+                aria-label="Image"
+                onClick={() => {
+                  setMode("image");
+                  focusInput();
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 py-1.5 ${
+                  mode === "image" ? "bg-foreground text-background" : "text-muted-foreground"
+                }`}
+              >
+                <ImageIcon className="h-4 w-4 shrink-0" />
+                {mode === "image" && <span className="text-[11px] sm:text-xs font-medium">{t("image")}</span>}
+              </button>
+              <button
+                type="button"
+                aria-label="Vidéo"
+                onClick={() => {
+                  setMode("video");
+                  setRes((r) => (r === "1080p" ? "720p" : r));
+                  focusInput();
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 py-1.5 ${
+                  mode === "video" ? "bg-foreground text-background" : "text-muted-foreground"
+                }`}
+              >
+                <Video className="h-4 w-4 shrink-0" />
+                {mode === "video" && <span className="text-[11px] sm:text-xs font-medium">{t("video")}</span>}
+              </button>
+              <button
+                type="button"
+                aria-label="Micro"
+                onClick={handleMicClick}
+                className={`rounded-full px-2 sm:px-2.5 py-1.5 shrink-0 transition-colors ${
+                  isListening ? "text-red-500 animate-pulse" : "text-muted-foreground hover:bg-secondary/50"
+                }`}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Emoji"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setText((prev) => prev + " ✨");
+                }}
+                className="rounded-full px-2 sm:px-2.5 py-1.5 text-muted-foreground shrink-0 hidden sm:block hover:bg-secondary/50 transition-colors"
+              >
+                <Smile className="h-4 w-4" />
+              </button>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pl-1 sm:pl-2">
             <button
               type="button"
               aria-label={t("enhance")}
@@ -352,26 +372,26 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
                 e.preventDefault();
                 void runEnhance();
               }}
-              className="group relative ml-auto flex h-11 items-center gap-2 rounded-full bg-secondary px-3 text-foreground transition-colors disabled:opacity-40 shrink-0"
+              className="group relative flex h-9 sm:h-10 items-center gap-1.5 rounded-full bg-secondary px-2 sm:px-3 text-foreground transition-colors disabled:opacity-40 shrink-0"
               disabled={!text.trim() || enhancing || busy}
             >
-            {enhancing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Sparkles className="h-5 w-5" />
-            )}
-            <span className="hidden text-sm font-medium sm:inline">{t("enhance")}</span>
-          </button>
-          <button
-            type="button"
-            aria-label={t("send")}
-            onClick={() => void submit()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            disabled={!text.trim() || busy || enhancing}
-          >
-
-            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
-          </button>
+              {enhancing ? (
+                <Loader2 className="h-4 w-4 sm:h-4 sm:w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 sm:h-4 sm:w-4" />
+              )}
+              <span className="hidden text-[11px] sm:text-xs font-medium sm:inline">{t("enhance")}</span>
+            </button>
+            <button
+              type="button"
+              aria-label={t("send")}
+              onClick={() => void submit()}
+              className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+              disabled={!text.trim() || busy || enhancing}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
       </div>
       <div className="mt-3 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
