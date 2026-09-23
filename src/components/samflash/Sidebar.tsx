@@ -1,8 +1,12 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, Plus, Trash2, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { toast } from "@/lib/toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useProjects } from "@/hooks/useProjects";
+import { useServerFn } from "@tanstack/react-start";
+import { createProject, deleteProject } from "@/lib/project.functions";
 
 export function Sidebar({
   onOpenSettings,
@@ -11,7 +15,47 @@ export function Sidebar({
   onOpenSettings: () => void;
   onOpenPlans: () => void;
 }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const { session } = useAuth();
+  const { items: projects, refresh } = useProjects(!!session);
+  const addProject = useServerFn(createProject);
+  const removeProject = useServerFn(deleteProject);
+  const [isCreating, setIsCreating] = useState(false);
+  const currentProjectId = (search as any)?.project;
+
+  const handleAddProject = async () => {
+    if (!session) {
+      toast("Vous devez être connecté pour créer un projet");
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const id = await addProject({});
+      await refresh();
+      navigate({ to: "/app", search: { project: id } as any });
+      if (window.innerWidth < 768) setIsOpen(false);
+    } catch (error: any) {
+      toast(error.message || "Erreur lors de la création du projet");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleDeleteProject = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Supprimer ce projet et toutes ses générations ?")) return;
+    try {
+      await removeProject({ id });
+      await refresh();
+      if (currentProjectId === id) {
+        navigate({ to: "/app" });
+      }
+    } catch (error: any) {
+      toast(error.message || "Erreur lors de la suppression");
+    }
+  };
   const [isOpen, setIsOpen] = useState(false);
 
   const links = [
@@ -92,17 +136,48 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="px-5 py-3">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Projets</h3>
+                <div className="px-5 py-3 shrink-0 flex flex-col">
+          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider shrink-0">Projets</h3>
           <button 
-            onClick={() => toast("Fonctionnalité bientôt disponible")}
-            className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+            onClick={handleAddProject}
+            disabled={isCreating}
+            className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-3 shrink-0"
           >
             <div className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary/50 group-hover:bg-secondary transition-colors">
-              <Plus className="w-4 h-4" />
+              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             </div>
             <span className="font-medium">Ajouter un projet</span>
           </button>
+          
+          <div className="space-y-0.5 -mx-2">
+            {projects.map((p) => {
+              const isActive = currentProjectId === p.id;
+              return (
+                <div key={p.id} className="group flex items-center justify-between rounded-lg hover:bg-secondary/50 transition-colors">
+                  <Link
+                    to="/app"
+                    search={{ project: p.id } as any}
+                    onClick={() => {
+                      if (window.innerWidth < 768) setIsOpen(false);
+                    }}
+                    className={`flex flex-1 items-center gap-2.5 px-3 py-2 truncate ${
+                      isActive ? "text-foreground font-medium bg-secondary/30" : "text-muted-foreground"
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4 shrink-0" />
+                    <span className="truncate text-sm">{p.title || "Nouveau projet"}</span>
+                  </Link>
+                  <button
+                    onClick={(e) => handleDeleteProject(e, p.id)}
+                    className="p-2 text-muted-foreground hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0 mr-1"
+                    title="Supprimer le projet"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex-1" />
