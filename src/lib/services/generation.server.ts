@@ -17,6 +17,7 @@ export type GenerationInput = {
   aspectRatio: string;
   imageUrl?: string | null;
   videoUrl?: string | null;
+  project_id?: string | null;
 };
 
 export type GenerationRow = {
@@ -244,6 +245,7 @@ export async function runGeneration(
         resolution: input.resolution,
         duration: input.duration,
         aspect_ratio: input.aspectRatio,
+        project_id: input.project_id || null,
         media_url: fields.mediaUrl,
         storage_path: fields.storagePath,
         duration_seconds: fields.status === "ready" ? seconds : 0,
