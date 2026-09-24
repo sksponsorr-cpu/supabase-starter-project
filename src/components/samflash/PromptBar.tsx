@@ -8,6 +8,7 @@ import { enhancePrompt } from "@/lib/prompt.functions";
 import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
+import { useLocation } from "@tanstack/react-router";
 
 const chip = (active: boolean) =>
   `shrink-0 rounded-full px-2.5 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs font-medium transition-colors ${
