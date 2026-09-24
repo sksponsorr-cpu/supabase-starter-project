@@ -241,11 +241,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         setSent(error instanceof Error ? error.message : t("genFail"));
       }
     } finally {
-      if (!isDone) {
-        setBusy(false);
-        onSettled?.();
-        setTimeout(() => setSent(null), 2600);
-      }
+      setBusy(false);
+      onSettled?.();
+      setTimeout(() => setSent(null), 3000);
     }
   };
 
