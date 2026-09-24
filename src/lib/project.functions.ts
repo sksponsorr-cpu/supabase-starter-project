@@ -67,3 +67,22 @@ export const deleteProject = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+
+export const updateProjectTitle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; title: string }) => {
+    if (!input?.id || !input?.title) throw new Error("Identifiant ou titre manquant");
+    return { id: String(input.id), title: String(input.title) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("projects")
+      .update({ title: data.title.trim() })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

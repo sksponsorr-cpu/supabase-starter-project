@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
+import { updateProjectTitle } from "@/lib/project.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
 import { enhancePrompt } from "@/lib/prompt.functions";
 import { useI18n } from "@/lib/i18n";
@@ -95,6 +96,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const cancelGen = useServerFn(cancelGeneration);
   const enhance = useServerFn(enhancePrompt);
   const checkAccess = useServerFn(getGenerationAccess);
+  const renameProj = useServerFn(updateProjectTitle);
+  const { search } = useLocation();
+  const currentProjectId = (search as any)?.project;
 
   const runEnhance = async () => {
     const prompt = text.trim();
@@ -162,7 +166,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio },
+        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, project_id: currentProjectId },
       });
 
       if (result.ok) {
@@ -170,7 +174,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           playChime("success");
           setSent(t("genDone"));
           onGenerated?.();
-        } else if (result.status === "pending" && result.id) {
+            if (currentProjectId) {
+              renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
+            }
+          } else if (result.status === "pending" && result.id) {
           onCancelReady?.(() => {
             isDone = true;
             void cancelGen({ data: { id: result.id! } });
@@ -197,6 +204,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               playChime("success");
               setSent(t("genDone"));
               onGenerated?.();
+              if (currentProjectId) {
+                renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
+              }
             } else if (statusResult.status === "error") {
               isDone = true;
               playChime("error");
@@ -344,7 +354,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
                 aria-label="Micro"
                 onClick={handleMicClick}
                 className={`rounded-full px-2 sm:px-2.5 py-1.5 shrink-0 transition-colors ${
-                  isListening ? "text-red-500 animate-pulse" : "text-muted-foreground hover:bg-secondary/50"
+                  isListening ? "bg-red-500/20 text-red-600 animate-pulse ring-2 ring-red-500/50" : "text-muted-foreground hover:bg-secondary/50"
                 }`}
               >
                 <Mic className="h-4 w-4" />
@@ -363,7 +373,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             </div>
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pl-1 sm:pl-2">
+          <div className="flex items-center gap-3 sm:gap-1.5 shrink-0 ml-auto pl-1 sm:pl-2">
             <button
               type="button"
               aria-label={t("enhance")}

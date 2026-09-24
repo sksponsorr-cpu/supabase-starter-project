@@ -14,6 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { SettingsSheet } from "@/components/samflash/SettingsSheet";
 import { Sidebar } from "@/components/samflash/Sidebar";
+import { useSidebarStore } from "@/hooks/useSidebarStore";
+import { updateProjectTitle } from "@/lib/project.functions";
 import { PromptBar } from "@/components/samflash/PromptBar";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
@@ -44,6 +46,7 @@ export const Route = createFileRoute("/app")({
 });
 
 function AppFeed() {
+  const { isCollapsed } = useSidebarStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [cancelFn, setCancelFn] = useState<(() => void) | null>(null);
@@ -100,7 +103,7 @@ function AppFeed() {
     >
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
       
-      <div className="flex-1 md:pl-60 transition-all flex flex-col overflow-x-hidden">
+      <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
         <PromoBanner enabled={!!session} />
 
         <div className="pt-16 md:pt-0 mt-4 md:mt-12 flex flex-col items-center px-4">

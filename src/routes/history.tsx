@@ -5,6 +5,7 @@ import { Play, Trash2, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/samflash/Sidebar";
+import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { SettingsSheet } from "@/components/samflash/SettingsSheet";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
@@ -54,7 +55,7 @@ function HistoryPage() {
     <div className="flex min-h-screen bg-background">
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
       
-      <div className="flex-1 md:pl-60 transition-all flex flex-col overflow-x-hidden">
+      <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/40 px-4 py-3 md:px-6 md:py-4 pl-16 md:pl-6">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />

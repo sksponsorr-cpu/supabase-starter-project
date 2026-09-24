@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, Plus, Trash2, Loader2, MessageSquare } from "lucide-react";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Plus, Trash2, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects } from "@/hooks/useProjects";
+import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { useServerFn } from "@tanstack/react-start";
 import { createProject, deleteProject } from "@/lib/project.functions";
 
@@ -23,6 +24,10 @@ export function Sidebar({
   const removeProject = useServerFn(deleteProject);
   const [isCreating, setIsCreating] = useState(false);
   const currentProjectId = (search as any)?.project;
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { isCollapsed, toggleCollapse, setCollapsed } = useSidebarStore();
+  const filteredProjects = projects.filter(p => (p.title || "Nouveau projet").toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleAddProject = async () => {
     if (!session) {
@@ -47,7 +52,7 @@ export function Sidebar({
     e.stopPropagation();
     if (!window.confirm("Supprimer ce projet et toutes ses générations ?")) return;
     try {
-      await removeProject({ id });
+      await removeProject({ data: { id } });
       await refresh();
       if (currentProjectId === id) {
         navigate({ to: "/app" });
@@ -80,30 +85,32 @@ export function Sidebar({
         />
       )}
 
-      <aside className={`fixed left-0 top-0 z-50 flex h-[100dvh] w-72 flex-col overflow-y-auto border-r border-border/60 bg-background/95 backdrop-blur-xl transition-transform duration-300 md:w-60 md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed left-0 top-0 z-50 flex h-[100dvh] w-72 flex-col overflow-y-auto border-r border-border/60 bg-background/95 backdrop-blur-xl transition-all duration-300 md:translate-x-0 overflow-x-hidden ${isOpen ? "translate-x-0" : "-translate-x-full"} ${isCollapsed ? "md:w-16" : "md:w-60"}`}>
         <div className="flex h-16 items-center justify-between px-4 shrink-0">
-          <Link to="/app" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
+          <Link to="/app" className="flex items-center gap-3 overflow-hidden" onClick={() => setIsOpen(false)}>
             <img
               src={logoAsset}
               alt="Sam Flash 2.0"
               className="h-9 w-9 shrink-0 rounded-full object-cover shadow-sm"
             />
-            <span className="text-lg font-semibold tracking-tight">
+            <span className={`text-lg font-semibold tracking-tight whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>
               Sam Flash
             </span>
           </Link>
           <div className="flex items-center gap-1 sm:gap-2">
             <button 
-              onClick={() => toast("Recherche bientôt disponible")}
-              className="p-1.5 text-muted-foreground hover:bg-secondary/50 rounded-md hover:text-foreground transition-colors"
+              onClick={() => { setIsSearching(true); setCollapsed(false); }}
+              className={`p-1.5 text-muted-foreground hover:bg-secondary/50 rounded-md hover:text-foreground transition-colors ${isCollapsed ? "hidden" : ""}`}
+              title="Rechercher"
             >
               <Search className="w-5 h-5" />
             </button>
             <button 
-              onClick={() => toast("Rétraction bientôt disponible")}
+              onClick={toggleCollapse}
               className="hidden md:block p-1.5 text-muted-foreground hover:bg-secondary/50 rounded-md hover:text-foreground transition-colors"
+              title={isCollapsed ? "Étendre" : "Réduire"}
             >
-              <PanelLeftClose className="w-5 h-5" />
+              {isCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
             </button>
             <button 
               onClick={() => setIsOpen(false)} 
@@ -130,27 +137,49 @@ export function Sidebar({
                 title={link.label}
               >
                 <link.icon className={`h-5 w-5 shrink-0 ${active ? "text-primary" : ""}`} />
-                <span className="ml-3 font-medium">{link.label}</span>
+                <span className={`ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>{link.label}</span>
               </Link>
             );
           })}
         </nav>
 
-                <div className="px-5 py-3 shrink-0 flex flex-col">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider shrink-0">Projets</h3>
-          <button 
-            onClick={handleAddProject}
-            disabled={isCreating}
-            className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-3 shrink-0"
-          >
-            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary/50 group-hover:bg-secondary transition-colors">
-              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        <div className={`px-5 py-3 shrink-0 flex flex-col ${isCollapsed ? "md:hidden" : ""}`}>
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projets</h3>
+          </div>
+          
+          {isSearching ? (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-secondary/50 rounded-md pl-8 pr-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <button onClick={() => { setIsSearching(false); setSearchQuery(""); }} className="p-1.5 text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <span className="font-medium">Ajouter un projet</span>
-          </button>
+          ) : (
+            <button 
+              onClick={handleAddProject}
+              disabled={isCreating}
+              className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-3 shrink-0"
+            >
+              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary/50 group-hover:bg-secondary transition-colors">
+                {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </div>
+              <span className="font-medium whitespace-nowrap">Ajouter un projet</span>
+            </button>
+          )}
           
           <div className="space-y-0.5 -mx-2">
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const isActive = currentProjectId === p.id;
               return (
                 <div key={p.id} className="group flex items-center justify-between rounded-lg hover:bg-secondary/50 transition-colors">
@@ -177,6 +206,9 @@ export function Sidebar({
                 </div>
               );
             })}
+            {filteredProjects.length === 0 && isSearching && (
+              <p className="text-sm text-muted-foreground text-center py-4">Aucun projet trouvé</p>
+            )}
           </div>
         </div>
 
@@ -191,7 +223,7 @@ export function Sidebar({
             className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
           >
             <Crown className="h-5 w-5 shrink-0" />
-            <span className="ml-3 font-medium">Abonnement</span>
+            <span className={`ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>Abonnement</span>
           </button>
           <button
             onClick={() => {
@@ -201,7 +233,7 @@ export function Sidebar({
             className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
           >
             <Settings className="h-5 w-5 shrink-0" />
-            <span className="ml-3 font-medium">Paramètres</span>
+            <span className={`ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>Paramètres</span>
           </button>
         </div>
       </aside>
