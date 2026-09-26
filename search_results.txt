@@ -1,0 +1,51 @@
+Searching for ANON | SERVICE_ROLE...
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\auth-middleware.ts
+  Line 38: const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? process.env['EXTERNAL_SUPABASE_ANON_KEY'];
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\client.server.ts
+  Line 34: const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? process.env['EXTERNAL_SUPABASE_SERVICE_ROLE_KEY'];
+  Line 36: if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  Line 39: ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
+  Line 46: return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  Line 48: fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\client.ts
+  Line 35: const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['EXTERNAL_SUPABASE_ANON_KEY'];
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\community.functions.ts
+  Line 23: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_ANON_KEY"])!;
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\mcp\supabase.ts
+  Line 46: const legacy = configuredEnv(["SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"]);
+  Line 48: throw new Error("SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required");
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\payments\public-client.server.ts
+  Line 6: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_ANON_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"])!;
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\promo.functions.ts
+  Line 16: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_ANON_KEY"])!;
+Searching for PUBLISHABLE...
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\auth-middleware.ts
+  Line 11: return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+  Line 38: const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? process.env['EXTERNAL_SUPABASE_ANON_KEY'];
+  Line 40: if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  Line 43: ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+  Line 78: SUPABASE_PUBLISHABLE_KEY!,
+  Line 81: fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\client.server.ts
+  Line 9: return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\integrations\supabase\client.ts
+  Line 7: return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+  Line 35: const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['EXTERNAL_SUPABASE_ANON_KEY'];
+  Line 37: if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  Line 40: ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+  Line 47: return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  Line 49: fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\community.functions.ts
+  Line 23: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_ANON_KEY"])!;
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\mcp\supabase.ts
+  Line 28: function supabasePublishableKey(): string {
+  Line 29: const direct = configuredEnv(["SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY"]);
+  Line 31: const keyset = runtimeEnv("SUPABASE_PUBLISHABLE_KEYS");
+  Line 38: .find((v): v is string => typeof v === "string" && v.trim().startsWith("sb_publishable_"))
+  Line 48: throw new Error("SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required");
+  Line 55: return createClient(supabaseProjectUrl(), supabasePublishableKey(), {
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\payments\public-client.server.ts
+  Line 6: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_ANON_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"])!;
+Found in: C:\Users\ADAYI\Downloads\supabase-starter-project\src\lib\promo.functions.ts
+  Line 16: const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["EXTERNAL_SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_ANON_KEY"])!;
+Done.
