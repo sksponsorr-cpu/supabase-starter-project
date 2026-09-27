@@ -73,9 +73,36 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAttachedImage(URL.createObjectURL(file));
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1920;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setAttachedImage(dataUrl);
+        } else {
+          setAttachedImage(event.target?.result as string);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleMicClick = (e: React.MouseEvent) => {
@@ -167,7 +194,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, project_id: currentProjectId },
+        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId },
       });
 
       if (result.ok) {
