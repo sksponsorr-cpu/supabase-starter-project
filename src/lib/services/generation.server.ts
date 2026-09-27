@@ -162,6 +162,9 @@ export async function runGeneration(
   const seconds = secondsFor(input);
   const isVideo = input.mediaType === "video";
 
+  const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  const isAdmin = profile?.role === "admin";
+
   // Contrôle d'accès préalable : aucun appel au moteur si l'utilisateur n'a
   // ni abonnement actif ni offre gratuite disponible sur cet appareil.
   const { checkGenerationAccess } = await import("@/lib/services/access.server");
@@ -177,6 +180,7 @@ export async function runGeneration(
     };
   }
 
+  if (!isAdmin) {
   if (isVideo) {
     // Pipeline strict : abonnement valide + solde de secondes suffisant,
     // vérifiés en base avant tout appel au moteur de génération.
@@ -214,8 +218,9 @@ export async function runGeneration(
       };
     }
   }
+  }
 
-  let debited = true;
+  let debited = !isAdmin;
   const refund = async () => {
     if (!debited) return;
     debited = false;

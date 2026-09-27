@@ -76,6 +76,20 @@ export async function checkGenerationAccess(
   seconds = 0,
 ): Promise<AccessResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (profile?.role === "admin") {
+    return {
+      allowed: true,
+      code: "ok",
+      planType: "super_grok",
+      isSubscribed: true,
+      remainingSeconds: 9999,
+      limitSeconds: 9999,
+      message: null,
+    };
+  }
+
   const { plan, expired } = await activePlan(userId);
   const isSubscribed = plan !== "free";
 
