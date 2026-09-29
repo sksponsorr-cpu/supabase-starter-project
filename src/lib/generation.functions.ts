@@ -8,6 +8,7 @@ type GenerateInput = {
   resolution: string;
   duration: string;
   aspectRatio: string;
+  imageUrl?: string | null;
   project_id?: string | null;
 };
 
@@ -24,6 +25,7 @@ function normalize(input: GenerateInput) {
     resolution,
     duration: `${seconds}s`,
     aspectRatio: String(input.aspectRatio ?? "2:3"),
+    imageUrl: input.imageUrl || null,
     project_id: input.project_id || null,
   };
 }

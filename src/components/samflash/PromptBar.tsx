@@ -73,9 +73,36 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAttachedImage(URL.createObjectURL(file));
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1920;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setAttachedImage(dataUrl);
+        } else {
+          setAttachedImage(event.target?.result as string);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleMicClick = (e: React.MouseEvent) => {
@@ -167,18 +194,22 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, project_id: currentProjectId },
+        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId },
       });
 
       if (result.ok) {
         if (result.status === "ready") {
+          // Succès synchrone
           playChime("success");
           setSent(t("genDone"));
           onGenerated?.();
-            if (currentProjectId) {
-              renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
-            }
-          } else if (result.status === "pending" && result.id) {
+          if (currentProjectId) {
+            renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
+          }
+          // Succès : efface le bandeau après 4 s
+          setTimeout(() => setSent(null), 4000);
+        } else if (result.status === "pending" && result.id) {
+          // Job asynchrone : on démarre le polling
           onCancelReady?.(() => {
             isDone = true;
             void cancelGen({ data: { id: result.id! } });
@@ -189,16 +220,19 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
           // Polling
           let attempts = 0;
-          const maxAttempts = 30; // 90 secondes max
+          const maxAttempts = 100; // ~5 minutes max (100 × 3 s)
 
           while (attempts < maxAttempts && !isDone) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
             if (isDone) break;
 
             attempts++;
-            const statusResult = await checkStatus({ data: { id: result.id } }).catch(() => null);
+            const statusResult = await checkStatus({ data: { id: result.id } }).catch((err) => {
+              console.error("[PromptBar] Polling error (attempt", attempts, "):", err);
+              return null;
+            });
 
-            if (!statusResult || !statusResult.ok) continue; // Ignore network errors during polling
+            if (!statusResult || !statusResult.ok) continue; // Erreur réseau transitoire, on continue
 
             if (statusResult.status === "ready") {
               isDone = true;
@@ -208,10 +242,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               if (currentProjectId) {
                 renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
               }
+              // Succès après polling : efface le bandeau après 4 s
+              setTimeout(() => setSent(null), 4000);
             } else if (statusResult.status === "error") {
               isDone = true;
               playChime("error");
               setText(prompt);
+              // Erreur Fal.ai : message persistant (pas de setTimeout)
               setSent(statusResult.error ?? t("genFail"));
             }
           }
@@ -219,7 +256,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           if (!isDone) {
             playChime("error");
             setText(prompt);
-            setSent("La génération prend plus de temps que prévu, réessayez plus tard.");
+            // Timeout polling : message persistant (pas de setTimeout)
+            setSent("La génération a échoué ou pris trop de temps. Réessaie.");
           }
         }
       } else if (result.reason === "quota") {
@@ -232,26 +270,37 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       } else {
         playChime("error");
         setText(prompt);
+        // Erreur serveur : message persistant (pas de setTimeout)
         setSent(result.message ?? t("genFail"));
       }
     } catch (error) {
       if (!isDone) {
         playChime("error");
         setText(prompt);
+        // Erreur inattendue : message persistant, pas de setTimeout
         setSent(error instanceof Error ? error.message : t("genFail"));
       }
     } finally {
       setBusy(false);
       onSettled?.();
-      setTimeout(() => setSent(null), 3000);
+      // ⚠️ Pas de setSent(null) ici : les messages d'erreur doivent rester visibles
+      // jusqu'à ce que l'utilisateur relance une génération ou ferme le bandeau (bouton ✕).
     }
   };
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
       {sent && (
-        <div className="mx-auto mb-4 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
-          {sent}
+        <div className="mx-auto mb-4 flex items-center gap-2 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
+          <span>{sent}</span>
+          <button
+            type="button"
+            aria-label="Fermer"
+            onClick={() => setSent(null)}
+            className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-3 w-3" />
+          </button>
         </div>
       )}
 

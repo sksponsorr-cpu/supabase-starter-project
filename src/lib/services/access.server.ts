@@ -76,6 +76,21 @@ export async function checkGenerationAccess(
   seconds = 0,
 ): Promise<AccessResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  console.log("[ADMIN-CHECK] verify profile:", { userId, role: profile?.role, error: profileError ? { message: profileError.message, code: profileError.code } : null });
+  if (profile?.role === "admin") {
+    return {
+      allowed: true,
+      code: "ok",
+      planType: "super_grok",
+      isSubscribed: true,
+      remainingSeconds: 9999,
+      limitSeconds: 9999,
+      message: null,
+    };
+  }
+
   const { plan, expired } = await activePlan(userId);
   const isSubscribed = plan !== "free";
 
@@ -92,6 +107,7 @@ export async function checkGenerationAccess(
   const base = { planType: plan, isSubscribed, remainingSeconds, limitSeconds };
 
   if (!isSubscribed && (await deviceFreeAlreadyUsed(userId))) {
+    console.log("[ADMIN-CHECK] refus: device_free_used");
     return { ...base, allowed: false, code: "device_free_used", message: DEVICE_MESSAGE };
   }
 
@@ -112,6 +128,7 @@ export async function checkGenerationAccess(
       .neq("status", "error");
 
     if (mediaType === "image" && (imageCount ?? 0) >= 3) {
+      console.log("[ADMIN-CHECK] refus: limite 3 images");
       return {
         ...base,
         allowed: false,
@@ -122,6 +139,7 @@ export async function checkGenerationAccess(
 
     if (mediaType === "video") {
       if ((videoCount ?? 0) >= 1) {
+        console.log("[ADMIN-CHECK] refus: limite 1 video gratuite");
         return {
           ...base,
           allowed: false,
@@ -130,6 +148,7 @@ export async function checkGenerationAccess(
         };
       }
       if (seconds > 3) {
+        console.log("[ADMIN-CHECK] refus: limite de 3 secondes max");
         return {
           ...base,
           allowed: false,
@@ -145,6 +164,7 @@ export async function checkGenerationAccess(
   // LOGIQUE POUR LES UTILISATEURS PAYANTS (Super Grok / Superhearly)
   if (mediaType === "video") {
     if (!isSubscribed && expired) {
+      console.log("[ADMIN-CHECK] refus: abonnement expire");
       return {
         ...base,
         allowed: false,
@@ -154,6 +174,7 @@ export async function checkGenerationAccess(
       };
     }
     if (seconds > 0 && remainingSeconds < seconds) {
+      console.log("[ADMIN-CHECK] refus: limite quotidienne", { isSubscribed, seconds, remainingSeconds });
       return {
         ...base,
         allowed: false,
