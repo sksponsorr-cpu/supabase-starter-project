@@ -29,23 +29,38 @@ export const enhancePrompt = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
+    // Utilise XAI_API_KEY (même clé que pour la génération image/vidéo dans xai.server.ts).
+    // Modèle texte : grok-3-mini par défaut (tâche de reformulation courte, pas de génération média).
+    // Surchargeable via XAI_CHAT_MODEL si besoin d'un modèle plus puissant.
+    const apiKey = process.env["XAI_API_KEY"];
     if (!apiKey) return { ok: false as const, message: "Optimisation indisponible" };
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: `Type de média : ${data.mediaType === "video" ? "vidéo" : "image"}. Langue de réponse : ${data.language}.\nIdée : ${data.prompt}`,
-          },
-        ],
-      }),
-    });
+    const baseUrl = (process.env["XAI_BASE_URL"] ?? "https://api.x.ai/v1").replace(/\/+$/, "");
+    const model = process.env["XAI_CHAT_MODEL"] ?? "grok-3-mini";
+
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM },
+            {
+              role: "user",
+              content: `Type de média : ${data.mediaType === "video" ? "vidéo" : "image"}. Langue de réponse : ${data.language}.\nIdée : ${data.prompt}`,
+            },
+          ],
+        }),
+      });
+    } catch (error) {
+      console.error("[enhancePrompt] Network error:", error);
+      return { ok: false as const, message: "Optimisation impossible (erreur réseau)" };
+    }
 
     if (!res.ok) {
       if (res.status === 429) return { ok: false as const, message: "Trop de requêtes, réessayez" };
