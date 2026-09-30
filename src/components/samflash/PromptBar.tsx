@@ -70,6 +70,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Référence à l'instance SpeechRecognition en cours, pour pouvoir l'arrêter
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,10 +109,61 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   const handleMicClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isListening) return;
-    setIsListening(true);
-    // Simulation simple de reconnaissance vocale
-    setTimeout(() => setIsListening(false), 3000);
+
+    // Second clic pendant l'écoute → arrêt immédiat
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Vérification du support navigateur (Firefox ne supporte pas SpeechRecognition)
+    const SpeechRecognitionAPI =
+      (window as any).SpeechRecognition ??
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
+      setSent("Dictée vocale non disponible sur ce navigateur.");
+      setTimeout(() => setSent(null), 4000);
+      return;
+    }
+
+    const recognition: SpeechRecognition = new SpeechRecognitionAPI();
+    // Langue calée sur la langue de l'UI (fr → fr-FR, sinon en-US)
+    recognition.lang = lang === "fr" ? "fr-FR" : "en-US";
+    recognition.continuous = false;    // une seule phrase puis stop automatique
+    recognition.interimResults = false; // résultat final uniquement
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      // Appende au texte existant (avec espace) ou initialise
+      setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      if (event.error === "not-allowed") {
+        setSent("Accès au micro refusé. Autorise-le dans les paramètres de ton navigateur.");
+      } else if (event.error === "no-speech") {
+        setSent("Aucune voix détectée. Réessaie.");
+      } else {
+        setSent(`Erreur micro : ${event.error}`);
+      }
+      setTimeout(() => setSent(null), 4000);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const focusInput = () => inputRef.current?.focus();
