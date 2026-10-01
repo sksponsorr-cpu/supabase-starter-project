@@ -256,3 +256,86 @@ export async function generateVideoWithXai(req: XaiMediaRequest): Promise<XaiMed
     code: "timeout",
   };
 }
+
+// ---------------------------------------------------------------------------
+// Optimisation de prompt (reformulation cinématographique)
+// Séparée de la génération image/vidéo : modèle texte, pas de média.
+// ---------------------------------------------------------------------------
+
+const ENHANCE_SYSTEM = `Tu es un directeur artistique expert en prompts pour la génération vidéo/image par IA (Grok Imagine).
+Transforme l'idée simple de l'utilisateur en UN SEUL prompt riche, cinématographique et prêt à l'emploi.
+Le prompt doit décrire, en prose fluide et dense (80 à 140 mots) :
+- les détails visuels de la scène (sujet, décor, textures, palette, style) ;
+- le mouvement de caméra (travelling, plan drone, ralenti, focale, profondeur de champ) ;
+- l'éclairage et l'ambiance (heure dorée, néons, contre-jour, brume, contraste) ;
+- pour la vidéo : une section audio explicite décrivant les effets sonores et l'ambiance
+  (ex. rugissement de moteur, pluie sur le métal, basses cinématographiques, souffle du vent).
+Règles : réponds UNIQUEMENT par le prompt final, sans guillemets, sans titre, sans liste à puces,
+sans commentaire ni explication. Écris dans la langue de l'utilisateur.`;
+
+export type EnhancePromptResult =
+  | { ok: true; prompt: string }
+  | { ok: false; message: string };
+
+/**
+ * Reformule un prompt utilisateur via xAI /chat/completions (grok-3-mini).
+ * Doit être appelé depuis un fichier .server.ts ou via await import() dynamique
+ * depuis un createServerFn handler — garantit l'accès à process.env au runtime.
+ */
+export async function enhancePromptWithXai(input: {
+  prompt: string;
+  mediaType: "image" | "video";
+  language: string;
+}): Promise<EnhancePromptResult> {
+  const apiKey = process.env["XAI_API_KEY"];
+  if (!apiKey) return { ok: false, message: "Optimisation indisponible" };
+
+  const base = (process.env["XAI_BASE_URL"] ?? "https://api.x.ai/v1").replace(/\/+$/, "");
+  const model = process.env["XAI_CHAT_MODEL"] ?? "grok-3-mini";
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: ENHANCE_SYSTEM },
+          {
+            role: "user",
+            content: `Type de média : ${input.mediaType === "video" ? "vidéo" : "image"}. Langue de réponse : ${input.language}.\nIdée : ${input.prompt}`,
+          },
+        ],
+      }),
+    });
+  } catch (error) {
+    console.error("[enhancePromptWithXai] Network error:", error);
+    return { ok: false, message: "Optimisation impossible (erreur réseau)" };
+  }
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "(corps illisible)");
+    console.error(`[enhancePromptWithXai] xAI HTTP ${res.status}:`, errBody);
+    if (res.status === 429) return { ok: false, message: "Trop de requêtes, réessayez" };
+    if (res.status === 402) return { ok: false, message: "Crédits IA épuisés" };
+    return { ok: false, message: `[DIAG] xAI ${res.status}: ${errBody.slice(0, 200)}` };
+  }
+
+  const rawText = await res.text().catch(() => "");
+  console.log("[enhancePromptWithXai] raw response:", rawText.slice(0, 300));
+
+  let json: { choices?: { message?: { content?: string } }[] } = {};
+  try { json = JSON.parse(rawText) as typeof json; } catch { /* ignore */ }
+
+  const text = json.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    console.error("[enhancePromptWithXai] Unexpected response structure:", rawText.slice(0, 300));
+    return { ok: false, message: `[DIAG] Réponse inattendue: ${rawText.slice(0, 200)}` };
+  }
+
+  return { ok: true, prompt: text.replace(/^["'«»\s]+|["'«»\s]+$/g, "") };
+}
