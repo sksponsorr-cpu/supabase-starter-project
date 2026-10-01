@@ -63,13 +63,25 @@ export const enhancePrompt = createServerFn({ method: "POST" })
     }
 
     if (!res.ok) {
+      // [DIAG] Lire le corps brut pour exposer la vraie erreur xAI
+      const errBody = await res.text().catch(() => "(corps illisible)");
+      console.error(`[enhancePrompt] xAI HTTP ${res.status} — body:`, errBody);
       if (res.status === 429) return { ok: false as const, message: "Trop de requêtes, réessayez" };
       if (res.status === 402) return { ok: false as const, message: "Crédits IA épuisés" };
-      return { ok: false as const, message: "Optimisation impossible" };
+      // Message de diagnostic temporaire : expose le statut + début du corps
+      return { ok: false as const, message: `[DIAG] xAI ${res.status}: ${errBody.slice(0, 200)}` };
     }
 
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const rawText = await res.text().catch(() => "");
+    console.log("[enhancePrompt] xAI raw response:", rawText.slice(0, 500));
+    let json: { choices?: { message?: { content?: string } }[] } = {};
+    try { json = JSON.parse(rawText) as typeof json; } catch { /* ignore */ }
+
     const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) return { ok: false as const, message: "Optimisation impossible" };
+    if (!text) {
+      // [DIAG] Expose la structure JSON brute si choices est vide/absent
+      console.error("[enhancePrompt] Empty/unexpected response:", rawText.slice(0, 500));
+      return { ok: false as const, message: `[DIAG] Réponse inattendue: ${rawText.slice(0, 200)}` };
+    }
     return { ok: true as const, prompt: text.replace(/^["'«»\s]+|["'«»\s]+$/g, "") };
   });
