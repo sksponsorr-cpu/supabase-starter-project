@@ -28,6 +28,7 @@ function HistoryPage() {
   const { items, loading: feedLoading, refresh } = useGenerations(!!session);
   const removeItem = useServerFn(deleteGeneration);
 
+  const { isCollapsed } = useSidebarStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [viewer, setViewer] = useState<Generation | null>(null);
