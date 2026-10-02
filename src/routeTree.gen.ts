@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as DeveloppeurRouteImport } from './routes/developpeur'
 import { Route as GalerieRouteImport } from './routes/galerie'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
@@ -46,6 +47,11 @@ const DeveloppeurRoute = DeveloppeurRouteImport.update({
 const GalerieRoute = GalerieRouteImport.update({
   id: '/galerie',
   path: '/galerie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/developpeur': typeof DeveloppeurRoute
   '/galerie': typeof GalerieRoute
+  '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/developpeur': typeof DeveloppeurRoute
   '/galerie': typeof GalerieRoute
+  '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/app': typeof AppRoute
   '/developpeur': typeof DeveloppeurRoute
   '/galerie': typeof GalerieRoute
+  '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/developpeur'
     | '/galerie'
+    | '/history'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/developpeur'
     | '/galerie'
+    | '/history'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/developpeur'
     | '/galerie'
+    | '/history'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   DeveloppeurRoute: typeof DeveloppeurRoute
   GalerieRoute: typeof GalerieRoute
+  HistoryRoute: typeof HistoryRoute
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       path: '/galerie'
       fullPath: '/galerie'
       preLoaderRoute: typeof GalerieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -305,6 +325,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   DeveloppeurRoute: DeveloppeurRoute,
   GalerieRoute: GalerieRoute,
+  HistoryRoute: HistoryRoute,
   McpRoute: McpRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
