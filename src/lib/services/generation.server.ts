@@ -271,7 +271,15 @@ export async function runGeneration(
     if (outcome.isImmediate) {
       let mediaUrl = outcome.mediaUrl;
       let storagePath: string | null = null;
-
+const r2 = await import("@/lib/services/r2.server");
+      if (outcome.bytes && r2.isR2Configured()) {
+        mediaUrl = await r2.uploadToR2(
+          `${userId}/${crypto.randomUUID()}.${extensionFor(outcome.contentType)}`,
+          outcome.bytes,
+          outcome.contentType,
+        );
+        outcome.bytes = null;
+      }
       if (outcome.bytes) {
         const path = `${userId}/${crypto.randomUUID()}.${extensionFor(outcome.contentType)}`;
         const { error: upErr } = await supabaseAdmin.storage
