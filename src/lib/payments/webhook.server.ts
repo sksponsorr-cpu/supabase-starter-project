@@ -25,7 +25,7 @@ export async function applyOrderOutcome(
 
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("id, user_id, tier, status, period, product_id, amount_eur")
+    .select("id, user_id, tier, status, period, product_id, amount_eur, customer_email, customer_name")
     .eq("transaction_id", transactionId)
     .maybeSingle();
 
@@ -72,6 +72,37 @@ export async function applyOrderOutcome(
         is_active: true,
         ends_at: endsAt,
       });
+    }
+
+    // Envoi de l'e-mail de bienvenue via Brevo
+    try {
+      let targetEmail = order.customer_email;
+      let targetName = order.customer_name;
+      if (!targetEmail && order.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", order.user_id)
+          .maybeSingle();
+        if (profile?.email) targetEmail = profile.email;
+        if (profile?.full_name) targetName = profile.full_name;
+      }
+
+      if (targetEmail) {
+        const { sendSubscriptionWelcomeEmail, getPlanDisplayName, getPlanQuotaText } = await import(
+          "@/lib/services/brevo.server"
+        );
+        await sendSubscriptionWelcomeEmail({
+          toEmail: targetEmail,
+          toName: targetName,
+          planName: getPlanDisplayName(order.product_id, order.tier),
+          quotaText: getPlanQuotaText(order.product_id, order.tier),
+          startedAt: new Date().toISOString(),
+          endsAt,
+        });
+      }
+    } catch (emailError) {
+      console.error("[BREVO-WELCOME] Erreur lors de l'envoi de l'e-mail de bienvenue:", emailError);
     }
   }
 
