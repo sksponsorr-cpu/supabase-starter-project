@@ -85,21 +85,7 @@ export function sanitizeGenerationError(rawError: unknown): string {
 
   const lower = message.toLowerCase();
 
-  // 1. Solde épuisé / compte bloqué
-  if (
-    lower.includes("exhausted balance") ||
-    lower.includes("user is locked") ||
-    lower.includes("insufficient balance") ||
-    lower.includes("insufficient funds") ||
-    lower.includes("payment required") ||
-    lower.includes("balance") ||
-    lower.includes("locked") ||
-    lower.includes("402")
-  ) {
-    return "Le service est momentanément indisponible. Réessayez dans quelques minutes. Vos secondes ne sont pas décomptées.";
-  }
-
-  // 2. Contenu refusé par la modération
+  // 1. Contenu refusé par la modération (testé en premier)
   if (
     lower.includes("moderation") ||
     lower.includes("safety") ||
@@ -114,6 +100,18 @@ export function sanitizeGenerationError(rawError: unknown): string {
     lower.includes("harmful")
   ) {
     return "Votre demande n'a pas pu être traitée. Essayez de reformuler votre description.";
+  }
+
+  // 2. Solde épuisé / compte bloqué (expressions précises uniquement)
+  if (
+    lower.includes("exhausted balance") ||
+    lower.includes("user is locked") ||
+    lower.includes("insufficient balance") ||
+    lower.includes("insufficient funds") ||
+    lower.includes("payment required") ||
+    lower.includes("top up your balance")
+  ) {
+    return "Le service est momentanément indisponible. Réessayez dans quelques minutes. Vos secondes ne sont pas décomptées.";
   }
 
   // 3. Délai dépassé
