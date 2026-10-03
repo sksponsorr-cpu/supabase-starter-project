@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
@@ -31,12 +31,12 @@ export const Route = createFileRoute("/checkout/success")({
   notFoundComponent: () => <Shell title="Page introuvable">Cette page n'existe pas.</Shell>,
 });
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+function Shell({ title, children, to }: { title: string; children: React.ReactNode; to?: string }) {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
       <h1 className="text-xl font-semibold">{title}</h1>
       <p className="text-sm text-muted-foreground">{children}</p>
-      <Link to="/app" className="rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground">
+      <Link to={(to as any) ?? "/app"} className="rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground font-medium">
         Retour à l'application
       </Link>
     </main>
@@ -44,9 +44,11 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function CheckoutSuccessPage() {
+  const navigate = useNavigate();
   const checkStatus = useServerFn(getOrderStatus);
   const [state, setState] = useState<"loading" | "payee" | "en_attente" | "echouee">("loading");
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmedTransactionId, setConfirmedTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     const transactionId = new URLSearchParams(window.location.search).get("transaction_id");
@@ -63,7 +65,20 @@ function CheckoutSuccessPage() {
         if (stop) return;
         if (res.ok) {
           const status = res.order.status;
-          if (status === "payee") return setState("payee");
+          if (status === "payee") {
+            setConfirmedTransactionId(transactionId);
+            setState("payee");
+            // Redirection automatique vers /app où le serveur validera la commande
+            setTimeout(() => {
+              if (!stop) {
+                void navigate({
+                  to: "/app",
+                  search: { welcome_order: transactionId } as any,
+                });
+              }
+            }, 1000);
+            return;
+          }
           if (status === "echouee") {
             setMessage(res.order.error_message ?? null);
             return setState("echouee");
@@ -83,14 +98,15 @@ function CheckoutSuccessPage() {
     return () => {
       stop = true;
     };
-  }, [checkStatus]);
+  }, [checkStatus, navigate]);
 
   if (state === "payee") {
     return (
-      <Shell title="Paiement confirmé">
+      <Shell title="Paiement confirmé" to={confirmedTransactionId ? `/app?welcome_order=${confirmedTransactionId}` : "/app"}>
         <span className="flex flex-col items-center gap-3">
           <CheckCircle2 className="h-10 w-10 text-emerald-500" />
           Merci ! Votre abonnement est activé.
+          <span className="text-xs text-muted-foreground">Redirection vers l'application…</span>
         </span>
       </Shell>
     );

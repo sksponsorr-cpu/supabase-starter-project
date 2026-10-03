@@ -1,13 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "@/lib/toast";
-import { ChevronRight, Play, Share2, Sparkles, Trash2, Menu } from "lucide-react";
+import { ChevronRight, Play, Share2, Sparkles, Trash2, Menu, CheckCircle2, X } from "lucide-react";
 import { submitToGallery } from "@/lib/community.functions";
 import { deleteGeneration } from "@/lib/generation.functions";
 import { registerDevice } from "@/lib/device.functions";
 import { getDeviceFingerprint } from "@/lib/device";
+import { getOrderStatus } from "@/lib/payments.functions";
+import { playChime } from "@/lib/chime";
 import { SupportReplyNotifier } from "@/components/samflash/SupportReplyNotifier";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +26,10 @@ import { MediaViewer } from "@/components/samflash/MediaViewer";
 import logoAsset from "@/assets/sam-flash-logo.png";
 
 export const Route = createFileRoute("/app")({
+  validateSearch: (s: Record<string, unknown>): { project?: string; welcome_order?: string } => ({
+    project: typeof s["project"] === "string" ? s["project"] : undefined,
+    welcome_order: typeof s["welcome_order"] === "string" ? s["welcome_order"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sam flash 2.0 — Studio de création IA" },
@@ -47,6 +52,9 @@ export const Route = createFileRoute("/app")({
 
 function AppFeed() {
   const { isCollapsed } = useSidebarStore();
+  const search = Route.useSearch();
+  const welcomeOrderId = search?.welcome_order;
+  const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [cancelFn, setCancelFn] = useState<(() => void) | null>(null);
@@ -61,6 +69,7 @@ function AppFeed() {
   const submit = useServerFn(submitToGallery);
   const removeItem = useServerFn(deleteGeneration);
   const saveDevice = useServerFn(registerDevice);
+  const checkOrderStatus = useServerFn(getOrderStatus);
 
   useEffect(() => {
     if (!loading && !session) void navigate({ to: "/" });
@@ -71,6 +80,56 @@ function AppFeed() {
     if (!session) return;
     void saveDevice({ data: { fingerprint: getDeviceFingerprint() } }).catch(() => undefined);
   }, [session, saveDevice]);
+
+  // Si redirection depuis checkout.success avec un ID de commande, on vérifie côté serveur
+  useEffect(() => {
+    if (!welcomeOrderId || !session) return;
+
+    let cancel = false;
+    checkOrderStatus({ data: { transactionId: welcomeOrderId } })
+      .then((res) => {
+        if (cancel) return;
+        if (res.ok && res.order.status === "payee") {
+          const label = (res.order as any).planLabel || "Super Grok";
+          const msg = `Merci d'avoir accédé à ${label}`;
+          setWelcomeMessage(msg);
+          toast.success(msg);
+          playChime("success");
+          window.dispatchEvent(new CustomEvent("subscription-updated", { detail: { planLabel: label } }));
+          void refresh();
+          void navigate({
+            to: "/app",
+            search: (prev: any) => {
+              const nextSearch = { ...prev };
+              delete nextSearch.welcome_order;
+              return nextSearch;
+            },
+            replace: true,
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancel = true;
+    };
+  }, [welcomeOrderId, session, checkOrderStatus, refresh, navigate]);
+
+  // Écoute de l'événement de mise à jour d'abonnement (déclenché aussi depuis CheckoutSheet)
+  useEffect(() => {
+    const handleSubUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ planLabel?: string }>;
+      const label = customEvent.detail?.planLabel || "Super Grok";
+      const msg = `Merci d'avoir accédé à ${label}`;
+      setWelcomeMessage(msg);
+      toast.success(msg);
+      playChime("success");
+      void refresh();
+    };
+
+    window.addEventListener("subscription-updated", handleSubUpdate);
+    return () => window.removeEventListener("subscription-updated", handleSubUpdate);
+  }, [refresh]);
 
   const share = async (id: string) => {
     try {
@@ -105,6 +164,25 @@ function AppFeed() {
       
       <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
         <PromoBanner enabled={!!session} />
+
+        {welcomeMessage && (
+          <div className="mx-auto mt-4 max-w-2xl px-4 w-full animate-fade-in">
+            <div className="relative flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center gap-2 font-medium">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+                <span>{welcomeMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWelcomeMessage(null)}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="pt-16 md:pt-0 mt-4 md:mt-12 flex flex-col items-center px-4">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight mb-2 text-center">Qu'allons-nous créer ?</h1>
@@ -222,18 +300,18 @@ function AppFeed() {
             </p>
           )}
         </div>
-      </section>
+        </section>
 
-      <SupportReplyNotifier enabled={!!session} />
-      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
-      {plansOpen && <PlansSheet onClose={() => setPlansOpen(false)} />}
-      {viewer && (
-        <MediaViewer
-          item={viewer}
-          onClose={() => setViewer(null)}
-          onChanged={() => void refresh()}
-        />
-      )}
+        <SupportReplyNotifier enabled={!!session} />
+        {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+        {plansOpen && <PlansSheet onClose={() => setPlansOpen(false)} />}
+        {viewer && (
+          <MediaViewer
+            item={viewer}
+            onClose={() => setViewer(null)}
+            onChanged={() => void refresh()}
+          />
+        )}
       </div>
     </div>
   );

@@ -390,31 +390,42 @@ export const getOrderStatus = createServerFn({ method: "POST" })
     const { data: order } = await context.supabase
       .from("orders")
       .select(
-        "transaction_id, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, payment_link",
+        "transaction_id, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, payment_link, product_id, period",
       )
       .eq("transaction_id", data.transactionId)
       .maybeSingle();
     if (!order) return { ok: false as const, message: "Commande introuvable." };
 
-    if (order.status !== "en_attente") return { ok: true as const, order };
+    const getOrderPlanLabel = (productId?: string | null, tier?: string | null) => {
+      if (productId === "heavy" || tier === "superhearly" || tier === "superhearly_monthly") return "Super Grok Heavy";
+      if (productId === "plus" || tier === "super_grok_plus") return "Super Grok Plus";
+      return "Super Grok";
+    };
+
+    const planLabel = getOrderPlanLabel(order.product_id, order.tier);
+
+    if (order.status !== "en_attente") {
+      return { ok: true as const, order: { ...order, planLabel } };
+    }
 
     const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
     const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
-    if (!remote.ok || !remote.data.status) return { ok: true as const, order };
-
+    if (!remote.ok || !remote.data.status) {
+      return { ok: true as const, order: { ...order, planLabel } };
+    }
 
     const normalized = remote.data.status?.toLowerCase() ?? "";
     let next: "payee" | "echouee" | null = null;
     if (PAID.includes(normalized)) next = "payee";
     else if (FAILED.includes(normalized)) next = "echouee";
-    if (!next) return { ok: true as const, order };
+    if (!next) return { ok: true as const, order: { ...order, planLabel } };
 
     const { applyOrderOutcome } = await import("@/lib/payments/webhook.server");
     await applyOrderOutcome(order.transaction_id, next, remote.data.status, remote.data.raw);
 
     return {
       ok: true as const,
-      order: { ...order, status: next, provider_message: remote.data.status },
+      order: { ...order, status: next, provider_message: remote.data.status, planLabel },
     };
   });
 
