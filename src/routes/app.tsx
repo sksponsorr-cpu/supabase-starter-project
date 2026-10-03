@@ -91,12 +91,7 @@ function AppFeed() {
         if (cancel) return;
         if (res.ok && res.order.status === "payee") {
           const label = (res.order as any).planLabel || "Super Grok";
-          const msg = `Merci d'avoir accédé à ${label}`;
-          setWelcomeMessage(msg);
-          toast.success(msg);
-          playChime("success");
           window.dispatchEvent(new CustomEvent("subscription-updated", { detail: { planLabel: label } }));
-          void refresh();
           void navigate({
             to: "/app",
             search: (prev: any) => {
@@ -113,7 +108,7 @@ function AppFeed() {
     return () => {
       cancel = true;
     };
-  }, [welcomeOrderId, session, checkOrderStatus, refresh, navigate]);
+  }, [welcomeOrderId, session, checkOrderStatus, navigate]);
 
   // Écoute de l'événement de mise à jour d'abonnement (déclenché aussi depuis CheckoutSheet)
   useEffect(() => {
