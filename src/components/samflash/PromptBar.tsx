@@ -326,7 +326,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             playChime("error");
             setText(prompt);
             // Timeout polling : message persistant (pas de setTimeout)
-            setSent("La génération a échoué ou pris trop de temps. Réessaie.");
+            setSent("La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.");
           }
         }
       } else if (result.reason === "quota") {
@@ -340,14 +340,15 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         playChime("error");
         setText(prompt);
         // Erreur serveur : message persistant (pas de setTimeout)
-        setSent(result.message ?? t("genFail"));
+        setSent(result.message ?? "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.");
       }
     } catch (error) {
       if (!isDone) {
+        console.error("[PromptBar] Generation error:", error);
         playChime("error");
         setText(prompt);
         // Erreur inattendue : message persistant, pas de setTimeout
-        setSent(error instanceof Error ? error.message : t("genFail"));
+        setSent("Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.");
       }
     } finally {
       setBusy(false);

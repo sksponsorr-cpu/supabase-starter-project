@@ -322,13 +322,15 @@ export async function runGeneration(
     }
   } catch (error) {
     await refund();
-    const message = error instanceof Error ? error.message : "Génération impossible";
+    console.error("[GENERATION-ERROR] runGeneration failed:", error);
+    const { sanitizeGenerationError } = await import("@/lib/services/fal.server");
+    const sanitized = sanitizeGenerationError(error);
     const id = await persist({
       mediaUrl: null,
       storagePath: null,
       status: "error",
-      errorMessage: message,
+      errorMessage: sanitized,
     });
-    return { ok: false, reason: "error", message, id };
+    return { ok: false, reason: "error", message: sanitized, id };
   }
 }

@@ -180,6 +180,7 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       }
 
       if (statusRes.status === "error") {
+        console.error("[GENERATION-ERROR] checkGenerationStatus model error:", statusRes.error);
         // Remboursement
         const { secondsFor } = await import("@/lib/services/generation.server");
         const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "5s" } as any);
@@ -189,12 +190,15 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
           await supabaseAdmin.rpc("refund_media_quota", { _user_id: context.userId, _media_type: row.media_type });
         }
 
+        const { sanitizeGenerationError } = await import("@/lib/services/fal.server");
+        const sanitized = sanitizeGenerationError(statusRes.error);
+
         await supabaseAdmin
           .from("generations")
-          .update({ status: "error", error_message: statusRes.error })
+          .update({ status: "error", error_message: sanitized })
           .eq("id", data.id);
         
-        return { ok: true as const, status: "error", error: statusRes.error };
+        return { ok: true as const, status: "error", error: sanitized };
       }
 
       // Succès
@@ -225,7 +229,11 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
 
       return { ok: true as const, status: "ready", mediaUrl };
     } catch (e) {
-      return { ok: false as const, error: "Erreur de suivi" };
+      console.error("[GENERATION-ERROR] checkGenerationStatus exception:", e);
+      return {
+        ok: false as const,
+        error: "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.",
+      };
     }
   });
 export const cancelGeneration = createServerFn({ method: "POST" })
