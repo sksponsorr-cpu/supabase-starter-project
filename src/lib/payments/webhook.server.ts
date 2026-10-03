@@ -32,7 +32,9 @@ export async function applyOrderOutcome(
   if (!order) return "introuvable";
   if (order.status !== "en_attente") return "ok";
 
-  await supabaseAdmin
+  // Mise à jour conditionnelle atomique : garantit qu'un seul appel concurrent
+  // (webhook ou polling) peut faire passer la commande de "en_attente" à "payee".
+  const { data: updatedOrder, error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
       status: outcome,
@@ -40,22 +42,30 @@ export async function applyOrderOutcome(
       webhook_payload: payload as never,
       last_checked_at: new Date().toISOString(),
     })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .eq("status", "en_attente")
+    .select("id, user_id, tier, status, period, product_id, amount_eur, customer_email, customer_name")
+    .maybeSingle();
 
-  if (outcome === "payee" && order.user_id) {
-    const planType = planTypeFor(order.product_id, order.period === "yearly" ? "yearly" : "monthly");
+  if (updateError || !updatedOrder) {
+    // Aucune ligne modifiée : un autre appel a déjà traité la commande
+    return "ok";
+  }
+
+  if (outcome === "payee" && updatedOrder.user_id) {
+    const planType = planTypeFor(updatedOrder.product_id, updatedOrder.period === "yearly" ? "yearly" : "monthly");
     const endsAt = expiryFor(planType);
     const { data: existing } = await supabaseAdmin
       .from("subscriptions")
       .select("id")
-      .eq("user_id", order.user_id)
+      .eq("user_id", updatedOrder.user_id)
       .maybeSingle();
 
     if (existing) {
       await supabaseAdmin
         .from("subscriptions")
         .update({
-          tier: order.tier,
+          tier: updatedOrder.tier,
           plan_type: planType,
           status: "active",
           is_active: true,
@@ -65,8 +75,8 @@ export async function applyOrderOutcome(
         .eq("id", existing.id);
     } else {
       await supabaseAdmin.from("subscriptions").insert({
-        user_id: order.user_id,
-        tier: order.tier,
+        user_id: updatedOrder.user_id,
+        tier: updatedOrder.tier,
         plan_type: planType,
         status: "active",
         is_active: true,
@@ -76,13 +86,13 @@ export async function applyOrderOutcome(
 
     // Envoi de l'e-mail de bienvenue via Brevo
     try {
-      let targetEmail = order.customer_email;
-      let targetName = order.customer_name;
-      if (!targetEmail && order.user_id) {
+      let targetEmail = updatedOrder.customer_email;
+      let targetName = updatedOrder.customer_name;
+      if (!targetEmail && updatedOrder.user_id) {
         const { data: profile } = await supabaseAdmin
           .from("profiles")
           .select("email, full_name")
-          .eq("id", order.user_id)
+          .eq("id", updatedOrder.user_id)
           .maybeSingle();
         if (profile?.email) targetEmail = profile.email;
         if (profile?.full_name) targetName = profile.full_name;
@@ -95,8 +105,8 @@ export async function applyOrderOutcome(
         await sendSubscriptionWelcomeEmail({
           toEmail: targetEmail,
           toName: targetName,
-          planName: getPlanDisplayName(order.product_id, order.tier),
-          quotaText: getPlanQuotaText(order.product_id, order.tier),
+          planName: getPlanDisplayName(updatedOrder.product_id, updatedOrder.tier),
+          quotaText: getPlanQuotaText(updatedOrder.product_id, updatedOrder.tier),
           startedAt: new Date().toISOString(),
           endsAt,
         });
@@ -108,7 +118,7 @@ export async function applyOrderOutcome(
 
   if (outcome === "payee") {
     const { creditDeveloperCommissions } = await import("@/lib/payments/commissions.server");
-    await creditDeveloperCommissions(order.id, Number(order.amount_eur ?? 0));
+    await creditDeveloperCommissions(updatedOrder.id, Number(updatedOrder.amount_eur ?? 0));
   }
 
   return "ok";
