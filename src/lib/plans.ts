@@ -13,10 +13,10 @@ export type PlanType =
 /** Limite quotidienne (période glissante de 24 h) en secondes de vidéo. */
 export const PLAN_VIDEO_SECONDS: Record<PlanType, number> = {
   free: 30,
-  super_grok_monthly: 190, // 3 min 10 s
-  superhearly_monthly: 380, // 6 min 20 s
-  super_grok_annuel: 950, // 15 min 50 s
-  super_grok_plus: 1900, // 31 min 40 s
+  super_grok_monthly: 200, // 3 min 20 s
+  superhearly_monthly: 1200, // 20 min
+  super_grok_annuel: 200, // 3 min 20 s
+  super_grok_plus: 400, // 6 min 40 s
 };
 
 /** Durée de l'abonnement en mois. */
