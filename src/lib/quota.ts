@@ -1,14 +1,16 @@
-export type Tier = "free" | "super_grok" | "superhearly";
+export type Tier = "free" | "super_grok" | "super_grok_plus" | "superhearly";
 
 export const TIER_DAILY_SECONDS: Record<Tier, number> = {
   free: 30,
-  super_grok: 190,
-  superhearly: 380,
+  super_grok: 200,
+  super_grok_plus: 400,
+  superhearly: 1200,
 };
 
 export const TIER_LABEL: Record<Tier, string> = {
   free: "Découverte",
   super_grok: "Super Grok",
+  super_grok_plus: "Super Grok Plus",
   superhearly: "Superhearly",
 };
 
