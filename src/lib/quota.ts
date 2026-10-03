@@ -11,7 +11,7 @@ export const TIER_LABEL: Record<Tier, string> = {
   free: "Découverte",
   super_grok: "Super Grok",
   super_grok_plus: "Super Grok Plus",
-  superhearly: "Superhearly",
+  superhearly: "Super Grok Heavy",
 };
 
 export function formatSeconds(total: number): string {

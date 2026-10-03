@@ -16,9 +16,11 @@ function normalize(input: GenerateInput) {
   if (!input?.prompt?.trim()) throw new Error("Prompt requis");
   const mediaType = input.mediaType === "image" ? ("image" as const) : ("video" as const);
   let resolution = String(input.resolution ?? "720p");
-  // Les vidéos sont limitées à 720p et 6 secondes.
+  // Les vidéos sont limitées à 720p et 10 secondes maximum.
   if (mediaType === "video" && resolution !== "480p") resolution = "720p";
-  const seconds = Math.min(6, Number.parseInt(String(input.duration ?? "6"), 10) || 6);
+  const rawSeconds = Number.parseInt(String(input.duration ?? "5"), 10);
+  const allowed = [5, 8, 10];
+  const seconds = allowed.includes(rawSeconds) ? rawSeconds : 5;
   return {
     prompt: input.prompt.trim().slice(0, 2000),
     mediaType,
@@ -107,7 +109,7 @@ export const retryGeneration = createServerFn({ method: "POST" })
         prompt: row.prompt,
         mediaType: row.media_type === "image" ? "image" : "video",
         resolution: row.resolution ?? "720p",
-        duration: row.duration ?? "6s",
+        duration: row.duration ?? "5s",
         aspectRatio: row.aspect_ratio ?? "2:3",
       }),
     );
@@ -180,7 +182,7 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       if (statusRes.status === "error") {
         // Remboursement
         const { secondsFor } = await import("@/lib/services/generation.server");
-        const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "6s" } as any);
+        const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "5s" } as any);
         if (row.media_type === "video") {
           await supabaseAdmin.rpc("refund_video_seconds", { _user_id: context.userId, _seconds: seconds });
         } else {

@@ -150,7 +150,8 @@ async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
 export function secondsFor(input: GenerationInput): number {
   if (input.mediaType !== "video") return 2;
   const parsed = Number.parseInt(input.duration, 10);
-  return Math.min(6, Number.isFinite(parsed) && parsed > 0 ? parsed : 6);
+  const allowed = [5, 8, 10];
+  return allowed.includes(parsed) ? parsed : 5;
 }
 
 /** Exécute une génération complète pour un utilisateur donné. */

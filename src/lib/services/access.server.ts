@@ -127,13 +127,13 @@ export async function checkGenerationAccess(
       .eq("media_type", "video")
       .neq("status", "error");
 
-    if (mediaType === "image" && (imageCount ?? 0) >= 3) {
-      console.log("[ADMIN-CHECK] refus: limite 3 images");
+    if (mediaType === "image" && (imageCount ?? 0) >= 2) {
+      console.log("[ADMIN-CHECK] refus: limite 2 images");
       return {
         ...base,
         allowed: false,
         code: "subscription_required",
-        message: "Limite à vie de 3 images gratuites atteinte. Passez à une offre supérieure pour continuer.",
+        message: "Limite à vie de 2 images gratuites atteinte. Passez à une offre supérieure pour continuer.",
       };
     }
 
@@ -147,13 +147,13 @@ export async function checkGenerationAccess(
           message: "Limite à vie d'une vidéo gratuite atteinte. Passez à une offre supérieure pour continuer.",
         };
       }
-      if (seconds > 3) {
-        console.log("[ADMIN-CHECK] refus: limite de 3 secondes max");
+      if (seconds > 8) {
+        console.log("[ADMIN-CHECK] refus: limite de 8 secondes max");
         return {
           ...base,
           allowed: false,
           code: "subscription_required",
-          message: "Les vidéos gratuites sont limitées à 3 secondes maximum. Passez à une offre supérieure pour des vidéos plus longues.",
+          message: "Les vidéos gratuites sont limitées à 8 secondes maximum. Passez à une offre supérieure pour des vidéos plus longues.",
         };
       }
     }

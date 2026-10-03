@@ -109,12 +109,14 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
   const toVideo = async () => {
     setBusy("toVideo");
     try {
+      const allowedDurations = ["5s", "8s", "10s"];
+      const duration = item.duration && allowedDurations.includes(item.duration) ? item.duration : "5s";
       const result = await generate({
         data: {
           prompt: item.prompt,
           mediaType: "video",
           resolution: item.resolution ?? "720p",
-          duration: "6s",
+          duration,
           aspectRatio: item.aspect_ratio ?? "2:3",
         },
       });

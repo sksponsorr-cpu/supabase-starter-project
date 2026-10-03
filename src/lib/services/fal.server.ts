@@ -64,11 +64,11 @@ export function normalizeVideoResolution(res: string): "480p" | "720p" {
   return res === "480p" ? "480p" : "720p";
 }
 
-/** Durée vidéo plafonnée à 6 secondes. */
+/** Durée vidéo autorisée : 5, 8 ou 10 secondes (défaut 5s). */
 export function normalizeVideoDuration(duration: string): number {
   const parsed = Number.parseInt(duration, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 6;
-  return Math.min(6, parsed);
+  const allowed = [5, 8, 10];
+  return allowed.includes(parsed) ? parsed : 5;
 }
 
 

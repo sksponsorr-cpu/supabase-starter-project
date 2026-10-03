@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
@@ -58,7 +58,8 @@ type Props = {
 export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQuotaExceeded }: Props) {
   const { t, lang } = useI18n();
   const [res, setRes] = useState("720p");
-  const [dur, setDur] = useState("6s");
+  const [dur, setDur] = useState("5s");
+  const [userPlan, setUserPlan] = useState<string>("free");
   const [ratio, setRatio] = useState("2:3");
   const [mode, setMode] = useState<"image" | "video">("video");
   const [text, setText] = useState("");
@@ -180,6 +181,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const renameProj = useServerFn(updateProjectTitle);
   const { search } = useLocation();
   const currentProjectId = (search as any)?.project;
+
+  useEffect(() => {
+    checkAccess({ data: { mediaType: "video", seconds: 0 } })
+      .then((res) => {
+        if (res?.planType) setUserPlan(res.planType);
+      })
+      .catch(() => {});
+  }, [checkAccess]);
 
   const runEnhance = async () => {
     const prompt = text.trim();
@@ -513,15 +522,37 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             </button>
           ))}
         </div>
-        {mode === "video" && (
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-            {["3s", "6s"].map((d) => (
-              <button key={d} type="button" onClick={() => setDur(d)} className={chip(dur === d)}>
-                {d}
-              </button>
-            ))}
-          </div>
-        )}
+        {mode === "video" && (() => {
+          const isFree = userPlan === "free";
+          const isPlus = userPlan === "super_grok_plus";
+          const isHeavy = userPlan === "superhearly_monthly" || userPlan === "superhearly";
+          const activeDurations = isFree ? ["5s", "8s"] : ["5s", "8s", "10s"];
+          const upcomingDurations = isHeavy
+            ? ["15s", "20s", "30s"]
+            : isPlus
+            ? ["15s", "20s"]
+            : [];
+
+          return (
+            <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
+              {activeDurations.map((d) => (
+                <button key={d} type="button" onClick={() => setDur(d)} className={chip(dur === d)}>
+                  {d}
+                </button>
+              ))}
+              {upcomingDurations.map((d) => (
+                <span
+                  key={d}
+                  title="Bientôt disponible"
+                  className="shrink-0 rounded-full px-2 py-1 text-[11px] sm:px-2.5 sm:py-1.5 sm:text-xs font-medium text-muted-foreground/40 cursor-not-allowed flex items-center gap-1 select-none"
+                >
+                  {d}
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-semibold">Bientôt</span>
+                </span>
+              ))}
+            </div>
+          );
+        })()}
         <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
           {["9:16", "2:3", "3:4", "1:1", "16:9"].map((r) => (
             <button key={r} type="button" onClick={() => setRatio(r)} className={chip(ratio === r)}>

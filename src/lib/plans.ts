@@ -31,7 +31,7 @@ export const PLAN_MONTHS: Record<PlanType, number> = {
 export const PLAN_LABEL: Record<PlanType, string> = {
   free: "Découverte",
   super_grok_monthly: "Super Grok",
-  superhearly_monthly: "Superhearly",
+  superhearly_monthly: "Super Grok Heavy",
   super_grok_annuel: "Super Grok Annuel",
   super_grok_plus: "Super Grok Plus",
 };
