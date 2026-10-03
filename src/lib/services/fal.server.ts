@@ -71,7 +71,64 @@ export function normalizeVideoDuration(duration: string): number {
   return allowed.includes(parsed) ? parsed : 5;
 }
 
+/**
+ * Nettoie et traduit les messages d'erreur techniques / Fal.ai en messages utilisateur clairs en français.
+ * Le client ne doit jamais voir de message technique brut en anglais ou de mention de Fal.
+ */
+export function sanitizeGenerationError(rawError: unknown): string {
+  const message =
+    typeof rawError === "string"
+      ? rawError
+      : rawError instanceof Error
+        ? rawError.message
+        : String(rawError ?? "");
 
+  const lower = message.toLowerCase();
+
+  // 1. Contenu refusé par la modération (testé en premier)
+  if (
+    lower.includes("moderation") ||
+    lower.includes("safety") ||
+    lower.includes("nsfw") ||
+    lower.includes("content policy") ||
+    lower.includes("content filter") ||
+    lower.includes("rejected") ||
+    lower.includes("blocked") ||
+    lower.includes("flagged") ||
+    lower.includes("inappropriate") ||
+    lower.includes("policy violation") ||
+    lower.includes("harmful")
+  ) {
+    return "Votre demande n'a pas pu être traitée. Essayez de reformuler votre description.";
+  }
+
+  // 2. Solde épuisé / compte bloqué (expressions précises uniquement)
+  if (
+    lower.includes("exhausted balance") ||
+    lower.includes("user is locked") ||
+    lower.includes("insufficient balance") ||
+    lower.includes("insufficient funds") ||
+    lower.includes("payment required") ||
+    lower.includes("top up your balance")
+  ) {
+    return "Le service est momentanément indisponible. Réessayez dans quelques minutes. Vos secondes ne sont pas décomptées.";
+  }
+
+  // 3. Délai dépassé
+  if (
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("deadline") ||
+    lower.includes("took too long") ||
+    lower.includes("504") ||
+    lower.includes("gateway timeout")
+  ) {
+    return "La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.";
+  }
+
+  // 4. Toute autre erreur
+  return "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.";
+}
 
 function readError(payload: unknown, status: number, fallback: string): string {
   const obj = payload as { detail?: unknown; error?: unknown; message?: unknown } | null;
@@ -160,6 +217,7 @@ export async function startModel(
       body: JSON.stringify(input),
     });
   } catch (error) {
+    console.error(`[FAL-API] startModel network error (${model}):`, error);
     return { ok: false, error: error instanceof Error ? error.message : "Appel Fal.ai impossible" };
   }
 
@@ -170,7 +228,9 @@ export async function startModel(
   } & FalPayload;
 
   if (!submit.ok) {
-    return { ok: false, error: readError(submitJson, submit.status, `Modèle ${model} indisponible`) };
+    const rawError = readError(submitJson, submit.status, `Modèle ${model} indisponible`);
+    console.error(`[FAL-API] startModel HTTP error ${submit.status} (${model}):`, rawError, submitJson);
+    return { ok: false, error: rawError };
   }
 
   // Réponse synchrone (certains modèles répondent immédiatement).
@@ -180,6 +240,7 @@ export async function startModel(
   }
 
   if (!submitJson.request_id) {
+    console.error(`[FAL-API] startModel missing request_id (${model}):`, submitJson);
     return { ok: false, error: "Aucun request_id renvoyé par Fal.ai" };
   }
 
@@ -206,13 +267,16 @@ export async function checkModelStatus(
   let statusRes: Response;
   try {
     statusRes = await fetch(statusUrl, { headers: headers() });
-  } catch {
+  } catch (e) {
+    console.error("[FAL-API] checkModelStatus fetch error:", e);
     return { status: "pending" };
   }
 
   const statusJson = (await parseJson(statusRes)) as { status?: string };
   if (!statusRes.ok) {
-    return { status: "error", error: readError(statusJson, statusRes.status, "Suivi de génération échoué") };
+    const rawError = readError(statusJson, statusRes.status, "Suivi de génération échoué");
+    console.error(`[FAL-API] checkModelStatus HTTP error ${statusRes.status}:`, rawError, statusJson);
+    return { status: "error", error: rawError };
   }
 
   const status = (statusJson.status ?? "").toUpperCase();
@@ -224,14 +288,22 @@ export async function checkModelStatus(
     const resultRes = await fetch(responseUrl, { headers: headers() });
     const resultJson = (await parseJson(resultRes)) as FalPayload;
     if (!resultRes.ok) {
-      return { status: "error", error: readError(resultJson, resultRes.status, "Résultat indisponible") };
+      const rawError = readError(resultJson, resultRes.status, "Résultat indisponible");
+      console.error(`[FAL-API] checkModelStatus responseUrl HTTP error ${resultRes.status}:`, rawError, resultJson);
+      return { status: "error", error: rawError };
     }
     const media = extractMedia(resultJson, kind);
-    if (!media?.url) return { status: "error", error: "Aucun média renvoyé par le moteur." };
+    if (!media?.url) {
+      console.error("[FAL-API] checkModelStatus no media in response:", resultJson);
+      return { status: "error", error: "Aucun média renvoyé par le moteur." };
+    }
     
     const fallbackType = kind === "video" ? "video/mp4" : "image/jpeg";
     const downloaded = await download(media.url, media.content_type ?? fallbackType);
-    if (!downloaded) return { status: "error", error: "Média généré mais inaccessible." };
+    if (!downloaded) {
+      console.error("[FAL-API] checkModelStatus download failed:", media.url);
+      return { status: "error", error: "Média généré mais inaccessible." };
+    }
     
     return {
       status: "completed",
@@ -242,7 +314,9 @@ export async function checkModelStatus(
   }
 
   if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
-    return { status: "error", error: readError(statusJson, 500, `Génération ${status.toLowerCase()}`) };
+    const rawError = readError(statusJson, 500, `Génération ${status.toLowerCase()}`);
+    console.error(`[FAL-API] checkModelStatus failed with status ${status}:`, rawError, statusJson);
+    return { status: "error", error: rawError };
   }
 
   return { status: "pending" };
