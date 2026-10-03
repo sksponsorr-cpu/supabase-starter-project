@@ -114,7 +114,7 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
           prompt: item.prompt,
           mediaType: "video",
           resolution: item.resolution ?? "720p",
-          duration: "6s",
+          duration: item.duration || "5s",
           aspectRatio: item.aspect_ratio ?? "2:3",
         },
       });

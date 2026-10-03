@@ -21,7 +21,7 @@ export const TERMS: LegalDoc = {
     {
       h: "3. Abonnements, crédits et quotas",
       p: [
-        "Le Service propose une offre gratuite ainsi que des abonnements payants (Super Grok, Superhearly). Chaque formule ouvre droit à un quota quotidien de génération exprimé en secondes, ainsi qu'à un solde de crédits.",
+        "Le Service propose une offre gratuite ainsi que des abonnements payants (Super Grok, Super Grok Plus, Super Grok Heavy). Chaque formule ouvre droit à un quota quotidien de génération exprimé en secondes, ainsi qu'à un solde de crédits.",
         "Les quotas se réinitialisent chaque jour à 00h00 UTC. Les crédits achetés sont valables tant que le compte reste actif. Les abonnements sont reconductibles selon la périodicité choisie et peuvent être résiliés à tout moment ; la résiliation prend effet à la fin de la période en cours.",
         "Sauf disposition légale impérative contraire, les sommes déjà réglées pour une période entamée ne sont pas remboursables.",
       ],
