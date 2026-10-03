@@ -132,6 +132,7 @@ export async function applyOrderOutcome(
 export async function handlePaymentWebhook(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
+  const isGet = request.method === "GET";
 
   let body: Record<string, unknown> = {};
   if (request.method === "POST") {
@@ -152,11 +153,33 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
       url.searchParams.get("transaction_id") ??
       undefined,
   });
-  if (!parsed.success) return new Response("Payload invalide", { status: 400 });
 
-  const transactionId = parsed.data.transaction_id ?? parsed.data.transactionId;
-  if (!transactionId) return new Response("transaction_id manquant", { status: 400 });
+  const transactionId = parsed.success
+    ? (parsed.data.transaction_id ?? parsed.data.transactionId)
+    : (url.searchParams.get("transaction_id") ?? undefined);
+
+  const getRedirectResponse = () => {
+    const redirectUrl = transactionId
+      ? `${url.origin}/checkout/success?transaction_id=${transactionId}`
+      : `${url.origin}/app`;
+    return new Response(null, {
+      status: 302,
+      headers: { Location: redirectUrl },
+    });
+  };
+
+  if (!parsed.success) {
+    if (isGet) return getRedirectResponse();
+    return new Response("Payload invalide", { status: 400 });
+  }
+
+  if (!transactionId) {
+    if (isGet) return getRedirectResponse();
+    return new Response("transaction_id manquant", { status: 400 });
+  }
+
   if (!verifyCallbackToken(transactionId, token)) {
+    if (isGet) return getRedirectResponse();
     return new Response("Signature invalide", { status: 401 });
   }
 
@@ -171,15 +194,25 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
     .select("provider_transaction_id")
     .eq("transaction_id", transactionId)
     .maybeSingle();
-  if (!order) return new Response("Commande introuvable", { status: 404 });
+
+  if (!order) {
+    if (isGet) return getRedirectResponse();
+    return new Response("Commande introuvable", { status: 404 });
+  }
 
   const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
   const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? transactionId);
-  if (!remote.ok || !remote.data.status) return new Response("ok");
+  if (!remote.ok || !remote.data.status) {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok");
+  }
 
   const normalized = remote.data.status.toLowerCase();
   const confirmed = PAID.includes(normalized) ? "payee" : FAILED.includes(normalized) ? "echouee" : null;
-  if (!confirmed) return new Response("ok");
+  if (!confirmed) {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok");
+  }
 
   const result = await applyOrderOutcome(
     transactionId,
@@ -187,7 +220,14 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
     parsed.data.message ?? parsed.data.status ?? remote.data.status,
     body,
   );
-  if (result === "introuvable") return new Response("Commande introuvable", { status: 404 });
+  if (result === "introuvable") {
+    if (isGet) return getRedirectResponse();
+    return new Response("Commande introuvable", { status: 404 });
+  }
+
+  if (isGet) {
+    return getRedirectResponse();
+  }
 
   return new Response("ok");
 }
@@ -200,6 +240,7 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
  */
 export async function handleSwychrCallback(request: Request): Promise<Response> {
   const url = new URL(request.url);
+  const isGet = request.method === "GET";
   let body: Record<string, unknown> = {};
   if (request.method === "POST") {
     const raw = await request.text();
@@ -216,7 +257,21 @@ export async function handleSwychrCallback(request: Request): Promise<Response> 
     (typeof body["transaction_id"] === "string" ? (body["transaction_id"] as string) : null) ??
     (typeof body["transactionId"] === "string" ? (body["transactionId"] as string) : null) ??
     url.searchParams.get("transaction_id");
-  if (!transactionId) return new Response("transaction_id manquant", { status: 400 });
+
+  const getRedirectResponse = () => {
+    const redirectUrl = transactionId
+      ? `${url.origin}/checkout/success?transaction_id=${transactionId}`
+      : `${url.origin}/app`;
+    return new Response(null, {
+      status: 302,
+      headers: { Location: redirectUrl },
+    });
+  };
+
+  if (!transactionId) {
+    if (isGet) return getRedirectResponse();
+    return new Response("transaction_id manquant", { status: 400 });
+  }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: order } = await supabaseAdmin
@@ -224,23 +279,41 @@ export async function handleSwychrCallback(request: Request): Promise<Response> 
     .select("transaction_id, provider_transaction_id, status")
     .or(`transaction_id.eq.${transactionId},provider_transaction_id.eq.${transactionId}`)
     .maybeSingle();
-  if (!order) return new Response("Commande introuvable", { status: 404 });
-  if (order.status !== "en_attente") return new Response("ok");
+
+  if (!order) {
+    if (isGet) return getRedirectResponse();
+    return new Response("Commande introuvable", { status: 404 });
+  }
+  if (order.status !== "en_attente") {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok");
+  }
 
   const PAID = ["paid", "success", "successful", "succeeded", "completed", "complete", "settled"];
   const FAILED = ["failed", "failure", "cancelled", "canceled", "expired", "declined", "rejected"];
 
   const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
   const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
-  if (!remote.ok || !remote.data.status) return new Response("ok");
+  if (!remote.ok || !remote.data.status) {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok");
+  }
 
   const normalized = remote.data.status.toLowerCase();
   const confirmed = PAID.includes(normalized) ? "payee" : FAILED.includes(normalized) ? "echouee" : null;
-  if (!confirmed) return new Response("ok");
+  if (!confirmed) {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok");
+  }
 
   await applyOrderOutcome(order.transaction_id, confirmed, remote.data.status, {
     ...body,
     source: "swychr-callback",
   });
+
+  if (isGet) {
+    return getRedirectResponse();
+  }
+
   return new Response("ok");
 }

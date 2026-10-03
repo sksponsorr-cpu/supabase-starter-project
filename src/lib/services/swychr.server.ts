@@ -137,6 +137,7 @@ export type PaymentLinkInput = {
   mobile: string;
   description: string;
   callbackUrl?: string;
+  returnUrl?: string;
 };
 
 /**
@@ -198,6 +199,7 @@ export async function createPaymentLink(
     description: input.description,
     pass_digital_charge: true,
     ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
+    ...(input.returnUrl ? { return_url: input.returnUrl, redirect_url: input.returnUrl } : {}),
   };
 
   const missing = [

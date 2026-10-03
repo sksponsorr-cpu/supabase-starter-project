@@ -238,6 +238,7 @@ export const startPayment = createServerFn({ method: "POST" })
     // domaine public réel (sam-flash.lat en production).
     const callbackOrigin = await resolvePublicOrigin();
     const callbackUrl = `${callbackOrigin}/api/public/webhooks/payment-success?transaction_id=${transactionId}&token=${callbackToken(transactionId)}`;
+    const returnUrl = `${callbackOrigin}/checkout/success?transaction_id=${transactionId}`;
 
     const { createPaymentLink } = await import("@/lib/services/swychr.server");
     const result = await createPaymentLink({
@@ -253,6 +254,7 @@ export const startPayment = createServerFn({ method: "POST" })
       mobile,
       description: `Abonnement ${price.label} (${data.period === "yearly" ? "annuel" : "mensuel"}) — Sam flash 2.0`,
       callbackUrl,
+      returnUrl,
     });
 
     if (!result.ok) {
