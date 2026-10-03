@@ -162,8 +162,14 @@ export function CheckoutSheet({
         const res = await fetchStatus({ data: { transactionId } });
         if (stopped || !res.ok) return;
         setStatusMessage(res.order.provider_message ?? null);
-        if (res.order.status === "payee") setStep("done");
-        else if (res.order.status === "echouee") {
+        if (res.order.status === "payee") {
+          const planLabel = (res.order as any).planLabel || productLabel;
+          setStep("done");
+          window.dispatchEvent(new CustomEvent("subscription-updated", { detail: { planLabel } }));
+          setTimeout(() => {
+            if (!stopped) onClose();
+          }, 1500);
+        } else if (res.order.status === "echouee") {
           setError(res.order.error_message ?? res.order.provider_message ?? "Paiement refusé.");
           setStep("failed");
         }
@@ -509,7 +515,12 @@ export function CheckoutSheet({
             <p className="text-sm text-muted-foreground">Votre abonnement {productLabel} est actif.</p>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("subscription-updated", { detail: { planLabel: productLabel } }),
+                );
+                onClose();
+              }}
               className="mt-2 rounded-full bg-foreground px-6 py-3 font-semibold text-background"
             >
               Continuer

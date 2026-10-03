@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
@@ -182,13 +182,20 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const { search } = useLocation();
   const currentProjectId = (search as any)?.project;
 
-  useEffect(() => {
+  const refreshAccess = useCallback(() => {
     checkAccess({ data: { mediaType: "video", seconds: 0 } })
       .then((res) => {
         if (res?.planType) setUserPlan(res.planType);
       })
       .catch(() => {});
   }, [checkAccess]);
+
+  useEffect(() => {
+    refreshAccess();
+    const onSubUpdated = () => refreshAccess();
+    window.addEventListener("subscription-updated", onSubUpdated);
+    return () => window.removeEventListener("subscription-updated", onSubUpdated);
+  }, [refreshAccess]);
 
   const runEnhance = async () => {
     const prompt = text.trim();
