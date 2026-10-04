@@ -35,6 +35,9 @@ import {
   Clock,
   TrendingUp,
   Play,
+  Mail,
+  PlusCircle,
+  Send,
 } from "lucide-react";
 import {
   getAdminAccess,
@@ -48,6 +51,8 @@ import {
   getFinancialDashboard,
   listAdminUsers,
   getAdminUserDetail,
+  sendAdminEmailToUser,
+  addAdminSubscriptionToUser,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
@@ -58,6 +63,7 @@ import {
   type FinancialMetrics,
   type AdminUserItem,
   type AdminUserDetail,
+  type AdminAddSubscriptionInput,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
 import {
@@ -156,6 +162,8 @@ function AdminPage() {
   const fetchFinancial = useServerFn(getFinancialDashboard);
   const fetchUsers = useServerFn(listAdminUsers);
   const fetchUserDetail = useServerFn(getAdminUserDetail);
+  const sendEmailToUser = useServerFn(sendAdminEmailToUser);
+  const addSubscriptionToUser = useServerFn(addAdminSubscriptionToUser);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
@@ -193,6 +201,18 @@ function AdminPage() {
   const [userListLoading, setUserListLoading] = useState(false);
   const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Admin action states
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+
+  const [showSubForm, setShowSubForm] = useState(false);
+  const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("super_grok_monthly");
+  const [subReason, setSubReason] = useState("");
+  const [showSubConfirm, setShowSubConfirm] = useState(false);
+  const [subAdding, setSubAdding] = useState(false);
 
   const isAdmin = owner || roles.includes("admin");
   const canModerate = isAdmin || roles.includes("moderator");
@@ -431,10 +451,26 @@ function AdminPage() {
     }
   }, [tab, isAdmin, userListPage, userSearch, loadUserList]);
 
+  const closeUserModal = useCallback(() => {
+    setSelectedUserDetail(null);
+    setShowEmailForm(false);
+    setEmailSubject("");
+    setEmailBody("");
+    setShowSubForm(false);
+    setShowSubConfirm(false);
+    setSubReason("");
+  }, []);
+
   const openUserModal = useCallback(
     async (userId: string) => {
       setDetailLoading(true);
       setSelectedUserDetail(null);
+      setShowEmailForm(false);
+      setEmailSubject("");
+      setEmailBody("");
+      setShowSubForm(false);
+      setShowSubConfirm(false);
+      setSubReason("");
       try {
         const detail = await fetchUserDetail({ data: { userId } });
         setSelectedUserDetail(detail);
@@ -448,6 +484,70 @@ function AdminPage() {
     },
     [fetchUserDetail],
   );
+
+  const handleSendEmail = useCallback(async () => {
+    if (!selectedUserDetail) return;
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      toast.error("Veuillez remplir l'objet et le message.");
+      return;
+    }
+    setEmailSending(true);
+    try {
+      const res = await sendEmailToUser({
+        data: {
+          userId: selectedUserDetail.id,
+          subject: emailSubject.trim(),
+          message: emailBody.trim(),
+        },
+      });
+      if (res.ok) {
+        toast.success(res.message);
+        setShowEmailForm(false);
+        setEmailSubject("");
+        setEmailBody("");
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email.");
+    } finally {
+      setEmailSending(false);
+    }
+  }, [selectedUserDetail, emailSubject, emailBody, sendEmailToUser]);
+
+  const handleAddSubscription = useCallback(async () => {
+    if (!selectedUserDetail) return;
+    if (!subReason.trim()) {
+      toast.error("Le motif est obligatoire pour ajouter un abonnement.");
+      return;
+    }
+    setSubAdding(true);
+    try {
+      const res = await addSubscriptionToUser({
+        data: {
+          userId: selectedUserDetail.id,
+          plan: subPlan,
+          reason: subReason.trim(),
+        },
+      });
+      if (res.ok) {
+        toast.success(res.message);
+        setShowSubConfirm(false);
+        setShowSubForm(false);
+        setSubReason("");
+        // Reload details, list, and stats
+        await openUserModal(selectedUserDetail.id);
+        void loadUserList(userListPage, userSearch);
+        void load();
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'attribution de l'abonnement.");
+    } finally {
+      setSubAdding(false);
+    }
+  }, [selectedUserDetail, subReason, subPlan, addSubscriptionToUser, openUserModal, loadUserList, userListPage, userSearch, load]);
 
   const cards = stats
     ? [
@@ -902,7 +1002,7 @@ function AdminPage() {
                       <button
                         type="button"
                         aria-label="Fermer"
-                        onClick={() => setSelectedUserDetail(null)}
+                        onClick={closeUserModal}
                         className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-4 w-4" />
@@ -1027,6 +1127,214 @@ function AdminPage() {
                                 {selectedUserDetail.support_tickets_count}
                               </p>
                             </div>
+                          </div>
+
+                          {/* Actions Administrateur */}
+                          <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+                            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Actions administrateur
+                            </h4>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowEmailForm((prev) => !prev);
+                                  setShowSubForm(false);
+                                  setShowSubConfirm(false);
+                                }}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                                  showEmailForm
+                                    ? "bg-foreground text-background"
+                                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                <Mail className="h-4 w-4" />
+                                Envoyer un email
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowSubForm((prev) => !prev);
+                                  setShowEmailForm(false);
+                                  setShowSubConfirm(false);
+                                }}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                                  showSubForm
+                                    ? "bg-foreground text-background"
+                                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                <PlusCircle className="h-4 w-4" />
+                                Ajouter un abonnement
+                              </button>
+                            </div>
+
+                            {/* Formulaire Envoi Email */}
+                            {showEmailForm && (
+                              <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <h5 className="text-xs font-semibold text-foreground">
+                                  Envoyer un email à {selectedUserDetail.email}
+                                </h5>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Objet
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={emailSubject}
+                                    onChange={(e) => setEmailSubject(e.target.value)}
+                                    placeholder="Ex. Information sur votre compte Sam Flash"
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Message
+                                  </label>
+                                  <textarea
+                                    rows={4}
+                                    value={emailBody}
+                                    onChange={(e) => setEmailBody(e.target.value)}
+                                    placeholder="Rédigez votre message ici..."
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowEmailForm(false)}
+                                    className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                                    onClick={() => void handleSendEmail()}
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                    {emailSending ? "Envoi en cours…" : "Envoyer"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Formulaire Ajout Abonnement */}
+                            {showSubForm && (
+                              <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <h5 className="text-xs font-semibold text-foreground">
+                                  Ajouter un abonnement manuel
+                                </h5>
+
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Offre
+                                  </label>
+                                  <select
+                                    value={subPlan}
+                                    onChange={(e) =>
+                                      setSubPlan(e.target.value as AdminAddSubscriptionInput["plan"])
+                                    }
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
+                                  >
+                                    <option value="super_grok_monthly">
+                                      Super Grok (mensuel — 1 mois)
+                                    </option>
+                                    <option value="super_grok_annuel">
+                                      Super Grok (annuel — 12 mois)
+                                    </option>
+                                    <option value="super_grok_plus">
+                                      Super Grok Plus (1 mois)
+                                    </option>
+                                    <option value="superhearly_monthly">
+                                      Super Grok Heavy (1 mois)
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Motif <span className="text-destructive">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subReason}
+                                    onChange={(e) => setSubReason(e.target.value)}
+                                    placeholder="Ex. Paiement bloqué commande n°..., geste commercial..."
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowSubForm(false);
+                                      setShowSubConfirm(false);
+                                    }}
+                                    className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={!subReason.trim()}
+                                    onClick={() => {
+                                      if (!subReason.trim()) {
+                                        toast.error("Le motif est obligatoire.");
+                                        return;
+                                      }
+                                      setShowSubConfirm(true);
+                                    }}
+                                    className="rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
+                                  >
+                                    Valider l'attribution
+                                  </button>
+                                </div>
+
+                                {/* Confirmation Dialog */}
+                                {showSubConfirm && (
+                                  <div className="mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-4 text-xs">
+                                    <p className="font-semibold text-orange-400">
+                                      Confirmation requise
+                                    </p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      Voulez-vous vraiment attribuer l'offre{" "}
+                                      <strong className="text-foreground">
+                                        {subPlan === "super_grok_monthly" && "Super Grok (mensuel)"}
+                                        {subPlan === "super_grok_annuel" && "Super Grok (annuel)"}
+                                        {subPlan === "super_grok_plus" && "Super Grok Plus"}
+                                        {subPlan === "superhearly_monthly" && "Super Grok Heavy"}
+                                      </strong>{" "}
+                                      à <strong className="text-foreground">{selectedUserDetail.email}</strong> ?
+                                    </p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      Motif enregistré : <em>« {subReason} »</em>
+                                    </p>
+                                    <div className="mt-3 flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowSubConfirm(false)}
+                                        className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium hover:bg-secondary"
+                                      >
+                                        Retour
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={subAdding}
+                                        onClick={() => void handleAddSubscription()}
+                                        className="rounded-full bg-primary px-4 py-1.5 font-semibold text-primary-foreground disabled:opacity-50"
+                                      >
+                                        {subAdding ? "Activation…" : "Confirmer l'ajout"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div>
