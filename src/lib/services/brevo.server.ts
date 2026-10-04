@@ -269,3 +269,259 @@ Une question ? Contactez-nous à ${DEFAULT_SENDER_EMAIL}.
     textContent,
   });
 }
+
+/** Échappe les caractères réservés HTML pour éviter les injections. */
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/** Formate un texte multiligne sécurisé en HTML avec sauts de ligne <br/>. */
+export function formatMultilineHtml(str: string): string {
+  return escapeHtml(str).replace(/\r\n|\r|\n/g, "<br/>");
+}
+
+export type SupportNewMessageInput = {
+  userEmail: string | null;
+  requestType: string;
+  messageBody: string;
+  createdAt?: string;
+};
+
+/**
+ * Envoie un email de notification à l'équipe de support lors de la création d'un message client.
+ */
+export async function sendSupportNewMessageEmail(
+  input: SupportNewMessageInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userEmail, requestType, messageBody, createdAt } = input;
+  const dateStr = formatFrenchDateTime(createdAt ?? new Date().toISOString());
+  const adminUrl = "https://sam-flash.lat/admin";
+
+  const safeType = requestType ? requestType.trim() : "Demande générale";
+  const shortBody = messageBody.replace(/\s+/g, " ").trim().slice(0, 50);
+  const subjectSuffix = shortBody ? ` — ${shortBody}${messageBody.length > 50 ? "..." : ""}` : "";
+  const subject = `[Support] ${safeType}${subjectSuffix}`;
+
+  const escapedEmail = escapeHtml(userEmail || "Non renseigné");
+  const escapedType = escapeHtml(safeType);
+  const escapedDate = escapeHtml(dateStr);
+  const formattedBody = formatMultilineHtml(messageBody);
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f17; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 580px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <tr>
+            <td style="padding: 28px 32px 20px 32px; text-align: left; border-bottom: 1px solid #1e293b; background-color: #0f172a;">
+              <span style="display: inline-block; background-color: #38bdf8; color: #020617; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 9999px; margin-bottom: 8px;">Nouveau message support</span>
+              <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">${escapedType}</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0f172a; border: 1px solid #334155; border-radius: 16px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="padding-bottom: 8px; font-size: 13px; color: #94a3b8; font-weight: 500; width: 120px;">Utilisateur</td>
+                        <td style="padding-bottom: 8px; font-size: 14px; color: #f8fafc; font-weight: 600;">${escapedEmail}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 8px; font-size: 13px; color: #94a3b8; font-weight: 500;">Type</td>
+                        <td style="padding-bottom: 8px; font-size: 14px; color: #38bdf8; font-weight: 600;">${escapedType}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 13px; color: #94a3b8; font-weight: 500;">Date</td>
+                        <td style="font-size: 13px; color: #cbd5e1;">${escapedDate}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Message reçu :</h3>
+              <div style="background-color: #090d16; border: 1px solid #1e293b; border-radius: 14px; padding: 20px; font-size: 15px; line-height: 1.6; color: #f1f5f9; margin-bottom: 28px; word-break: break-word;">
+                ${formattedBody}
+              </div>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #ffffff; color: #020617; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(255,255,255,0.15);">
+                      Accéder au bureau d'administration (Support)
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 18px 32px; text-align: center; border-top: 1px solid #1e293b; background-color: #0b1120;">
+              <p style="margin: 0; font-size: 11px; color: #64748b;">
+                Notification automatique — Sam Flash 2.0
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `Nouveau message support Sam Flash 2.0
+-----------------------------------------
+Utilisateur : ${userEmail || "Non renseigné"}
+Type : ${safeType}
+Date : ${dateStr}
+
+Message :
+${messageBody}
+
+Accéder à l'administration : ${adminUrl}`;
+
+  return await sendBrevoEmail({
+    to: [{ email: DEFAULT_SENDER_EMAIL, name: "Support Sam Flash 2.0" }],
+    subject,
+    htmlContent,
+    textContent,
+    replyTo: userEmail ? { email: userEmail } : undefined,
+  });
+}
+
+export type SupportReplyEmailInput = {
+  toEmail: string;
+  originalSubject: string;
+  originalBody: string;
+  replyBody: string;
+};
+
+/**
+ * Envoie un email à l'utilisateur lorsqu'un membre de l'équipe répond à son ticket de support.
+ */
+export async function sendSupportReplyEmail(
+  input: SupportReplyEmailInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const { toEmail, originalSubject, originalBody, replyBody } = input;
+  const appUrl = "https://sam-flash.lat/app";
+  const subject = "Réponse du support Sam Flash 2.0";
+
+  const safeSubject = originalSubject ? originalSubject.trim() : "Votre demande";
+  const shortQuestion = originalBody.replace(/\s+/g, " ").trim().slice(0, 180);
+  const truncatedQuestion = shortQuestion ? `${shortQuestion}${originalBody.length > 180 ? "..." : ""}` : safeSubject;
+
+  const escapedSubject = escapeHtml(safeSubject);
+  const escapedQuestion = escapeHtml(truncatedQuestion);
+  const formattedReply = formatMultilineHtml(replyBody);
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f17; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <!-- En-tête -->
+          <tr>
+            <td style="padding: 32px 32px 20px 32px; text-align: center; border-bottom: 1px solid #1e293b;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff;">Sam Flash 2.0</h1>
+              <p style="margin: 6px 0 0 0; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Support Client</p>
+            </td>
+          </tr>
+
+          <!-- Contenu -->
+          <tr>
+            <td style="padding: 32px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #ffffff;">
+                Une réponse a été apportée à votre demande
+              </h2>
+
+              <!-- Rappel de la question d'origine -->
+              <div style="background-color: #0f172a; border-left: 3px solid #64748b; border-radius: 8px; padding: 14px 16px; margin-bottom: 24px;">
+                <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Votre demande (${escapedSubject}) :</p>
+                <p style="margin: 0; font-size: 13px; color: #cbd5e1; font-style: italic; line-height: 1.5; word-break: break-word;">« ${escapedQuestion} »</p>
+              </div>
+
+              <!-- Réponse du support -->
+              <h3 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px;">Réponse de notre équipe :</h3>
+              <div style="background-color: #090d16; border: 1px solid #1e293b; border-radius: 14px; padding: 18px; font-size: 15px; line-height: 1.6; color: #f1f5f9; margin-bottom: 28px; word-break: break-word;">
+                ${formattedReply}
+              </div>
+
+              <!-- Bouton retour application -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 20px;">
+                <tr>
+                  <td align="center">
+                    <a href="${appUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #ffffff; color: #020617; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(255,255,255,0.15);">
+                      Ouvrir l'application
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #64748b; text-align: center;">
+                Vous pouvez également retrouver l'historique de vos échanges dans la section Assistance de l'application.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Pied de page -->
+          <tr>
+            <td style="padding: 20px 32px; text-align: center; border-top: 1px solid #1e293b; background-color: #0b1120;">
+              <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">
+                Besoin d'aide supplémentaire ? Écrivez-nous à <a href="mailto:${DEFAULT_SENDER_EMAIL}" style="color: #94a3b8; text-decoration: underline;">${DEFAULT_SENDER_EMAIL}</a>.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #475569;">
+                © ${new Date().getUTCFullYear()} Sam Flash 2.0. Tous droits réservés.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `Réponse du support Sam Flash 2.0
+------------------------------------
+Votre demande (${safeSubject}) :
+"${truncatedQuestion}"
+
+Réponse de notre équipe :
+${replyBody}
+
+Ouvrir l'application : ${appUrl}
+
+Une question ? Contactez-nous à ${DEFAULT_SENDER_EMAIL}.
+© ${new Date().getUTCFullYear()} Sam Flash 2.0.`;
+
+  return await sendBrevoEmail({
+    to: [{ email: toEmail }],
+    subject,
+    htmlContent,
+    textContent,
+  });
+}
+

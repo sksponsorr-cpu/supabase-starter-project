@@ -28,7 +28,25 @@ export const createSupportMessage = createServerFn({ method: "POST" })
     z.object({ subject: z.string().min(3).max(140), body: z.string().min(5).max(4000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    // Anti-spam : 5 messages max par heure et par utilisateur
+    const oneHourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
+    const { count, error: countError } = await context.supabase
+      .from("support_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", context.userId)
+      .gte("created_at", oneHourAgo);
+
+    if (!countError && typeof count === "number" && count >= 5) {
+      return {
+        ok: false as const,
+        message:
+          "Vous avez atteint la limite de 5 messages par heure. Veuillez patienter avant de recontacter le support.",
+      };
+    }
+
     const email = typeof context.claims["email"] === "string" ? context.claims["email"] : null;
+    const now = new Date().toISOString();
+
     const { error } = await context.supabase.from("support_messages").insert({
       user_id: context.userId,
       email,
@@ -36,6 +54,20 @@ export const createSupportMessage = createServerFn({ method: "POST" })
       body: data.body.trim(),
     });
     if (error) return { ok: false as const, message: "Envoi impossible." };
+
+    // Envoi de l'email de notification au support (asynchrone sans bloquer)
+    try {
+      const { sendSupportNewMessageEmail } = await import("@/lib/services/brevo.server");
+      await sendSupportNewMessageEmail({
+        userEmail: email,
+        requestType: data.subject.trim(),
+        messageBody: data.body.trim(),
+        createdAt: now,
+      });
+    } catch (emailErr) {
+      console.error("[SUPPORT] Échec de l'envoi de l'email de notification support:", emailErr);
+    }
+
     return { ok: true as const, message: "Message envoyé au support." };
   });
 
@@ -96,6 +128,38 @@ export const replyToSupportMessage = createServerFn({ method: "POST" })
         .from("support_messages")
         .update({ status: "repondu" })
         .eq("id", data.messageId);
+
+      // Notification email au client ayant ouvert le ticket
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: ticket } = await supabaseAdmin
+          .from("support_messages")
+          .select("user_id, email, subject, body")
+          .eq("id", data.messageId)
+          .maybeSingle();
+
+        let recipientEmail = ticket?.email;
+        if (!recipientEmail && ticket?.user_id) {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .eq("id", ticket.user_id)
+            .maybeSingle();
+          recipientEmail = profile?.email ?? null;
+        }
+
+        if (recipientEmail) {
+          const { sendSupportReplyEmail } = await import("@/lib/services/brevo.server");
+          await sendSupportReplyEmail({
+            toEmail: recipientEmail,
+            originalSubject: ticket?.subject ?? "Votre demande",
+            originalBody: ticket?.body ?? "",
+            replyBody: data.body.trim(),
+          });
+        }
+      } catch (replyErr) {
+        console.error("[SUPPORT] Échec de l'envoi de l'email de réponse client:", replyErr);
+      }
     }
     return { ok: true as const, message: "Réponse envoyée." };
   });
