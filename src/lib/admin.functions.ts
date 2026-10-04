@@ -815,12 +815,12 @@ export const getAdminUserDetail = createServerFn({ method: "POST" })
  */
 export const sendAdminEmailToUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { targetUserId: string; subject: string; message: string }) =>
+  .inputValidator((input: { userId: string; subject: string; message: string }) =>
     z
       .object({
-        targetUserId: z.string().uuid(),
-        subject: z.string().min(3).max(200),
-        message: z.string().min(5).max(5000),
+        userId: z.string().uuid("Identifiant utilisateur invalide"),
+        subject: z.string().trim().min(1, "L'objet est requis").max(200, "Objet trop long"),
+        message: z.string().trim().min(1, "Le message est requis").max(10000, "Message trop long"),
       })
       .parse(input),
   )
@@ -828,16 +828,16 @@ export const sendAdminEmailToUser = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1. Lecture de l'email de l'utilisateur cible côté serveur
+    // 1. Lecture de l'email de l'utilisateur cible côté serveur (JAMAIS depuis le client)
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("email, full_name")
-      .eq("id", data.targetUserId)
+      .eq("id", data.userId)
       .maybeSingle();
 
     let targetEmail = profile?.email;
     if (!targetEmail) {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(data.userId);
       targetEmail = authUser?.user?.email ?? null;
     }
 
@@ -861,42 +861,44 @@ export const sendAdminEmailToUser = createServerFn({ method: "POST" })
     try {
       await supabaseAdmin.from("admin_actions").insert({
         admin_id: context.userId,
-        target_user_id: data.targetUserId,
+        target_user_id: data.userId,
         action: "send_email",
         details: {
           recipient_email: targetEmail,
           subject: data.subject.trim(),
+          body_length: data.message.length,
         },
       });
     } catch (logErr) {
       console.error("[ADMIN] Erreur log admin_actions send_email:", logErr);
     }
 
-    return { ok: true as const, message: "Email envoyé avec succès." };
+    return { ok: true as const, message: `Email envoyé avec succès à ${targetEmail}.` };
   });
 
 export type AdminAddSubscriptionInput = {
-  targetUserId: string;
+  userId: string;
   plan: "super_grok_monthly" | "super_grok_annuel" | "super_grok_plus" | "superhearly_monthly";
   reason: string;
 };
 
 /**
  * Active manuellement un abonnement pour un utilisateur avec motif obligatoire.
+ * Reprend EXACTEMENT la logique de applyOrderOutcome (select -> update si existe, sinon insert).
  */
 export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: AdminAddSubscriptionInput) =>
     z
       .object({
-        targetUserId: z.string().uuid(),
+        userId: z.string().uuid("Identifiant utilisateur invalide"),
         plan: z.enum([
           "super_grok_monthly",
           "super_grok_annuel",
           "super_grok_plus",
           "superhearly_monthly",
         ]),
-        reason: z.string().min(3).max(500),
+        reason: z.string().trim().min(3, "Un motif d'au moins 3 caractères est obligatoire").max(500, "Motif trop long"),
       })
       .parse(input),
   )
@@ -913,13 +915,14 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
           ? "super_grok_plus"
           : "super_grok";
 
+    // expiryFor(planType) calcule la date d'échéance et retourne une chaîne ISO
     const endsAt = expiryFor(planType);
 
-    // 1. Création ou mise à jour de subscriptions (sans créer de commande ni de commission)
+    // 1. Recherche de l'abonnement existant (EXACTEMENT comme applyOrderOutcome)
     const { data: existing } = await supabaseAdmin
       .from("subscriptions")
       .select("id")
-      .eq("user_id", data.targetUserId)
+      .eq("user_id", data.userId)
       .maybeSingle();
 
     if (existing) {
@@ -930,17 +933,18 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
           plan_type: planType,
           status: "active",
           is_active: true,
+          started_at: new Date().toISOString(),
           ends_at: endsAt,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
 
       if (updateError) {
+        console.error("[ADMIN] Erreur update subscriptions:", updateError);
         throw new Error("Échec de la mise à jour de l'abonnement en base.");
       }
     } else {
       const { error: insertError } = await supabaseAdmin.from("subscriptions").insert({
-        user_id: data.targetUserId,
+        user_id: data.userId,
         tier,
         plan_type: planType,
         status: "active",
@@ -950,6 +954,7 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
       });
 
       if (insertError) {
+        console.error("[ADMIN] Erreur insert subscriptions:", insertError);
         throw new Error("Échec de l'activation de l'abonnement en base.");
       }
     }
@@ -958,7 +963,7 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
     try {
       await supabaseAdmin.from("admin_actions").insert({
         admin_id: context.userId,
-        target_user_id: data.targetUserId,
+        target_user_id: data.userId,
         action: "add_subscription",
         details: {
           plan: planType,
@@ -971,6 +976,9 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
       console.error("[ADMIN] Erreur log admin_actions add_subscription:", logErr);
     }
 
-    return { ok: true as const, message: "Abonnement activé avec succès." };
+    return {
+      ok: true as const,
+      message: `Abonnement ${tier} activé avec succès jusqu'au ${new Date(endsAt).toLocaleDateString("fr-FR")}.`,
+    };
   });
 
