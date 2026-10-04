@@ -643,4 +643,100 @@ Accéder à l'administration : ${adminUrl}`;
   });
 }
 
+export type AdminDirectEmailInput = {
+  toEmail: string;
+  subject: string;
+  messageBody: string;
+};
+
+/**
+ * Envoie un email direct depuis l'administration à un utilisateur.
+ */
+export async function sendAdminDirectEmail(
+  input: AdminDirectEmailInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const { toEmail, subject, messageBody } = input;
+  const appUrl = "https://sam-flash.lat/app";
+  const safeSubject = subject.trim() || "Message de Sam Flash 2.0";
+  const formattedBody = formatMultilineHtml(messageBody);
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(safeSubject)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f17; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <!-- En-tête -->
+          <tr>
+            <td style="padding: 32px 32px 20px 32px; text-align: center; border-bottom: 1px solid #1e293b;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff;">Sam Flash 2.0</h1>
+              <p style="margin: 6px 0 0 0; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Message de l'équipe</p>
+            </td>
+          </tr>
+
+          <!-- Contenu -->
+          <tr>
+            <td style="padding: 32px;">
+              <h2 style="margin: 0 0 18px 0; font-size: 18px; font-weight: 600; color: #ffffff;">
+                ${escapeHtml(safeSubject)}
+              </h2>
+
+              <div style="background-color: #090d16; border: 1px solid #1e293b; border-radius: 14px; padding: 20px; font-size: 15px; line-height: 1.6; color: #f1f5f9; margin-bottom: 28px; word-break: break-word;">
+                ${formattedBody}
+              </div>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 20px;">
+                <tr>
+                  <td align="center">
+                    <a href="${appUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #ffffff; color: #020617; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(255,255,255,0.15);">
+                      Accéder à mon compte
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Pied de page -->
+          <tr>
+            <td style="padding: 20px 32px; text-align: center; border-top: 1px solid #1e293b; background-color: #0b1120;">
+              <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">
+                Une question ? Contactez notre équipe à <a href="mailto:${DEFAULT_SENDER_EMAIL}" style="color: #94a3b8; text-decoration: underline;">${DEFAULT_SENDER_EMAIL}</a>.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #475569;">
+                © ${new Date().getUTCFullYear()} Sam Flash 2.0. Tous droits réservés.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `${safeSubject}
+----------------------------------------
+${messageBody}
+
+Accéder à mon compte : ${appUrl}
+
+Une question ? Contactez-nous à ${DEFAULT_SENDER_EMAIL}.
+© ${new Date().getUTCFullYear()} Sam Flash 2.0.`;
+
+  return await sendBrevoEmail({
+    to: [{ email: toEmail }],
+    subject: safeSubject,
+    htmlContent,
+    textContent,
+  });
+}
+
+
 

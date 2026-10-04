@@ -809,3 +809,168 @@ export const getAdminUserDetail = createServerFn({ method: "POST" })
       support_tickets_count: supportRes.count ?? 0,
     };
   });
+
+/**
+ * Envoie un email direct à un utilisateur depuis sa fiche d'administration.
+ */
+export const sendAdminEmailToUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { targetUserId: string; subject: string; message: string }) =>
+    z
+      .object({
+        targetUserId: z.string().uuid(),
+        subject: z.string().min(3).max(200),
+        message: z.string().min(5).max(5000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Lecture de l'email de l'utilisateur cible côté serveur
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", data.targetUserId)
+      .maybeSingle();
+
+    let targetEmail = profile?.email;
+    if (!targetEmail) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(data.targetUserId);
+      targetEmail = authUser?.user?.email ?? null;
+    }
+
+    if (!targetEmail) {
+      throw new Error("Impossible de trouver l'adresse email de cet utilisateur");
+    }
+
+    // 2. Envoi via Brevo
+    const { sendAdminDirectEmail } = await import("@/lib/services/brevo.server");
+    const sendResult = await sendAdminDirectEmail({
+      toEmail: targetEmail,
+      subject: data.subject.trim(),
+      messageBody: data.message.trim(),
+    });
+
+    if (!sendResult.ok) {
+      throw new Error(sendResult.error || "Échec de l'envoi de l'email");
+    }
+
+    // 3. Journalisation dans admin_actions
+    try {
+      await supabaseAdmin.from("admin_actions").insert({
+        admin_id: context.userId,
+        target_user_id: data.targetUserId,
+        action: "send_email",
+        details: {
+          recipient_email: targetEmail,
+          subject: data.subject.trim(),
+        },
+      });
+    } catch (logErr) {
+      console.error("[ADMIN] Erreur log admin_actions send_email:", logErr);
+    }
+
+    return { ok: true as const, message: "Email envoyé avec succès." };
+  });
+
+export type AdminAddSubscriptionInput = {
+  targetUserId: string;
+  plan: "super_grok_monthly" | "super_grok_annuel" | "super_grok_plus" | "superhearly_monthly";
+  reason: string;
+};
+
+/**
+ * Active manuellement un abonnement pour un utilisateur avec motif obligatoire.
+ */
+export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: AdminAddSubscriptionInput) =>
+    z
+      .object({
+        targetUserId: z.string().uuid(),
+        plan: z.enum([
+          "super_grok_monthly",
+          "super_grok_annuel",
+          "super_grok_plus",
+          "superhearly_monthly",
+        ]),
+        reason: z.string().min(3).max(500),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { expiryFor } = await import("@/lib/plans");
+
+    const planType = data.plan;
+    const tier =
+      planType === "superhearly_monthly"
+        ? "superhearly"
+        : planType === "super_grok_plus"
+          ? "super_grok_plus"
+          : "super_grok";
+
+    const endsAt = expiryFor(planType);
+
+    // 1. Création ou mise à jour de subscriptions (sans créer de commande ni de commission)
+    const { data: existing } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", data.targetUserId)
+      .maybeSingle();
+
+    if (existing) {
+      const { error: updateError } = await supabaseAdmin
+        .from("subscriptions")
+        .update({
+          tier,
+          plan_type: planType,
+          status: "active",
+          is_active: true,
+          ends_at: endsAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+
+      if (updateError) {
+        throw new Error("Échec de la mise à jour de l'abonnement en base.");
+      }
+    } else {
+      const { error: insertError } = await supabaseAdmin.from("subscriptions").insert({
+        user_id: data.targetUserId,
+        tier,
+        plan_type: planType,
+        status: "active",
+        is_active: true,
+        started_at: new Date().toISOString(),
+        ends_at: endsAt,
+      });
+
+      if (insertError) {
+        throw new Error("Échec de l'activation de l'abonnement en base.");
+      }
+    }
+
+    // 2. Journalisation dans admin_actions
+    try {
+      await supabaseAdmin.from("admin_actions").insert({
+        admin_id: context.userId,
+        target_user_id: data.targetUserId,
+        action: "add_subscription",
+        details: {
+          plan: planType,
+          tier,
+          reason: data.reason.trim(),
+          ends_at: endsAt,
+        },
+      });
+    } catch (logErr) {
+      console.error("[ADMIN] Erreur log admin_actions add_subscription:", logErr);
+    }
+
+    return { ok: true as const, message: "Abonnement activé avec succès." };
+  });
+
