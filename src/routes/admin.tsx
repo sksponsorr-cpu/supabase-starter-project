@@ -46,6 +46,8 @@ import {
   listAdminSubscriptions,
   getAdminTimeSeries,
   getFinancialDashboard,
+  listAdminUsers,
+  getAdminUserDetail,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
@@ -54,6 +56,8 @@ import {
   type TimeSeriesData,
   type StaffRole,
   type FinancialMetrics,
+  type AdminUserItem,
+  type AdminUserDetail,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
 import {
@@ -150,6 +154,8 @@ function AdminPage() {
   const fetchSubscriptions = useServerFn(listAdminSubscriptions);
   const fetchTimeSeries = useServerFn(getAdminTimeSeries);
   const fetchFinancial = useServerFn(getFinancialDashboard);
+  const fetchUsers = useServerFn(listAdminUsers);
+  const fetchUserDetail = useServerFn(getAdminUserDetail);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
@@ -178,6 +184,15 @@ function AdminPage() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [commissionTotal, setCommissionTotal] = useState(0);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
+
+  const [userList, setUserList] = useState<AdminUserItem[]>([]);
+  const [userListTotal, setUserListTotal] = useState(0);
+  const [userListPage, setUserListPage] = useState(1);
+  const [userListTotalPages, setUserListTotalPages] = useState(1);
+  const [userSearch, setUserSearch] = useState("");
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const isAdmin = owner || roles.includes("admin");
   const canModerate = isAdmin || roles.includes("moderator");
@@ -390,6 +405,50 @@ function AdminPage() {
     [openTicket, fetchReplies],
   );
 
+  const loadUserList = useCallback(
+    async (page = 1, search = "") => {
+      if (!isAdmin) return;
+      setUserListLoading(true);
+      try {
+        const res = await fetchUsers({ data: { page, search } });
+        setUserList(res.users);
+        setUserListTotal(res.total);
+        setUserListPage(res.page);
+        setUserListTotalPages(res.totalPages);
+      } catch {
+        setUserList([]);
+        setUserListTotal(0);
+      } finally {
+        setUserListLoading(false);
+      }
+    },
+    [isAdmin, fetchUsers],
+  );
+
+  useEffect(() => {
+    if (tab === "users" && isAdmin) {
+      void loadUserList(userListPage, userSearch);
+    }
+  }, [tab, isAdmin, userListPage, userSearch, loadUserList]);
+
+  const openUserModal = useCallback(
+    async (userId: string) => {
+      setDetailLoading(true);
+      setSelectedUserDetail(null);
+      try {
+        const detail = await fetchUserDetail({ data: { userId } });
+        setSelectedUserDetail(detail);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Impossible de charger la fiche utilisateur.",
+        );
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [fetchUserDetail],
+  );
+
   const cards = stats
     ? [
         { label: "Utilisateurs", value: String(stats.users), icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -404,6 +463,7 @@ function AdminPage() {
   const sections = [
     { id: "overview", label: "Vue d'ensemble", icon: Gauge, show: isAdmin },
     { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
+    { id: "users", label: "Utilisateurs", icon: User, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
@@ -693,6 +753,333 @@ function AdminPage() {
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {active === "users" && isAdmin && (
+              <section className="pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-[22px] font-semibold tracking-tight">Utilisateurs inscrits</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {userListTotal} utilisateur{userListTotal > 1 ? "s" : ""} au total · 50 par page
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-72">
+                    <input
+                      type="search"
+                      placeholder="Rechercher par email…"
+                      value={userSearch}
+                      onChange={(e) => {
+                        setUserSearch(e.target.value);
+                        setUserListPage(1);
+                      }}
+                      className="w-full rounded-2xl border border-border bg-card/60 px-4 py-2 text-sm backdrop-blur-xl outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                {userListLoading ? (
+                  <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Chargement des utilisateurs…
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 overflow-hidden rounded-3xl border border-border/70 bg-card/50 backdrop-blur-xl">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="border-b border-border/60 bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            <tr>
+                              <th className="px-4 py-3">Utilisateur</th>
+                              <th className="px-4 py-3">Offre</th>
+                              <th className="px-4 py-3">Inscription</th>
+                              <th className="px-4 py-3">Dernière connexion</th>
+                              <th className="px-4 py-3 text-right">Fin d'abonnement</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {userList.map((u) => (
+                              <tr
+                                key={u.id}
+                                onClick={() => void openUserModal(u.id)}
+                                className="cursor-pointer transition-colors hover:bg-muted/40"
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-foreground">{u.email || "Non renseigné"}</div>
+                                  {u.full_name && (
+                                    <div className="text-[11px] text-muted-foreground">{u.full_name}</div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                                      u.plan_label === "Gratuit"
+                                        ? "bg-secondary text-muted-foreground"
+                                        : "bg-primary/20 text-primary font-semibold"
+                                    }`}
+                                  >
+                                    {u.plan_label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {new Date(u.created_at).toLocaleDateString("fr-FR")}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {u.last_sign_in_at
+                                    ? new Date(u.last_sign_in_at).toLocaleString("fr-FR", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "Jamais"}
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs">
+                                  {u.ends_at ? (
+                                    <span
+                                      className={
+                                        new Date(u.ends_at) < new Date()
+                                          ? "text-muted-foreground"
+                                          : "font-medium text-foreground"
+                                      }
+                                    >
+                                      {new Date(u.ends_at).toLocaleDateString("fr-FR")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                            {userList.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                                  Aucun utilisateur trouvé.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {userListTotalPages > 1 && (
+                      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          Page {userListPage} sur {userListTotalPages}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={userListPage <= 1}
+                            onClick={() => setUserListPage((p) => Math.max(1, p - 1))}
+                            className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
+                          >
+                            Précédent
+                          </button>
+                          <button
+                            type="button"
+                            disabled={userListPage >= userListTotalPages}
+                            onClick={() => setUserListPage((p) => Math.min(userListTotalPages, p + 1))}
+                            className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
+                          >
+                            Suivant
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Modale Fiche Détail Utilisateur */}
+                {(detailLoading || selectedUserDetail) && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border/80 bg-card p-6 shadow-2xl">
+                      <button
+                        type="button"
+                        aria-label="Fermer"
+                        onClick={() => setSelectedUserDetail(null)}
+                        className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+
+                      {detailLoading ? (
+                        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+                          <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Chargement de la fiche…
+                        </div>
+                      ) : selectedUserDetail ? (
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-xl font-bold tracking-tight">
+                                {selectedUserDetail.full_name || selectedUserDetail.email || "Utilisateur"}
+                              </h3>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                  selectedUserDetail.is_subscribed
+                                    ? "bg-primary/20 text-primary"
+                                    : "bg-secondary text-muted-foreground"
+                                }`}
+                              >
+                                {selectedUserDetail.plan_label}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{selectedUserDetail.email}</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Date d'inscription
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {new Date(selectedUserDetail.created_at).toLocaleString("fr-FR")}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Dernière connexion
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {selectedUserDetail.last_sign_in_at
+                                  ? new Date(selectedUserDetail.last_sign_in_at).toLocaleString("fr-FR")
+                                  : "Jamais"}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Méthode d'inscription
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">{selectedUserDetail.signup_method}</p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Fin d'abonnement
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {selectedUserDetail.subscription_ends_at
+                                  ? new Date(selectedUserDetail.subscription_ends_at).toLocaleDateString("fr-FR")
+                                  : selectedUserDetail.is_subscribed
+                                    ? "Actif"
+                                    : "Aucun"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {selectedUserDetail.is_subscribed &&
+                            selectedUserDetail.remaining_seconds_today !== null && (
+                              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold uppercase text-primary">
+                                    Secondes restantes aujourd'hui
+                                  </span>
+                                  <span className="text-sm font-bold text-primary">
+                                    {selectedUserDetail.remaining_seconds_today}s / {selectedUserDetail.limit_seconds_today}s (
+                                    {formatSeconds(selectedUserDetail.remaining_seconds_today)})
+                                  </span>
+                                </div>
+                                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                                  <div
+                                    className="h-full bg-primary transition-all"
+                                    style={{
+                                      width: `${Math.min(
+                                        100,
+                                        Math.max(
+                                          0,
+                                          ((selectedUserDetail.remaining_seconds_today ?? 0) /
+                                            (selectedUserDetail.limit_seconds_today || 1)) *
+                                            100,
+                                        ),
+                                      )}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Images créées
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-purple-400">
+                                {selectedUserDetail.total_images}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Vidéos créées
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-blue-400">
+                                {selectedUserDetail.total_videos}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Tickets Support
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-orange-400">
+                                {selectedUserDetail.support_tickets_count}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              10 dernières commandes
+                            </h4>
+                            {selectedUserDetail.recent_orders.length > 0 ? (
+                              <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/40">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="border-b border-border/60 bg-muted/20 text-[10px] uppercase text-muted-foreground">
+                                    <tr>
+                                      <th className="px-3 py-2">Date</th>
+                                      <th className="px-3 py-2">Montant</th>
+                                      <th className="px-3 py-2">Méthode</th>
+                                      <th className="px-3 py-2 text-right">Statut</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border/30">
+                                    {selectedUserDetail.recent_orders.map((o) => (
+                                      <tr key={o.transaction_id}>
+                                        <td className="px-3 py-2 text-muted-foreground">
+                                          {new Date(o.created_at).toLocaleDateString("fr-FR")}
+                                        </td>
+                                        <td className="px-3 py-2 font-medium">
+                                          {o.amount_eur.toFixed(2)} {o.currency}
+                                        </td>
+                                        <td className="px-3 py-2 text-muted-foreground">
+                                          {o.payment_method}
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                          <span
+                                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                              o.status === "payee"
+                                                ? "bg-green-500/20 text-green-400"
+                                                : "bg-secondary text-muted-foreground"
+                                            }`}
+                                          >
+                                            {o.status}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="rounded-2xl border border-border/40 bg-muted/10 py-4 text-center text-xs text-muted-foreground">
+                                Aucune commande effectuée.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 )}
