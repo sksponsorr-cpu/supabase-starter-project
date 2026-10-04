@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 export type AdminStats = {
   users: number;
@@ -473,5 +474,338 @@ export const getFinancialDashboard = createServerFn({ method: "GET" })
       activeSubscribersByTier,
       churnRate: Math.round(churnRate * 100) / 100,
       monthlyRevenueHistory,
+    };
+  });
+
+export type AdminUserItem = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  tier: string;
+  plan_label: string;
+  subscription_status: string | null;
+  ends_at: string | null;
+};
+
+export type ListAdminUsersResult = {
+  users: AdminUserItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+/**
+ * Liste paginée des utilisateurs inscrits (50 par page), avec recherche par email.
+ */
+export const listAdminUsers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { page?: number; search?: string }) =>
+    z
+      .object({
+        page: z.number().int().min(1).default(1),
+        search: z.string().optional(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<ListAdminUsersResult> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const page = data.page ?? 1;
+    const pageSize = 50;
+    const offset = (page - 1) * pageSize;
+    const search = (data.search ?? "").trim().toLowerCase();
+
+    let query = supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, created_at", { count: "exact" })
+      .order("created_at", { ascending: false });
+
+    if (search) {
+      query = query.ilike("email", `%${search}%`);
+    }
+
+    const { data: profiles, count, error } = await query.range(offset, offset + pageSize - 1);
+    if (error) {
+      console.error("[ADMIN] Erreur lors de la récupération des utilisateurs:", error);
+      return { users: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+
+    const rows = profiles ?? [];
+    const userIds = rows.map((p) => p.id);
+
+    // Récupération des abonnements correspondants
+    const { data: subs } =
+      userIds.length > 0
+        ? await supabaseAdmin
+            .from("subscriptions")
+            .select("user_id, tier, status, ends_at, is_active")
+            .in("user_id", userIds)
+        : { data: [] };
+
+    const subsMap = new Map((subs ?? []).map((s) => [s.user_id, s]));
+
+    // Récupération des données auth (dernière connexion)
+    const authList = await Promise.all(
+      userIds.map(async (id) => {
+        try {
+          const res = await supabaseAdmin.auth.admin.getUserById(id);
+          return { id, lastSignIn: res.data?.user?.last_sign_in_at ?? null };
+        } catch {
+          return { id, lastSignIn: null };
+        }
+      }),
+    );
+    const authMap = new Map(authList.map((a) => [a.id, a.lastSignIn]));
+
+    const users: AdminUserItem[] = rows.map((p) => {
+      const sub = subsMap.get(p.id);
+      const isSubActive =
+        sub &&
+        (sub.status === "active" || sub.is_active === true) &&
+        (!sub.ends_at || new Date(sub.ends_at) > new Date());
+
+      let planLabel = "Gratuit";
+      if (isSubActive && sub?.tier) {
+        if (sub.tier === "superhearly" || sub.tier === "superhearly_monthly") {
+          planLabel = "Super Grok Heavy";
+        } else if (sub.tier === "super_grok_plus") {
+          planLabel = "Super Grok Plus";
+        } else if (
+          sub.tier === "super_grok" ||
+          sub.tier === "super_grok_monthly" ||
+          sub.tier === "super_grok_annuel"
+        ) {
+          planLabel = "Super Grok";
+        } else {
+          planLabel = sub.tier;
+        }
+      }
+
+      return {
+        id: p.id,
+        email: p.email,
+        full_name: p.full_name,
+        created_at: p.created_at,
+        last_sign_in_at: authMap.get(p.id) ?? null,
+        tier: sub?.tier ?? "free",
+        plan_label: planLabel,
+        subscription_status: sub?.status ?? null,
+        ends_at: sub?.ends_at ?? null,
+      };
+    });
+
+    const total = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return {
+      users,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  });
+
+export type AdminUserDetail = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  signup_method: string;
+  tier: string;
+  plan_label: string;
+  subscription_status: string | null;
+  subscription_ends_at: string | null;
+  is_subscribed: boolean;
+  remaining_seconds_today: number | null;
+  limit_seconds_today: number | null;
+  total_images: number;
+  total_videos: number;
+  total_generations: number;
+  recent_orders: {
+    transaction_id: string;
+    amount_eur: number;
+    currency: string;
+    status: string;
+    created_at: string;
+    payment_method: string;
+  }[];
+  support_tickets_count: number;
+};
+
+/**
+ * Fiche détaillée en lecture seule d'un utilisateur pour l'administration.
+ */
+export const getAdminUserDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userId: string }) =>
+    z.object({ userId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<AdminUserDetail> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const userId = data.userId;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1. Profil
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, created_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profile) {
+      throw new Error("Utilisateur introuvable");
+    }
+
+    // 2. Auth user (dernière connexion + méthode)
+    let lastSignInAt: string | null = null;
+    let signupMethod = "Email";
+    try {
+      const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId);
+      const authUser = authData?.user;
+      lastSignInAt = authUser?.last_sign_in_at ?? null;
+      const provider =
+        authUser?.app_metadata?.["provider"] ||
+        (authUser?.identities && authUser.identities[0]?.provider);
+      if (provider === "google") {
+        signupMethod = "Google";
+      } else if (provider === "email") {
+        signupMethod = "Email";
+      } else if (provider) {
+        signupMethod = String(provider);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Abonnement, Quotas, Générations, Commandes et Support
+    const [subRes, quotaRes, usageRes, imgRes, vidRes, ordersRes, supportRes] =
+      await Promise.all([
+        supabaseAdmin
+          .from("subscriptions")
+          .select("tier, status, ends_at, is_active")
+          .eq("user_id", userId)
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("user_quotas")
+          .select("daily_video_limit_seconds, daily_video_remaining_seconds, quota_period_end")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("daily_usage")
+          .select("seconds_used, tier")
+          .eq("user_id", userId)
+          .eq("usage_date", today)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("generations")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("media_type", "image"),
+        supabaseAdmin
+          .from("generations")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("media_type", "video"),
+        supabaseAdmin
+          .from("orders")
+          .select("transaction_id, amount_eur, currency, status, created_at, payment_method")
+          .or(`user_id.eq.${userId},customer_email.eq.${profile.email || "nomatch"}`)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabaseAdmin
+          .from("support_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId),
+      ]);
+
+    const sub = subRes.data;
+    const isSubActive =
+      sub &&
+      (sub.status === "active" || sub.is_active === true) &&
+      (!sub.ends_at || new Date(sub.ends_at) > new Date());
+
+    let planLabel = "Gratuit";
+    let defaultLimitSeconds = 30;
+    if (isSubActive && sub?.tier) {
+      if (sub.tier === "superhearly" || sub.tier === "superhearly_monthly") {
+        planLabel = "Super Grok Heavy";
+        defaultLimitSeconds = 1200;
+      } else if (sub.tier === "super_grok_plus") {
+        planLabel = "Super Grok Plus";
+        defaultLimitSeconds = 400;
+      } else if (
+        sub.tier === "super_grok" ||
+        sub.tier === "super_grok_monthly" ||
+        sub.tier === "super_grok_annuel"
+      ) {
+        planLabel = "Super Grok";
+        defaultLimitSeconds = 200;
+      } else {
+        planLabel = sub.tier;
+      }
+    }
+
+    // Secondes restantes aujourd'hui si abonné
+    let remainingSeconds: number | null = null;
+    let quotaLimit: number | null = null;
+    if (isSubActive) {
+      const quota = quotaRes.data;
+      const usage = usageRes.data;
+      if (quota) {
+        const periodOver = quota.quota_period_end
+          ? new Date(quota.quota_period_end) < new Date()
+          : true;
+        quotaLimit = quota.daily_video_limit_seconds ?? defaultLimitSeconds;
+        remainingSeconds = periodOver
+          ? quotaLimit
+          : (quota.daily_video_remaining_seconds ?? quotaLimit);
+      } else if (usage) {
+        quotaLimit = defaultLimitSeconds;
+        remainingSeconds = Math.max(0, defaultLimitSeconds - (usage.seconds_used ?? 0));
+      } else {
+        quotaLimit = defaultLimitSeconds;
+        remainingSeconds = defaultLimitSeconds;
+      }
+    }
+
+    const totalImages = imgRes.count ?? 0;
+    const totalVideos = vidRes.count ?? 0;
+
+    return {
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      created_at: profile.created_at,
+      last_sign_in_at: lastSignInAt,
+      signup_method: signupMethod,
+      tier: sub?.tier ?? "free",
+      plan_label: planLabel,
+      subscription_status: sub?.status ?? null,
+      subscription_ends_at: sub?.ends_at ?? null,
+      is_subscribed: !!isSubActive,
+      remaining_seconds_today: remainingSeconds,
+      limit_seconds_today: quotaLimit,
+      total_images: totalImages,
+      total_videos: totalVideos,
+      total_generations: totalImages + totalVideos,
+      recent_orders: (ordersRes.data ?? []).map((o) => ({
+        transaction_id: o.transaction_id,
+        amount_eur: Number(o.amount_eur),
+        currency: o.currency,
+        status: o.status,
+        created_at: o.created_at,
+        payment_method: o.payment_method,
+      })),
+      support_tickets_count: supportRes.count ?? 0,
     };
   });
