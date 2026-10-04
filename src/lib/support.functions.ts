@@ -115,6 +115,41 @@ export const replyToSupportMessage = createServerFn({ method: "POST" })
     });
     const isStaff = staff === true || admin === true;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ticket } = await supabaseAdmin
+      .from("support_messages")
+      .select("id, user_id, email, subject, body")
+      .eq("id", data.messageId)
+      .maybeSingle();
+
+    if (!ticket) {
+      return { ok: false as const, message: "Ticket introuvable." };
+    }
+
+    // Si ce n'est pas un membre du support/admin, vérifier les règles utilisateur
+    if (!isStaff) {
+      // 1. Vérification que le ticket appartient bien à l'utilisateur
+      if (ticket.user_id !== context.userId) {
+        return { ok: false as const, message: "Action non autorisée." };
+      }
+
+      // 2. Anti-spam : 10 messages de suivi max par heure et par utilisateur
+      const oneHourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
+      const { count, error: countError } = await context.supabase
+        .from("support_replies")
+        .select("id", { count: "exact", head: true })
+        .eq("author_id", context.userId)
+        .gte("created_at", oneHourAgo);
+
+      if (!countError && typeof count === "number" && count >= 10) {
+        return {
+          ok: false as const,
+          message:
+            "Vous avez atteint la limite de 10 messages de suivi par heure. Veuillez patienter avant d'envoyer un nouveau message.",
+        };
+      }
+    }
+
     const { error } = await context.supabase.from("support_replies").insert({
       message_id: data.messageId,
       author_id: context.userId,
@@ -131,15 +166,8 @@ export const replyToSupportMessage = createServerFn({ method: "POST" })
 
       // Notification email au client ayant ouvert le ticket
       try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: ticket } = await supabaseAdmin
-          .from("support_messages")
-          .select("user_id, email, subject, body")
-          .eq("id", data.messageId)
-          .maybeSingle();
-
-        let recipientEmail = ticket?.email;
-        if (!recipientEmail && ticket?.user_id) {
+        let recipientEmail = ticket.email;
+        if (!recipientEmail && ticket.user_id) {
           const { data: profile } = await supabaseAdmin
             .from("profiles")
             .select("email")
@@ -152,15 +180,31 @@ export const replyToSupportMessage = createServerFn({ method: "POST" })
           const { sendSupportReplyEmail } = await import("@/lib/services/brevo.server");
           await sendSupportReplyEmail({
             toEmail: recipientEmail,
-            originalSubject: ticket?.subject ?? "Votre demande",
-            originalBody: ticket?.body ?? "",
+            originalSubject: ticket.subject ?? "Votre demande",
+            originalBody: ticket.body ?? "",
             replyBody: data.body.trim(),
           });
         }
       } catch (replyErr) {
         console.error("[SUPPORT] Échec de l'envoi de l'email de réponse client:", replyErr);
       }
+    } else {
+      // Notification email au support lors d'un message de suivi client
+      try {
+        const userEmail =
+          typeof context.claims["email"] === "string" ? context.claims["email"] : ticket.email;
+        const { sendSupportFollowUpEmail } = await import("@/lib/services/brevo.server");
+        await sendSupportFollowUpEmail({
+          userEmail,
+          ticketSubject: ticket.subject,
+          messageBody: data.body.trim(),
+          createdAt: new Date().toISOString(),
+        });
+      } catch (followUpErr) {
+        console.error("[SUPPORT] Échec de l'envoi de l'email de suivi au support:", followUpErr);
+      }
     }
+
     return { ok: true as const, message: "Réponse envoyée." };
   });
 

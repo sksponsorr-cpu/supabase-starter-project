@@ -525,3 +525,122 @@ Une question ? Contactez-nous à ${DEFAULT_SENDER_EMAIL}.
   });
 }
 
+export type SupportFollowUpEmailInput = {
+  userEmail: string | null;
+  ticketSubject: string;
+  messageBody: string;
+  createdAt?: string;
+};
+
+/**
+ * Envoie un email de notification à l'équipe de support lorsqu'un utilisateur envoie un message de suivi.
+ */
+export async function sendSupportFollowUpEmail(
+  input: SupportFollowUpEmailInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userEmail, ticketSubject, messageBody, createdAt } = input;
+  const dateStr = formatFrenchDateTime(createdAt ?? new Date().toISOString());
+  const adminUrl = "https://sam-flash.lat/admin";
+
+  const safeSubject = ticketSubject ? ticketSubject.trim() : "Demande de support";
+  const subject = `[Support] Nouveau message de suivi — ${safeSubject}`;
+
+  const escapedEmail = escapeHtml(userEmail || "Non renseigné");
+  const escapedSubject = escapeHtml(safeSubject);
+  const escapedDate = escapeHtml(dateStr);
+  const formattedBody = formatMultilineHtml(messageBody);
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f17; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 580px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <tr>
+            <td style="padding: 28px 32px 20px 32px; text-align: left; border-bottom: 1px solid #1e293b; background-color: #0f172a;">
+              <span style="display: inline-block; background-color: #f59e0b; color: #020617; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 9999px; margin-bottom: 8px;">Nouveau message de suivi</span>
+              <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">${escapedSubject}</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0f172a; border: 1px solid #334155; border-radius: 16px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="padding-bottom: 8px; font-size: 13px; color: #94a3b8; font-weight: 500; width: 120px;">Utilisateur</td>
+                        <td style="padding-bottom: 8px; font-size: 14px; color: #f8fafc; font-weight: 600;">${escapedEmail}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 8px; font-size: 13px; color: #94a3b8; font-weight: 500;">Ticket</td>
+                        <td style="padding-bottom: 8px; font-size: 14px; color: #38bdf8; font-weight: 600;">${escapedSubject}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 13px; color: #94a3b8; font-weight: 500;">Date</td>
+                        <td style="font-size: 13px; color: #cbd5e1;">${escapedDate}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Message de suivi :</h3>
+              <div style="background-color: #090d16; border: 1px solid #1e293b; border-radius: 14px; padding: 20px; font-size: 15px; line-height: 1.6; color: #f1f5f9; margin-bottom: 28px; word-break: break-word;">
+                ${formattedBody}
+              </div>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #ffffff; color: #020617; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(255,255,255,0.15);">
+                      Accéder au bureau d'administration (Support)
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 18px 32px; text-align: center; border-top: 1px solid #1e293b; background-color: #0b1120;">
+              <p style="margin: 0; font-size: 11px; color: #64748b;">
+                Notification automatique — Sam Flash 2.0
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `Nouveau message de suivi — Sam Flash 2.0
+-----------------------------------------
+Utilisateur : ${userEmail || "Non renseigné"}
+Ticket : ${safeSubject}
+Date : ${dateStr}
+
+Message :
+${messageBody}
+
+Accéder à l'administration : ${adminUrl}`;
+
+  return await sendBrevoEmail({
+    to: [{ email: DEFAULT_SENDER_EMAIL, name: "Support Sam Flash 2.0" }],
+    subject,
+    htmlContent,
+    textContent,
+    replyTo: userEmail ? { email: userEmail } : undefined,
+  });
+}
+
+
