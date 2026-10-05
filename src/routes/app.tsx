@@ -1,4 +1,3 @@
-import { initializeAll } from "@/init.client";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -77,9 +76,12 @@ function AppFeed() {
   const removeItem = useServerFn(deleteGeneration);
   const saveDevice = useServerFn(registerDevice);
   const checkOrderStatus = useServerFn(getOrderStatus);
-useEffect(() => {
-  initializeAll();
-}, []);
+
+  // Initialisation côté navigateur uniquement (chargée dynamiquement pour éviter le build serveur).
+  useEffect(() => {
+    void import("@/init.client").then((m) => m.initializeAll());
+  }, []);
+
   // Préférences du compte → toute l'application (haptique, notifications, compétences…).
   useEffect(() => {
     if (profile?.preferences) publishPrefs(profile.preferences);
@@ -192,7 +194,7 @@ useEffect(() => {
       style={{ background: "var(--gradient-hero)" }}
     >
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
-      
+
       <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
         <PromoBanner enabled={!!session && notifOn(prefs, "offers")} />
 
@@ -349,5 +351,3 @@ useEffect(() => {
         )}
       </div>
     </div>
-  );
-}
