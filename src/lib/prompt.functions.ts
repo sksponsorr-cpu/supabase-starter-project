@@ -73,29 +73,41 @@ async function viaGemini(d: { prompt: string; mediaType: string; language: strin
     ""
   ).trim();
   if (!key) return { ok: false, message: "Gemini : clé GEMINI_API_KEY absente" };
-  const model = process.env["GEMINI_MODEL"] ?? "gemini-2.5-flash";
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: userMessage(d) }] }],
-      }),
-    });
-    const body = await res.text();
-    if (!res.ok) {
-      console.error("[enhancePrompt] Gemini HTTP", res.status, body.slice(0, 300));
-      return { ok: false, message: `Gemini : erreur ${res.status} ${shortBody(body)}` };
+
+  // Modèle configurable (GEMINI_MODEL), sinon le plus récent, puis l'alias « latest » en secours.
+  const models = [process.env["GEMINI_MODEL"], "gemini-3.8-flash", "gemini-flash-latest"].filter(
+    (m, i, arr): m is string => Boolean(m) && arr.indexOf(m) === i,
+  );
+
+  let lastError = "";
+  for (const model of models) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{ role: "user", parts: [{ text: userMessage(d) }] }],
+        }),
+      });
+      const body = await res.text();
+      if (!res.ok) {
+        console.error("[enhancePrompt] Gemini HTTP", model, res.status, body.slice(0, 300));
+        lastError = `Gemini (${model}) : erreur ${res.status} ${shortBody(body)}`;
+        if (res.status === 404) continue; // modèle retiré : essayer le suivant
+        return { ok: false, message: lastError };
+      }
+      const json = JSON.parse(body) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      const raw = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+      const text = clean(raw);
+      if (text) return { ok: true, prompt: text };
+      lastError = `Gemini (${model}) : réponse vide ${shortBody(body)}`;
+    } catch (e) {
+      console.error("[enhancePrompt] Gemini error", e);
+      lastError = "Gemini : erreur réseau";
     }
-    const json = JSON.parse(body) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const raw = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    const text = clean(raw);
-    return text ? { ok: true, prompt: text } : { ok: false, message: `Gemini : réponse vide ${shortBody(body)}` };
-  } catch (e) {
-    console.error("[enhancePrompt] Gemini error", e);
-    return { ok: false, message: "Gemini : erreur réseau" };
   }
+  return { ok: false, message: lastError || "Gemini indisponible" };
 }
 
 export const enhancePrompt = createServerFn({ method: "POST" })
