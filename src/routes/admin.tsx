@@ -618,6 +618,12 @@ function AdminPage() {
           >
             <RefreshCw className="h-4 w-4" />
           </button>
+          <Link
+            to="/admin-challenge"
+            className="rounded-full bg-secondary px-3.5 py-2 text-xs font-medium transition-transform active:scale-95"
+          >
+            Challenge
+          </Link>
         </div>
       </header>
 
