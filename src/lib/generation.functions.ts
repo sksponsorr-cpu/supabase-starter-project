@@ -204,8 +204,13 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       // Succès
       let mediaUrl = statusRes.mediaUrl;
       let storagePath: string | null = null;
-      if (statusRes.bytes) {
-        const path = `${context.userId}/${crypto.randomUUID()}.${statusRes.contentType.includes("video") ? "mp4" : "jpg"}`;
+      const ext = statusRes.contentType.includes("video") ? "mp4" : "jpg";
+      const r2 = await import("@/lib/services/r2.server");
+      if (statusRes.bytes && r2.isR2Configured()) {
+        // URL publique stable (CDN Cloudflare, cache navigateur) au lieu d'une URL signée qui change à chaque chargement.
+        mediaUrl = await r2.uploadToR2(`${context.userId}/${crypto.randomUUID()}.${ext}`, statusRes.bytes, statusRes.contentType);
+      } else if (statusRes.bytes) {
+        const path = `${context.userId}/${crypto.randomUUID()}.${ext}`;
         await supabaseAdmin.storage.from("generations").upload(path, statusRes.bytes, { contentType: statusRes.contentType });
         const { data: signed } = await supabaseAdmin.storage.from("generations").createSignedUrl(path, 60 * 60 * 6);
         storagePath = path;
