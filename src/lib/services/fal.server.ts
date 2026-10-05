@@ -111,7 +111,7 @@ export function sanitizeGenerationError(rawError: unknown): string {
     lower.includes("payment required") ||
     lower.includes("top up your balance")
   ) {
-    return "Le service est momentanément indisponible. Réessayez dans quelques minutes. Vos secondes ne sont pas décomptées.";
+    return "SERVICE_UNAVAILABLE";
   }
 
   // 3. Délai dépassé
