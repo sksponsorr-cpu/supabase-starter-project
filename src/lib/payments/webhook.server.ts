@@ -119,6 +119,12 @@ export async function applyOrderOutcome(
   if (outcome === "payee") {
     const { creditDeveloperCommissions } = await import("@/lib/payments/commissions.server");
     await creditDeveloperCommissions(updatedOrder.id, Number(updatedOrder.amount_eur ?? 0));
+    try {
+      const { creditReferralConversion } = await import("@/lib/payments/referral.server");
+      await creditReferralConversion(updatedOrder.id, updatedOrder.user_id);
+    } catch (referralError) {
+      console.error("[REFERRAL] Erreur lors du suivi du parrainage:", referralError);
+    }
   }
 
   return "ok";
