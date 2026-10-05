@@ -5,6 +5,8 @@ type EnhanceInput = {
   prompt: string;
   mediaType: "image" | "video";
   language?: string;
+  tone?: string;
+  translate?: boolean;
 };
 
 type EnhanceResult = { ok: true; prompt: string } | { ok: false; message: string };
@@ -21,8 +23,16 @@ sans commentaire ni explication. Écris dans la langue de l'utilisateur.`;
 
 const clean = (t: string) => t.trim().replace(/^["'«»\s]+|["'«»\s]+$/g, "");
 
-function userMessage(d: { prompt: string; mediaType: string; language: string }) {
-  return `Type de média : ${d.mediaType === "video" ? "vidéo" : "image"}. Langue de réponse : ${d.language}.\nIdée : ${d.prompt}`;
+const TONES: Record<string, string> = {
+  Cinématique: "Style visé : cinématographique (lumière dramatique, grands plans, grain de pellicule).",
+  Créatif: "Style visé : très créatif, imaginatif, onirique, audacieux visuellement.",
+  Précis: "Style visé : fidèle à l'idée, réaliste, détails concrets et précis, sans fioritures.",
+};
+
+function userMessage(d: { prompt: string; mediaType: string; language: string; tone?: string | undefined; translate?: boolean | undefined }) {
+  const lang = d.translate ? "en (anglais)" : d.language;
+  const tone = d.tone && TONES[d.tone] ? `\n${TONES[d.tone]}` : "";
+  return `Type de média : ${d.mediaType === "video" ? "vidéo" : "image"}. Langue de réponse : ${lang}.${tone}\nIdée : ${d.prompt}`;
 }
 
 const MODEL = "google/gemini-2.5-flash";
@@ -41,7 +51,7 @@ function shortBody(body: string): string {
 }
 
 /** 1) fal.ai (utilise FAL_KEY, déjà configurée pour les vidéos) */
-async function viaFal(d: { prompt: string; mediaType: string; language: string }): Promise<EnhanceResult> {
+async function viaFal(d: { prompt: string; mediaType: string; language: string; tone?: string | undefined; translate?: boolean | undefined }): Promise<EnhanceResult> {
   const key = process.env["FAL_KEY"];
   if (!key) return { ok: false, message: "fal : clé FAL_KEY absente" };
   try {
@@ -65,7 +75,7 @@ async function viaFal(d: { prompt: string; mediaType: string; language: string }
 }
 
 /** 2) Gemini directement chez Google (utilise GEMINI_API_KEY) */
-async function viaGemini(d: { prompt: string; mediaType: string; language: string }): Promise<EnhanceResult> {
+async function viaGemini(d: { prompt: string; mediaType: string; language: string; tone?: string | undefined; translate?: boolean | undefined }): Promise<EnhanceResult> {
   const key = (
     process.env["GEMINI_API_KEY"] ??
     process.env["GOOGLE_API_KEY"] ??
@@ -118,6 +128,8 @@ export const enhancePrompt = createServerFn({ method: "POST" })
       prompt: input.prompt.trim().slice(0, 1200),
       mediaType: input.mediaType === "image" ? ("image" as const) : ("video" as const),
       language: String(input.language ?? "fr").slice(0, 8),
+      tone: input.tone ? String(input.tone).slice(0, 20) : undefined,
+      translate: input.translate === true,
     };
   })
   .handler(async ({ data }): Promise<EnhanceResult> => {

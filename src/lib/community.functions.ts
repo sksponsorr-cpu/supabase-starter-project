@@ -175,3 +175,37 @@ export const deleteGalleryItem = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+/** Créations de l'utilisateur actuellement publiées dans la galerie communautaire. */
+export const listMySharedItems = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("community_gallery")
+      .select("id, prompt, media_type, media_url, storage_path, created_at")
+      .eq("user_id", context.userId)
+      .eq("status", "approuve")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const rows = await withFreshMedia(data ?? []);
+    return rows.map(({ storage_path: _p, ...item }) => item) as CommunityItem[];
+  });
+
+/** Retire une création de la galerie publique (elle reste dans « Mes créations »). */
+export const unshareMyItem = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Création introuvable");
+    return { id: String(input.id) };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("community_gallery")
+      .update({ status: "rejete", rejection_reason: "Retiré par l'auteur", moderated_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
