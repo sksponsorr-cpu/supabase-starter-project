@@ -72,7 +72,9 @@ function AppFeed() {
   const removeItem = useServerFn(deleteGeneration);
   const saveDevice = useServerFn(registerDevice);
   const checkOrderStatus = useServerFn(getOrderStatus);
-
+useEffect(() => {
+  initializeAll();
+}, []);
   useEffect(() => {
     if (!loading && !session) void navigate({ to: "/" });
   }, [loading, session, navigate]);
