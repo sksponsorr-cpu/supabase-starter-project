@@ -27,10 +27,23 @@ function userMessage(d: { prompt: string; mediaType: string; language: string })
 
 const MODEL = "google/gemini-2.5-flash";
 
+/** Extrait un court message lisible d'une réponse d'erreur. */
+function shortBody(body: string): string {
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string } | string; detail?: unknown; message?: string };
+    const m =
+      typeof j.error === "string" ? j.error : j.error?.message ?? (typeof j.detail === "string" ? j.detail : j.message);
+    if (m) return String(m).slice(0, 140);
+  } catch {
+    /* pas du JSON */
+  }
+  return body.replace(/\s+/g, " ").slice(0, 140);
+}
+
 /** 1) fal.ai (utilise FAL_KEY, déjà configurée pour les vidéos) */
 async function viaFal(d: { prompt: string; mediaType: string; language: string }): Promise<EnhanceResult> {
   const key = process.env["FAL_KEY"];
-  if (!key) return { ok: false, message: "fal non configuré" };
+  if (!key) return { ok: false, message: "fal : clé FAL_KEY absente" };
   try {
     const res = await fetch("https://fal.run/fal-ai/any-llm", {
       method: "POST",
@@ -40,21 +53,26 @@ async function viaFal(d: { prompt: string; mediaType: string; language: string }
     const body = await res.text();
     if (!res.ok) {
       console.error("[enhancePrompt] fal HTTP", res.status, body.slice(0, 300));
-      return { ok: false, message: "fal indisponible" };
+      return { ok: false, message: `fal : erreur ${res.status} ${shortBody(body)}` };
     }
     const json = JSON.parse(body) as { output?: string };
     const text = json.output ? clean(json.output) : "";
-    return text ? { ok: true, prompt: text } : { ok: false, message: "fal réponse vide" };
+    return text ? { ok: true, prompt: text } : { ok: false, message: `fal : réponse vide ${shortBody(body)}` };
   } catch (e) {
     console.error("[enhancePrompt] fal error", e);
-    return { ok: false, message: "fal erreur" };
+    return { ok: false, message: "fal : erreur réseau" };
   }
 }
 
 /** 2) Gemini directement chez Google (utilise GEMINI_API_KEY) */
 async function viaGemini(d: { prompt: string; mediaType: string; language: string }): Promise<EnhanceResult> {
-  const key = process.env["GEMINI_API_KEY"];
-  if (!key) return { ok: false, message: "Gemini non configuré" };
+  const key = (
+    process.env["GEMINI_API_KEY"] ??
+    process.env["GOOGLE_API_KEY"] ??
+    process.env["GOOGLE_GENERATIVE_AI_API_KEY"] ??
+    ""
+  ).trim();
+  if (!key) return { ok: false, message: "Gemini : clé GEMINI_API_KEY absente" };
   const model = process.env["GEMINI_MODEL"] ?? "gemini-2.5-flash";
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -68,15 +86,15 @@ async function viaGemini(d: { prompt: string; mediaType: string; language: strin
     const body = await res.text();
     if (!res.ok) {
       console.error("[enhancePrompt] Gemini HTTP", res.status, body.slice(0, 300));
-      return { ok: false, message: "Gemini indisponible" };
+      return { ok: false, message: `Gemini : erreur ${res.status} ${shortBody(body)}` };
     }
     const json = JSON.parse(body) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const raw = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const text = clean(raw);
-    return text ? { ok: true, prompt: text } : { ok: false, message: "Gemini réponse vide" };
+    return text ? { ok: true, prompt: text } : { ok: false, message: `Gemini : réponse vide ${shortBody(body)}` };
   } catch (e) {
     console.error("[enhancePrompt] Gemini error", e);
-    return { ok: false, message: "Gemini erreur" };
+    return { ok: false, message: "Gemini : erreur réseau" };
   }
 }
 
@@ -97,10 +115,11 @@ export const enhancePrompt = createServerFn({ method: "POST" })
 
     const b = await viaGemini(data);
     if (b.ok) return b;
+    const reasons = [a, b].map((r) => (r.ok ? "" : r.message)).filter(Boolean).join(" | ");
 
     if (process.env["XAI_API_KEY"]) {
       const { enhancePromptWithXai } = await import("@/lib/services/xai.server");
       return enhancePromptWithXai(data);
     }
-    return { ok: false, message: "Optimisation indisponible pour le moment" };
+    return { ok: false, message: `Optimisation indisponible – ${reasons}` };
   });
