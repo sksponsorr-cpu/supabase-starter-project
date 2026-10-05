@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Captions, Download, Film, Loader2, RefreshCw, Trash2, X } from "lucide-react";
+import { Captions, Download, Film, Loader2, PencilLine, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { deleteGeneration, generateMedia, retryGeneration } from "@/lib/generation.functions";
 import { generateSubtitles } from "@/lib/subtitles.functions";
 import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import type { Generation } from "@/hooks/useGenerations";
+import { stashPrefill } from "@/lib/prefill";
 
 type Props = {
   item: Generation;
@@ -136,6 +137,13 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
     }
   };
 
+  /** Renvoie le prompt dans la barre de saisie du studio pour le modifier avant de regénérer. */
+  const editPrompt = () => {
+    window.dispatchEvent(new CustomEvent<string>("samflash:prefill", { detail: item.prompt }));
+    stashPrefill(item.prompt);
+    onClose();
+  };
+
   const remove = async () => {
     if (!window.confirm("Supprimer définitivement cette création ?")) return;
     setBusy("delete");
@@ -203,7 +211,7 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
 
       <div className="px-4 pt-3 text-xs text-muted-foreground line-clamp-3">{item.prompt}</div>
 
-      <div className="flex gap-2 px-4 pb-8 pt-3">
+      <div className="flex flex-wrap gap-2 px-4 pb-8 pt-3">
         <button type="button" onClick={() => void download()} className={action} disabled={!item.media_url}>
           <Download className="h-4 w-4" />
           {t("download")}
@@ -224,6 +232,10 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
             {t("toVideo")}
           </button>
         )}
+        <button type="button" onClick={editPrompt} className={action}>
+          <PencilLine className="h-4 w-4" />
+          Modifier
+        </button>
         <button type="button" onClick={() => void regenerate()} className={action} disabled={busy === "retry"}>
           {busy === "retry" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {t("regenerate")}

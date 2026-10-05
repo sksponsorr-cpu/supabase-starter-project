@@ -34,6 +34,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { playChime } from "@/lib/chime";
+import { NOTIF_DEFAULTS, publishPrefs, requestPush, vibrate } from "@/lib/prefs";
+import { deleteGeneration } from "@/lib/generation.functions";
+import { listMySharedItems, unshareMyItem, type CommunityItem } from "@/lib/community.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { getAdminAccess } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
@@ -57,6 +60,8 @@ type View =
   | "notifications"
   | "terms"
   | "privacy"
+  | "shared"
+  | "data"
   | "generic";
 
 export const cardBase = "rounded-2xl border border-border/70 bg-card/50 backdrop-blur-xl transition-all";
@@ -109,7 +114,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void | Promise<void> }) {
   return (
     <span
       role="switch"
@@ -140,7 +145,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [genericKey, setGenericKey] = useState<"customize" | "skills" | "advanced" | "other">("other");
   const [feedbackType, setFeedbackType] = useState("Commentaires généraux");
   const [feedbackText, setFeedbackText] = useState("");
-  const [cache, setCache] = useState(248);
+  const [cache, setCache] = useState(0);
+  const [shared, setShared] = useState<CommunityItem[] | null>(null);
+  const [dataBusy, setDataBusy] = useState<null | "export" | "wipe">(null);
+  const fetchShared = useServerFn(listMySharedItems);
+  const unshare = useServerFn(unshareMyItem);
+  const wipeOne = useServerFn(deleteGeneration);
   const [toast, setToast] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -255,6 +265,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setFullName(profile?.full_name ?? "");
     setPrefs(profile?.preferences ?? {});
+    if (profile?.preferences) publishPrefs(profile.preferences);
   }, [profile?.full_name, profile?.preferences]);
 
   // Restore the saved theme/language from the account so they follow the user.
@@ -303,9 +314,103 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
     })();
   }, [user]);
 
+  const measureCache = async () => {
+    try {
+      const est = await navigator.storage?.estimate?.();
+      setCache(Math.round(((est?.usage ?? 0) / (1024 * 1024)) * 10) / 10);
+    } catch {
+      setCache(0);
+    }
+  };
+
+  useEffect(() => {
+    if (view === "storage") void measureCache();
+    if (view === "shared") {
+      setShared(null);
+      fetchShared()
+        .then((r) => setShared(r))
+        .catch(() => setShared([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  const clearCache = async () => {
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      // Préférences conservées : on ne vide que les caches techniques.
+      for (const k of Object.keys(window.sessionStorage)) window.sessionStorage.removeItem(k);
+    } catch {
+      /* ignoré */
+    }
+    await measureCache();
+    flash("Cache vidé");
+  };
+
+  const removeShare = async (id: string) => {
+    try {
+      await unshare({ data: { id } });
+      setShared((cur) => (cur ?? []).filter((i) => i.id !== id));
+      flash("Retiré de la galerie");
+    } catch {
+      flash(t("saveError"));
+    }
+  };
+
+  const exportData = async () => {
+    if (!user) return;
+    setDataBusy("export");
+    try {
+      const { data: gens } = await supabase
+        .from("generations")
+        .select("id, prompt, media_type, resolution, duration, aspect_ratio, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      const payload = {
+        exported_at: new Date().toISOString(),
+        account: { email: user.email, full_name: profile?.full_name ?? null },
+        preferences: prefs,
+        creations: gens ?? [],
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sam-flash-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      flash("Export téléchargé");
+    } catch {
+      flash(t("saveError"));
+    } finally {
+      setDataBusy(null);
+    }
+  };
+
+  const wipeCreations = async () => {
+    if (!user) return;
+    if (!window.confirm("Supprimer définitivement TOUTES vos créations ? Cette action est irréversible.")) return;
+    setDataBusy("wipe");
+    try {
+      const { data: gens } = await supabase.from("generations").select("id").eq("user_id", user.id);
+      for (const g of (gens ?? []) as { id: string }[]) {
+        await wipeOne({ data: { id: g.id } }).catch(() => undefined);
+      }
+      setCounts({ image: 0, video: 0 });
+      flash("Toutes vos créations ont été supprimées");
+    } catch {
+      flash(t("saveError"));
+    } finally {
+      setDataBusy(null);
+    }
+  };
+
   const savePrefs = async (patch: Preferences) => {
     const next = { ...prefs, ...patch };
     setPrefs(next);
+    publishPrefs(next);
     if (!user) return;
     await supabase.from("profiles").update({ preferences: next }).eq("id", user.id);
     await refreshProfile();
@@ -392,7 +497,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     ? t("terms")
                     : view === "privacy"
                       ? t("privacy")
-                      : genericTitle;
+                      : view === "shared"
+                        ? t("sharedChats")
+                        : view === "data"
+                          ? t("dataControls")
+                          : genericTitle;
 
   const notif = prefs.notifications ?? {};
 
@@ -494,7 +603,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 trailing={
                   <Toggle
                     on={prefs.haptics ?? true}
-                    onChange={(v) => void savePrefs({ haptics: v })}
+                    onChange={(v) => {
+                      void savePrefs({ haptics: v });
+                      if (v) vibrate(40);
+                    }}
                   />
                 }
               />
@@ -527,12 +639,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               <Row
                 icon={Link2}
                 label={t("sharedChats")}
-                onClick={() => openGeneric(t("sharedChats"))}
+                onClick={() => setView("shared")}
               />
               <Row
                 icon={Database}
                 label={t("dataControls")}
-                onClick={() => openGeneric(t("dataControls"))}
+                onClick={() => setView("data")}
               />
               <Row icon={FolderClosed} label={t("storage")} onClick={() => setView("storage")} />
             </Group>
@@ -696,10 +808,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setCache(0);
-                flash("Cache vidé");
-              }}
+              onClick={() => void clearCache()}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-card px-4 py-4 font-medium text-destructive"
             >
               <Trash2 className="h-5 w-5" /> {t("clearCache")}
@@ -887,8 +996,21 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                   {n.label}
                   <span className="ml-auto">
                     <Toggle
-                      on={notif[n.key] ?? false}
-                      onChange={(v) => void savePrefs({ notifications: { ...notif, [n.key]: v } })}
+                      on={notif[n.key] ?? NOTIF_DEFAULTS[n.key] ?? false}
+                      onChange={async (v) => {
+                        if (n.key === "push" && v) {
+                          const r = await requestPush();
+                          if (r !== "granted") {
+                            flash(
+                              r === "unsupported"
+                                ? "Notifications non prises en charge par ce navigateur."
+                                : "Autorisation refusée : activez-la dans les réglages du navigateur.",
+                            );
+                            return;
+                          }
+                        }
+                        void savePrefs({ notifications: { ...notif, [n.key]: v } });
+                      }}
                     />
                   </span>
                 </div>
@@ -899,6 +1021,68 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
 
         {view === "terms" && <LegalView doc={TERMS} />}
         {view === "privacy" && <LegalView doc={PRIVACY} />}
+
+        {view === "shared" && (
+          <div className="pt-6">
+            <p className="px-1 text-sm text-muted-foreground">
+              Vos créations visibles dans la galerie communautaire. Vous pouvez les retirer à tout moment.
+            </p>
+            <div className="mt-4 space-y-2">
+              {shared === null && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
+              {shared?.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">Aucune création publiée.</p>
+              )}
+              {shared?.map((g) => (
+                <div key={g.id} className={`flex items-center gap-3 p-3 ${cardBase}`}>
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-secondary">
+                    {g.media_url &&
+                      (g.media_type === "video" ? (
+                        <video src={g.media_url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                      ) : (
+                        <img src={g.media_url} alt={g.prompt} loading="lazy" className="h-full w-full object-cover" />
+                      ))}
+                  </div>
+                  <p className="min-w-0 flex-1 line-clamp-2 text-sm">{g.prompt}</p>
+                  <button
+                    type="button"
+                    onClick={() => void removeShare(g.id)}
+                    className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-destructive"
+                  >
+                    Retirer
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {view === "data" && (
+          <div className="pt-6">
+            <p className="px-1 text-sm text-muted-foreground">
+              Gérez les données liées à votre compte Sam flash.
+            </p>
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                disabled={dataBusy !== null}
+                onClick={() => void exportData()}
+                className={`${rowBase} disabled:opacity-50`}
+              >
+                {dataBusy === "export" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5" />}
+                Exporter mes données (JSON)
+              </button>
+              <button
+                type="button"
+                disabled={dataBusy !== null}
+                onClick={() => void wipeCreations()}
+                className={`${rowBase} text-destructive disabled:opacity-50`}
+              >
+                {dataBusy === "wipe" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
+                Supprimer toutes mes créations
+              </button>
+            </div>
+          </div>
+        )}
 
         {view === "generic" && (
           <div className="pt-6">
@@ -931,7 +1115,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     </div>
                     <SettingToggle
                       label={t("autoEnhance")}
-                      on={optionOn("autoEnhance", true)}
+                      on={optionOn("autoEnhance", false)}
                       onChange={(v) => setOption("autoEnhance", v)}
                     />
                     <SettingToggle
@@ -971,7 +1155,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     />
                     <SettingToggle
                       label={t("skillIdeas")}
-                      on={optionOn("skillIdeas", true)}
+                      on={optionOn("skillIdeas", false)}
                       onChange={(v) => setOption("skillIdeas", v)}
                     />
                   </Group>

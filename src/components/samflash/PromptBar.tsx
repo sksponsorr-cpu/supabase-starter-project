@@ -9,6 +9,16 @@ import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
 import { useLocation } from "@tanstack/react-router";
+import { NoticeBanner } from "@/components/samflash/NoticeBanner";
+import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
+
+const IDEAS = [
+  "Un astronaute qui marche sur une plage au coucher du soleil",
+  "Un chat samouraï sous la pluie dans une ruelle de Tokyo néon",
+  "Une voiture de sport qui traverse un désert, plan drone",
+  "Un marché africain coloré à l'heure dorée, ambiance sonore vivante",
+];
+const MEMORY_KEY = "samflash:composer";
 
 const chip = (active: boolean) =>
   `shrink-0 rounded-full px-2.5 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs font-medium transition-colors ${
@@ -53,10 +63,25 @@ type Props = {
   onSettled?: () => void;
   onGenerated?: () => void;
   onQuotaExceeded?: () => void;
+  /** Texte à injecter dans la zone de saisie (réutiliser un prompt depuis la galerie). */
+  prefill?: { text: string; nonce: number } | null;
 };
 
-export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQuotaExceeded }: Props) {
+export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQuotaExceeded, prefill }: Props) {
   const { t, lang } = useI18n();
+  const prefs = usePrefs();
+  const autoEnhance = optionOn(prefs, "autoEnhance", false);
+  const translateOn = optionOn(prefs, "skillTranslate", false);
+  const ideasOn = optionOn(prefs, "skillIdeas", false);
+  const memoryOn = optionOn(prefs, "memory", true);
+  const highQuality = optionOn(prefs, "highQuality", true);
+  const voiceMode = optionOn(prefs, "voiceMode", false);
+  const debug = optionOn(prefs, "debug", false);
+  const beta = optionOn(prefs, "beta", false);
+  const tone = prefs.tone ?? "Naturel";
+  // Au moins un mode doit rester disponible.
+  const allowImage = optionOn(prefs, "skillImage", true) || !optionOn(prefs, "skillVideo", true);
+  const allowVideo = optionOn(prefs, "skillVideo", true) || !optionOn(prefs, "skillImage", true);
   const [res, setRes] = useState("720p");
   const [dur, setDur] = useState("5s");
   const [userPlan, setUserPlan] = useState<string>("free");
@@ -132,7 +157,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     const recognition: SpeechRecognition = new SpeechRecognitionAPI();
     // Langue calée sur la langue de l'UI (fr → fr-FR, sinon en-US)
     recognition.lang = lang === "fr" ? "fr-FR" : "en-US";
-    recognition.continuous = false;    // une seule phrase puis stop automatique
+    recognition.continuous = beta;     // bêta : dictée continue ; sinon une phrase puis stop
     recognition.interimResults = false; // résultat final uniquement
     recognition.maxAlternatives = 1;
 
@@ -197,13 +222,73 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     return () => window.removeEventListener("subscription-updated", onSubUpdated);
   }, [refreshAccess]);
 
+  // Mémoire : restaure les derniers réglages utilisés.
+  const restored = useRef(false);
+  const hadSaved = useRef(false);
+  useEffect(() => {
+    if (restored.current || !memoryOn) return;
+    restored.current = true;
+    try {
+      const m = JSON.parse(window.localStorage.getItem(MEMORY_KEY) ?? "null") as
+        | { res?: string; dur?: string; ratio?: string; mode?: "image" | "video" }
+        | null;
+      if (m) {
+        hadSaved.current = true;
+        if (m.res) setRes(m.res);
+        if (m.dur) setDur(m.dur);
+        if (m.ratio) setRatio(m.ratio);
+        if (m.mode) setMode(m.mode);
+      }
+    } catch {
+      /* ignoré */
+    }
+  }, [memoryOn]);
+  useEffect(() => {
+    if (!memoryOn) return;
+    try {
+      window.localStorage.setItem(MEMORY_KEY, JSON.stringify({ res, dur, ratio, mode }));
+    } catch {
+      /* ignoré */
+    }
+  }, [memoryOn, res, dur, ratio, mode]);
+
+  // Qualité maximale (réglage avancé) : choisit la meilleure résolution à chaque changement de mode.
+  const firstQuality = useRef(true);
+  useEffect(() => {
+    if (firstQuality.current) {
+      firstQuality.current = false;
+      if (hadSaved.current) return; // les derniers réglages mémorisés restent prioritaires
+    }
+    setRes(highQuality ? (mode === "video" ? "720p" : "1080p") : "480p");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highQuality]);
+
+  // Un mode désactivé dans « Compétences » ne doit pas rester actif.
+  useEffect(() => {
+    if (mode === "image" && !allowImage) setMode("video");
+    if (mode === "video" && !allowVideo) setMode("image");
+  }, [mode, allowImage, allowVideo]);
+
+  // Prompt réutilisé depuis la galerie / la visionneuse.
+  useEffect(() => {
+    if (!prefill?.text) return;
+    setText(prefill.text);
+    window.setTimeout(() => inputRef.current?.focus(), 50);
+  }, [prefill?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const afterSuccess = (prompt: string) => {
+    notifyDone(prefs, "Sam flash", "Votre création est prête ✨");
+    if (voiceMode) speak(t("genDone"), lang);
+    void prompt;
+  };
+
   const runEnhance = async () => {
     const prompt = text.trim();
     if (!prompt || enhancing) return;
     setEnhancing(true);
     playChime("send");
     try {
-      const result = await enhance({ data: { prompt, mediaType: mode, language: lang } });
+      const result = await enhance({ data: { prompt, mediaType: mode, language: lang, tone, translate: translateOn } });
       if (result.ok && result.prompt) {
         setText(result.prompt);
         playChime("success");
@@ -248,11 +333,26 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       /* en cas d'indisponibilité du contrôle, on laisse le serveur trancher */
     }
 
+    // Amélioration automatique du prompt (Personnaliser → Amélioration auto).
+    let finalPrompt = prompt;
+    if (autoEnhance) {
+      setEnhancing(true);
+      try {
+        const r = await enhance({ data: { prompt, mediaType: mode, language: lang, tone, translate: translateOn } });
+        if (r.ok && r.prompt) finalPrompt = r.prompt;
+      } catch {
+        /* on garde le prompt d'origine */
+      } finally {
+        setEnhancing(false);
+      }
+    }
+
     setBusy(true);
     setText("");
     blurInput();
     playChime("send");
-    onStart?.({ prompt, mediaType: mode });
+    onStart?.({ prompt: finalPrompt, mediaType: mode });
+    if (debug) console.debug("[Sam flash debug] génération", { mode, res, dur, ratio, finalPrompt });
 
     setSent(
       mode === "video"
@@ -263,7 +363,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId },
+        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId },
       });
 
       if (result.ok) {
@@ -271,6 +371,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           // Succès synchrone
           playChime("success");
           setSent(t("genDone"));
+          afterSuccess(finalPrompt);
           onGenerated?.();
           if (currentProjectId) {
             renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
@@ -307,6 +408,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               isDone = true;
               playChime("success");
               setSent(t("genDone"));
+              afterSuccess(finalPrompt);
               onGenerated?.();
               if (currentProjectId) {
                 renameProj({ data: { id: currentProjectId, title: prompt.split(" ").slice(0, 5).join(" ") } }).catch(() => {});
@@ -351,6 +453,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           }
         }
         
+        if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
+          errorMessage += `\n\nDétail technique : ${result.message}`;
+        }
         setSent(errorMessage);
       }
     } catch (error) {
@@ -371,20 +476,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
-      {sent && (
-        <div className="mx-auto mb-4 flex items-center gap-2 w-fit rounded-full bg-card px-4 py-2 text-sm animate-fade-in">
-          <span>{sent}</span>
-          <button
-            type="button"
-            aria-label="Fermer"
-            onClick={() => setSent(null)}
-            className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-
+      {sent && <NoticeBanner message={sent} onClose={() => setSent(null)} />}
 
       <div
         className={`relative overflow-hidden rounded-[28px] border bg-card/60 p-2 sm:p-3 backdrop-blur-2xl transition-[border-color,box-shadow,background-color] duration-300 ease-out flex flex-col gap-1 sm:gap-2 ${
@@ -449,7 +541,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               <Plus className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-0.5 rounded-full bg-secondary p-1 shrink-0">
-              <button
+              {allowImage && <button
                 type="button"
                 aria-label="Image"
                 onClick={() => {
@@ -462,8 +554,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               >
                 <ImageIcon className="h-4 w-4 shrink-0" />
                 {mode === "image" && <span className="text-[11px] sm:text-xs font-medium">{t("image")}</span>}
-              </button>
-              <button
+              </button>}
+              {allowVideo && <button
                 type="button"
                 aria-label="Vidéo"
                 onClick={() => {
@@ -477,7 +569,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               >
                 <Video className="h-4 w-4 shrink-0" />
                 {mode === "video" && <span className="text-[11px] sm:text-xs font-medium">{t("video")}</span>}
-              </button>
+              </button>}
               <button
                 type="button"
                 aria-label="Micro"
@@ -533,6 +625,23 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           </div>
         </div>
       </div>
+      {ideasOn && !text && (
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
+          {IDEAS.map((idea) => (
+            <button
+              key={idea}
+              type="button"
+              onClick={() => {
+                setText(idea);
+                focusInput();
+              }}
+              className="shrink-0 rounded-full border border-border bg-card/60 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-xl transition-colors hover:text-foreground sm:text-xs"
+            >
+              💡 {idea}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-3 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
         <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
           {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
