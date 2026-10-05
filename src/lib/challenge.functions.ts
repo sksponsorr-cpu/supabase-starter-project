@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OWNER_EMAILS } from "@/lib/owners";
 import { z } from "zod";
 
-export const CHALLENGE_MIN_VIEWS = 3000;
+export const CHALLENGE_MIN_VIEWS = 5000;
 export const CHALLENGE_WINDOW_DAYS = 3;
 
 export type PromoDemo = {
@@ -46,9 +46,6 @@ const ALLOWED_HOSTS: Record<string, string> = {
   "tiktok.com": "TikTok",
   "youtube.com": "YouTube",
   "youtu.be": "YouTube",
-  "instagram.com": "Instagram",
-  "facebook.com": "Facebook",
-  "fb.watch": "Facebook",
 };
 
 function platformFor(url: string): string | null {
@@ -131,7 +128,7 @@ export const submitChallenge = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
     const platform = platformFor(data.videoUrl);
     if (!data.videoUrl.startsWith("https://") || !platform) {
-      return { ok: false, message: "Lien non reconnu. Utilisez un lien TikTok, YouTube, Instagram ou Facebook." };
+      return { ok: false, message: "Lien non reconnu. Utilisez un lien TikTok ou YouTube." };
     }
     if (data.claimedViews < CHALLENGE_MIN_VIEWS) {
       return { ok: false, message: `Il faut au moins ${CHALLENGE_MIN_VIEWS} vues pour participer.` };
@@ -205,27 +202,29 @@ export const adminListSubmissions = createServerFn({ method: "GET" })
     ]);
 
     const sign = async (path: string) => {
-      const { data: s } = await db.storage.from("promo-proofs").createSignedUrl(path, 3600);
-      return (s?.signedUrl as string | undefined) ?? null;
+      const { data } = await db.storage.from("promo-proofs").createSignedUrl(path, 3600);
+      return data?.signedUrl ?? null;
     };
 
+    const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+    const demoMap = Object.fromEntries((demos ?? []).map((d) => [d.id, d]));
+
     return Promise.all(
-      list.map(async (r) => ({
-        id: r.id,
-        user_id: r.user_id,
-        user_email: (profiles ?? []).find((p: any) => p.id === r.user_id)?.email ?? null,
-        demo_title: (demos ?? []).find((d: any) => d.id === r.demo_id)?.title ?? null,
-        video_url: r.video_url,
-        platform: r.platform,
-        published_at: r.published_at,
-        claimed_views: r.claimed_views,
-        status: r.status,
-        reject_reason: r.reject_reason,
-        created_at: r.created_at,
-        ai_verdict: (r.ai_verdict as AiVerdict | null) ?? null,
-        screenshot_url: await sign(r.screenshot_path),
-        stats_url: await sign(r.stats_path),
-      })),
+      list.map(async (r) => {
+        const prof = profileMap[r.user_id];
+        const demo = demoMap[r.demo_id];
+        const [screenshot_url, stats_url] = await Promise.all([
+          sign(r.screenshot_path),
+          sign(r.stats_path),
+        ]);
+        return {
+          ...r,
+          user_email: prof?.email,
+          demo_title: demo?.title,
+          screenshot_url,
+          stats_url,
+        };
+      }),
     );
   });
 
