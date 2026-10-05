@@ -1,0 +1,181 @@
+/* ===== MESSAGE ANIMATIONS ===== */
+
+/* Pulse Animation - Pour les messages d'erreur/avertissement */
+@keyframes messagePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.message-pulse {
+  animation: messagePulse 2s ease-in-out infinite;
+}
+
+/* Glow Animation - Pour attirer l'attention */
+@keyframes messageGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 59, 48, 0.6);
+  }
+}
+
+.message-glow {
+  animation: messageGlow 1.5s ease-in-out infinite;
+  background-color: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.5);
+}
+
+/* Slide In Animation - Arrivée du message */
+@keyframes slideInTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-slide-in {
+  animation: slideInTop 0.4s ease-out;
+}
+
+/* ===== CHALLENGE ANIMATIONS ===== */
+
+/* Challenge Glow - Attire l'oeil au challenge */
+@keyframes challengeGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+    transform: scale(1.03);
+  }
+}
+
+.challenge-glow {
+  animation: challengeGlow 2.5s ease-in-out infinite;
+}
+
+/* Challenge Pulse - Effet pulse doux */
+@keyframes challengePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.challenge-pulse {
+  animation: challengePulse 1.5s ease-in-out infinite;
+}
+
+/* Challenge Badge Bounce - Badge "Nouveau" sautille */
+@keyframes badgeBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.challenge-badge {
+  animation: badgeBounce 1.2s ease-in-out infinite;
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: white;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+/* ===== GALLERY ANIMATIONS ===== */
+
+/* Gallery Card Hover - Effet au survol */
+@keyframes galleryHover {
+  from {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  to {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.gallery-card:hover {
+  animation: galleryHover 0.3s ease-out forwards;
+}
+
+/* Gallery Click Effect - Flash au clic */
+@keyframes galleryClick {
+  0% {
+    background-color: rgba(59, 130, 246, 0);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: rgba(59, 130, 246, 0);
+  }
+}
+
+.gallery-click {
+  animation: galleryClick 0.6s ease-out;
+}
+
+/* ===== SETTINGS ANIMATIONS ===== */
+
+/* Toggle Switch Animation */
+@keyframes toggleSwitch {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(24px);
+  }
+}
+
+.toggle-animate {
+  animation: toggleSwitch 0.3s ease-out forwards;
+}
+
+/* ===== LOADING ANIMATIONS ===== */
+
+/* Spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animate {
+  animation: spin 1s linear infinite;
+}
+
+/* Shimmer - Pour les contenus qui se chargent */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
