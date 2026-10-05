@@ -351,5 +351,3 @@ function AppFeed() {
         )}
       </div>
     </div>
-  );
-}
