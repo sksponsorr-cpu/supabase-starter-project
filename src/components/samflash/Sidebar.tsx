@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Plus, Trash2, Loader2, MessageSquare } from "lucide-react";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Plus, Trash2, Loader2, MessageSquare, Gift } from "lucide-react";
 import { useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { toast } from "@/lib/toast";
@@ -225,6 +225,18 @@ export function Sidebar({
             <Crown className="h-5 w-5 shrink-0" />
             <span className={`ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>Abonnement</span>
           </button>
+          <Link
+            to="/parrainage"
+            onClick={() => setIsOpen(false)}
+            className={`flex w-full items-center justify-start rounded-xl px-4 py-3 transition-colors ${
+              pathname === "/parrainage"
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+            }`}
+          >
+            <Gift className="h-5 w-5 shrink-0" />
+            <span className={`ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`}>Parrainage</span>
+          </Link>
           <button
             onClick={() => {
               setIsOpen(false);
