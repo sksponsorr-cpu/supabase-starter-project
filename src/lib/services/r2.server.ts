@@ -32,9 +32,10 @@ export async function uploadToR2(key: string, bytes: Uint8Array, contentType: st
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
   const payloadHash = await sha256Hex(bytes);
-  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
+  const cacheControl = "public, max-age=31536000, immutable";
+  const signedHeaders = "cache-control;content-type;host;x-amz-content-sha256;x-amz-date";
   const canonical =
-    `PUT\n${uri}\n\ncontent-type:${contentType}\nhost:${host}\n` +
+    `PUT\n${uri}\n\ncache-control:${cacheControl}\ncontent-type:${contentType}\nhost:${host}\n` +
     `x-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n\n${signedHeaders}\n${payloadHash}`;
   const scope = `${dateStamp}/auto/s3/aws4_request`;
   const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256Hex(canonical)}`;
@@ -49,6 +50,7 @@ export async function uploadToR2(key: string, bytes: Uint8Array, contentType: st
     method: "PUT",
     headers: {
       "Content-Type": contentType,
+      "Cache-Control": cacheControl,
       "x-amz-date": amzDate,
       "x-amz-content-sha256": payloadHash,
       Authorization: `AWS4-HMAC-SHA256 Credential=${env("CLOUDFLARE_R2_ACCESS_KEY_ID")}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
