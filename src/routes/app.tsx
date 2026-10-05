@@ -24,6 +24,9 @@ import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
 import { PendingCard } from "@/components/samflash/PendingCard";
 import { PromoBanner } from "@/components/samflash/PromoBanner";
+import { OnboardingSurvey } from "@/components/samflash/OnboardingSurvey";
+import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs";
+import { takePrefill } from "@/lib/prefill";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
 import logoAsset from "@/assets/sam-flash-logo.png";
 
@@ -66,7 +69,9 @@ function AppFeed() {
   const [viewer, setViewer] = useState<Generation | null>(null);
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
+  const prefs = usePrefs();
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
   const { items, loading: feedLoading, refresh } = useGenerations(!!session);
   const submit = useServerFn(submitToGallery);
   const removeItem = useServerFn(deleteGeneration);
@@ -75,6 +80,33 @@ function AppFeed() {
 useEffect(() => {
   initializeAll();
 }, []);
+  // Préférences du compte → toute l'application (haptique, notifications, compétences…).
+  useEffect(() => {
+    if (profile?.preferences) publishPrefs(profile.preferences);
+  }, [profile]);
+
+  // Retour haptique sur chaque bouton / lien, si activé dans les paramètres.
+  useEffect(() => {
+    if (prefs.haptics === false) return;
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement | null)?.closest("button, a, [role='button']")) vibrate(10);
+    };
+    document.addEventListener("click", onClick, { passive: true });
+    return () => document.removeEventListener("click", onClick);
+  }, [prefs.haptics]);
+
+  // Prompt réutilisé depuis la galerie ou la visionneuse.
+  useEffect(() => {
+    const stashed = takePrefill();
+    if (stashed) setPrefill({ text: stashed, nonce: Date.now() });
+    const onPrefill = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail;
+      if (text) setPrefill({ text, nonce: Date.now() });
+    };
+    window.addEventListener("samflash:prefill", onPrefill);
+    return () => window.removeEventListener("samflash:prefill", onPrefill);
+  }, []);
+
   useEffect(() => {
     if (!loading && !session) void navigate({ to: "/" });
   }, [loading, session, navigate]);
@@ -162,7 +194,7 @@ useEffect(() => {
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
       
       <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
-        <PromoBanner enabled={!!session} />
+        <PromoBanner enabled={!!session && notifOn(prefs, "offers")} />
 
         {welcomeMessage && (
           <div className="mx-auto mt-4 max-w-2xl px-4 w-full animate-fade-in">
@@ -194,6 +226,7 @@ useEffect(() => {
           onSettled={() => { setPending(null); setCancelFn(null); }}
           onGenerated={() => void refresh()}
           onQuotaExceeded={() => setPlansOpen(true)}
+          prefill={prefill}
         />
 
         <section className="mt-4 sm:mt-8 px-2 sm:px-4 pb-20">
@@ -286,6 +319,12 @@ useEffect(() => {
                   </button>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-background/70 px-2 py-1 text-[11px] line-clamp-2 backdrop-blur-md">
                     {g.prompt}
+                    {optionOn(prefs, "advancedMode") && (
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                        {[g.resolution, g.duration, g.aspect_ratio].filter(Boolean).join(" · ")}
+                        {optionOn(prefs, "debug") ? ` · #${g.id.slice(0, 8)}` : ""}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -298,6 +337,7 @@ useEffect(() => {
         </section>
 
         <SupportReplyNotifier enabled={!!session} />
+        <OnboardingSurvey enabled={!!session} />
         {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
         {plansOpen && <PlansSheet onClose={() => setPlansOpen(false)} />}
         {viewer && (

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, Play, ShieldCheck, Sparkles, X } from "lucide-react";
 import {
   getModerationAccess,
   listCommunityGallery,
@@ -12,7 +12,8 @@ import {
 } from "@/lib/community.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { VideoTile } from "@/components/samflash/VideoTile";
+import { VideoTile, warmVideo } from "@/components/samflash/VideoTile";
+import { CommunityViewer } from "@/components/samflash/CommunityViewer";
 
 export const Route = createFileRoute("/galerie")({
   head: () => ({
@@ -47,6 +48,7 @@ function GalleryPage() {
   const [canModerate, setCanModerate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<CommunityItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,21 +132,35 @@ function GalleryPage() {
                   key={g.id}
                   className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl"
                 >
-                  {g.media_url && g.media_type === "video" ? (
-                    <VideoTile src={g.media_url} className="h-full w-full object-cover" />
-                  ) : g.media_url ? (
-                    <img
-                      src={g.media_url}
-                      alt={g.prompt}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted-foreground">
-                      {g.prompt}
-                    </div>
+                  <button
+                    type="button"
+                    aria-label="Ouvrir la création"
+                    onPointerEnter={() => warmVideo(g.media_url)}
+                    onTouchStart={() => warmVideo(g.media_url)}
+                    onClick={() => setViewer(g)}
+                    className="block h-full w-full text-left"
+                  >
+                    {g.media_url && g.media_type === "video" ? (
+                      <VideoTile src={g.media_url} className="h-full w-full object-cover" />
+                    ) : g.media_url ? (
+                      <img
+                        src={g.media_url}
+                        alt={g.prompt}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted-foreground">
+                        {g.prompt}
+                      </div>
+                    )}
+                  </button>
+                  {g.media_type === "video" && g.media_url && (
+                    <span className="pointer-events-none absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 backdrop-blur-md">
+                      <Play className="h-4 w-4" />
+                    </span>
                   )}
-                  <div className="absolute inset-x-0 bottom-0 bg-background/70 px-2 py-1 backdrop-blur-md">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-background/70 px-2 py-1 backdrop-blur-md">
                     <p className="line-clamp-2 text-[11px]">{g.prompt}</p>
                     <p className="text-[10px] text-muted-foreground">avec consentement</p>
                   </div>
@@ -226,6 +242,7 @@ function GalleryPage() {
           </section>
         )}
       </main>
+      {viewer && <CommunityViewer item={viewer} onClose={() => setViewer(null)} />}
     </div>
   );
 }
