@@ -77,7 +77,10 @@ export function forceMessageUpdates() {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === 1) { // Element node
             const el = node as HTMLElement;
-            
+
+            // Les bandeaux animés (NoticeBanner) gèrent déjà leur propre style.
+            if (el.hasAttribute("data-notice") || el.closest("[data-notice]")) return;
+
             // Si c'est un message d'erreur/service indisponible
             if (el.textContent?.includes("indisponible") || 
                 el.textContent?.includes("saturés") ||
