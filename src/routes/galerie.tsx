@@ -12,6 +12,7 @@ import {
 } from "@/lib/community.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { VideoTile } from "@/components/samflash/VideoTile";
 
 export const Route = createFileRoute("/galerie")({
   head: () => ({
@@ -130,15 +131,7 @@ function GalleryPage() {
                   className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl"
                 >
                   {g.media_url && g.media_type === "video" ? (
-                    <video
-                      src={g.media_url}
-                      className="h-full w-full object-cover"
-                      muted
-                      loop
-                      autoPlay
-                      playsInline
-                      preload="metadata"
-                    />
+                    <VideoTile src={g.media_url} className="h-full w-full object-cover" />
                   ) : g.media_url ? (
                     <img
                       src={g.media_url}

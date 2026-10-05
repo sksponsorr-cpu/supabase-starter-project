@@ -10,6 +10,7 @@ import { getDeviceFingerprint } from "@/lib/device";
 import { getOrderStatus } from "@/lib/payments.functions";
 import { playChime } from "@/lib/chime";
 import { SupportReplyNotifier } from "@/components/samflash/SupportReplyNotifier";
+import { VideoTile, warmVideo } from "@/components/samflash/VideoTile";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
@@ -235,18 +236,14 @@ function AppFeed() {
                   <button
                     type="button"
                     aria-label={t("openMedia")}
+                    onPointerEnter={() => warmVideo(g.media_url)}
+                    onTouchStart={() => warmVideo(g.media_url)}
                     onClick={() => setViewer(g)}
                     className="block h-full w-full text-left"
                   >
                     {g.media_url ? (
                       g.media_type === "video" ? (
-                        <video
-                          src={g.media_url}
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="h-full w-full object-cover"
-                        />
+                        <VideoTile src={g.media_url} className="h-full w-full object-cover" />
                       ) : (
                         <img
                           src={g.media_url}
