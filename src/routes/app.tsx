@@ -79,7 +79,7 @@ function AppFeed() {
 
   // Initialisation côté navigateur uniquement (chargée dynamiquement pour éviter le build serveur).
   useEffect(() => {
-    void import("@/init.client").then((m) => m.initializeAll());
+    void import("@/init-browser").then((m) => m.initializeAll());
   }, []);
 
   // Préférences du compte → toute l'application (haptique, notifications, compétences…).
