@@ -115,7 +115,6 @@ export function OnboardingSurvey({ enabled }: { enabled: boolean }) {
                       : "bg-secondary text-foreground hover:bg-secondary/70"
                   }`}
                 >
-                  <span className="mr-1.5">{SOURCE_LABELS[c].emoji}</span>
                   {SOURCE_LABELS[c].label}
                 </button>
               ))}

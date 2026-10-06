@@ -32,6 +32,7 @@ import {
   Trash2,
   User,
   Loader2,
+  KeyRound,
 } from "lucide-react";
 import { playChime } from "@/lib/chime";
 import { NOTIF_DEFAULTS, publishPrefs, requestPush, vibrate } from "@/lib/prefs";
@@ -41,6 +42,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { getAdminAccess } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
 import { getMyPlan, type MyPlan } from "@/lib/subscription.functions";
+import { submitReview } from "@/lib/feedback.functions";
+import { ChangePasswordDialog } from "@/components/samflash/ChangePasswordDialog";
 import {
   createSupportMessage,
   listSupportMessages,
@@ -141,6 +144,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<View>("root");
   const [plansOpen, setPlansOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const sendReview = useServerFn(submitReview);
   const [genericTitle, setGenericTitle] = useState("Réglage");
   const [genericKey, setGenericKey] = useState<"customize" | "skills" | "advanced" | "other">("other");
   const [feedbackType, setFeedbackType] = useState("Commentaires généraux");
@@ -588,6 +593,16 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 {t("try")}
               </span>
             </button>
+
+            <SectionTitle>Sécurité</SectionTitle>
+            <Group>
+              <Row
+                icon={KeyRound}
+                label="Mot de passe"
+                value="Modifier"
+                onClick={() => setPasswordOpen(true)}
+              />
+            </Group>
 
             <SectionTitle>{t("application")}</SectionTitle>
             <Group>
@@ -1215,13 +1230,16 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         <RateDialog
           initial={prefs.rating ?? 0}
           onClose={() => setRateOpen(false)}
-          onSubmit={(stars) => {
+          onSubmit={(stars, review) => {
             void savePrefs({ rating: stars });
+            void sendReview({ data: { stars, comment: review } }).catch(() => undefined);
             setRateOpen(false);
             flash(t("thanks"));
           }}
         />
       )}
+
+      {passwordOpen && <ChangePasswordDialog onClose={() => setPasswordOpen(false)} />}
 
       {toast && (
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full bg-card px-5 py-3 text-sm shadow-lg animate-fade-in">
@@ -1240,7 +1258,7 @@ function RateDialog({
 }: {
   initial: number;
   onClose: () => void;
-  onSubmit: (stars: number) => void;
+  onSubmit: (stars: number, review: string) => void;
 }) {
   const { t } = useI18n();
   const [stars, setStars] = useState(initial);
@@ -1283,7 +1301,7 @@ function RateDialog({
           <button
             type="button"
             disabled={stars === 0}
-            onClick={() => onSubmit(stars)}
+            onClick={() => onSubmit(stars, review.trim())}
             className="flex-1 rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50"
           >
             {t("send")}

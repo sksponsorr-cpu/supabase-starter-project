@@ -447,9 +447,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         
         if (result.message === "SERVICE_UNAVAILABLE") {
           if (userPlan === "free") {
-            errorMessage = "Les services de génération sont temporairement saturés à cause du grand nombre de demandes.\n\nDésolé pour cette gêne occasionnée.\nVeuillez réessayer dans quelques heures (cela peut prendre plus longtemps selon la demande).\n\nMerci de votre patience ! 🙏";
+            errorMessage = "Les services de génération sont temporairement saturés à cause du grand nombre de demandes.\n\nDésolé pour cette gêne occasionnée.\nVeuillez réessayer dans quelques heures (cela peut prendre plus longtemps selon la demande).\n\nMerci de votre patience.";
           } else {
-            errorMessage = "Désolé pour cette gêne occasionnée.\nLe service est momentanément indisponible car une mise à jour est en cours.\n\nVos secondes ne sont pas décomptées.\nRéessayez dans 15 à 20 minutes. ⏱️\n\nMerci de votre patience ! 💪";
+            errorMessage = "Désolé pour cette gêne occasionnée.\nLe service est momentanément indisponible car une mise à jour est en cours.\n\nVos secondes ne sont pas décomptées.\nRéessayez dans 15 à 20 minutes.\n\nMerci de votre patience.";
           }
         }
         
