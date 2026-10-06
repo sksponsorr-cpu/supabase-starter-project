@@ -12,6 +12,26 @@ type GenerateInput = {
   project_id?: string | null;
 };
 
+/** Anti-abus : au plus 4 demandes par minute et 3 créations en cours par compte. */
+async function assertRateLimit(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const lastMinute = new Date(Date.now() - 60_000).toISOString();
+  const { count: recent } = await supabaseAdmin
+    .from("generations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", lastMinute);
+  if ((recent ?? 0) >= 4) throw new Error("Trop de demandes. Patientez une minute avant de réessayer.");
+  const halfHour = new Date(Date.now() - 30 * 60_000).toISOString();
+  const { count: pending } = await supabaseAdmin
+    .from("generations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .gte("created_at", halfHour);
+  if ((pending ?? 0) >= 3) throw new Error("Vous avez déjà plusieurs créations en cours. Attendez qu'elles se terminent.");
+}
+
 function normalize(input: GenerateInput) {
   if (!input?.prompt?.trim()) throw new Error("Prompt requis");
   const mediaType = input.mediaType === "image" ? ("image" as const) : ("video" as const);
@@ -83,6 +103,7 @@ export const generateMedia = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
     await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
+    await assertRateLimit(context.userId);
     const { runGeneration } = await import("@/lib/services/generation.server");
     return await runGeneration(context.userId, data);
   });
@@ -106,6 +127,7 @@ export const retryGeneration = createServerFn({ method: "POST" })
 
     const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
     await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
+    await assertRateLimit(context.userId);
     const { runGeneration } = await import("@/lib/services/generation.server");
     return await runGeneration(
       context.userId,
