@@ -268,8 +268,8 @@ export const cancelGeneration = createServerFn({ method: "POST" })
         const payload = JSON.parse(row.error_message.slice(4));
         const statusUrl = payload.status_url;
         if (statusUrl) {
-          const cancelUrl = statusUrl.replace(/\/status$/, "/cancel");
-          const { FAL_MODELS } = await import("@/lib/services/fal.server");
+          const { assertFalUrl } = await import("@/lib/services/fal.server");
+          const cancelUrl = assertFalUrl(statusUrl.replace(/\/status$/, "/cancel"));
           await fetch(cancelUrl, {
             method: "POST",
             headers: {
