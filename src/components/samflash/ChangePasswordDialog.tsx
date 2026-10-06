@@ -3,6 +3,7 @@ import { ChevronRight, Eye, EyeOff, KeyRound, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
+import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 
 function PasswordField({
   id,
@@ -57,6 +58,8 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   const submit = async () => {
     setError(null);
@@ -66,12 +69,20 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
     if (next !== confirm) return setError("Les deux mots de passe ne sont pas identiques.");
     if (needsCurrent && next === current) return setError("Choisissez un mot de passe différent de l'actuel.");
 
+    if (needsCurrent && TURNSTILE_SITE_KEY && !captchaToken) return setError("Validez d'abord la vérification anti-robot.");
+
     setBusy(true);
     try {
       if (needsCurrent) {
         const email = user?.email;
         if (!email) return setError("Session invalide. Reconnectez-vous puis réessayez.");
-        const check = await supabase.auth.signInWithPassword({ email, password: current });
+        const check = await supabase.auth.signInWithPassword({
+          email,
+          password: current,
+          options: { captchaToken: captchaToken ?? undefined },
+        });
+        setCaptchaToken(null);
+        setCaptchaReset((n) => n + 1);
         if (check.error) return setError("Mot de passe actuel incorrect.");
       }
       const { error: upErr } = await supabase.auth.updateUser({ password: next });
@@ -143,6 +154,12 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
           <p role="alert" className="mt-4 rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[13px] text-destructive">
             {error}
           </p>
+        )}
+
+        {needsCurrent && (
+          <div className="mt-4">
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
+          </div>
         )}
 
         <div className="mt-5 flex gap-3">
