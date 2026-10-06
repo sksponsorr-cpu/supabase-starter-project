@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { adminCheckR2, type R2Check } from "@/lib/r2check.functions";
+import { adminMigrateToR2 } from "@/lib/r2migrate.functions";
 
 export const Route = createFileRoute("/admin-r2")({
   head: () => ({ meta: [{ title: "Test Cloudflare R2 – Sam Flash 2.0" }] }),
@@ -17,6 +18,39 @@ function AdminR2Page() {
   const [checks, setChecks] = useState<R2Check[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const migrate = useServerFn(adminMigrateToR2);
+  const [migBusy, setMigBusy] = useState(false);
+  const [migDone, setMigDone] = useState(0);
+  const [migLeft, setMigLeft] = useState<number | null>(null);
+  const [migFailed, setMigFailed] = useState<{ path: string; reason: string }[]>([]);
+  const [migMsg, setMigMsg] = useState("");
+
+  const startMigration = async () => {
+    setMigBusy(true);
+    setMigMsg("");
+    setMigDone(0);
+    setMigFailed([]);
+    const skip: string[] = [];
+    let total = 0;
+    try {
+      for (let i = 0; i < 2000; i++) {
+        const r = await migrate({ data: { limit: 2, skipPaths: skip } });
+        total += r.migrated;
+        setMigDone(total);
+        setMigLeft(r.remaining);
+        for (const f of r.failed) {
+          skip.push(f.path);
+          setMigFailed((prev) => [...prev, f]);
+        }
+        if (r.migrated === 0) break;
+      }
+      setMigMsg("Terminé. Les fichiers d'origine restent dans Supabase tant que vous ne les supprimez pas.");
+    } catch (e: any) {
+      setMigMsg(String(e?.message ?? "").includes("refusé") ? "Accès réservé aux administrateurs." : "Interrompu : relancez pour continuer là où ça s'est arrêté.");
+    } finally {
+      setMigBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !session) void navigate({ to: "/" });
@@ -83,6 +117,33 @@ function AdminR2Page() {
             </div>
           </>
         )}
+
+        <section className="space-y-3 rounded-2xl border border-border/60 bg-card/50 p-4">
+          <h2 className="font-semibold">Migrer les anciennes vidéos vers R2</h2>
+          <p className="text-sm text-muted-foreground">
+            Copie les anciens fichiers de Supabase vers Cloudflare R2 pour réduire la consommation (egress) de Supabase. Lancez d'abord le test ci-dessus : tout doit être vert. Gardez cette page ouverte jusqu'à la fin.
+          </p>
+          <button
+            onClick={() => void startMigration()}
+            disabled={migBusy}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {migBusy && <Loader2 className="h-4 w-4 animate-spin" />} {migBusy ? "Migration en cours…" : "Lancer la migration"}
+          </button>
+          {(migBusy || migDone > 0 || migLeft !== null) && (
+            <p className="text-sm">
+              Migrés : {migDone}{migLeft !== null ? ` · Restants : ${migLeft}` : ""}
+            </p>
+          )}
+          {migMsg && <p className="text-sm text-muted-foreground">{migMsg}</p>}
+          {migFailed.length > 0 && (
+            <div className="space-y-1 text-xs text-destructive">
+              {migFailed.slice(0, 10).map((f) => (
+                <p key={f.path} className="break-words">{f.path} : {f.reason}</p>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
