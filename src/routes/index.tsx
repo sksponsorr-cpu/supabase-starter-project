@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
+import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -54,6 +55,8 @@ function Login() {
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   useEffect(() => {
     if (!loading && session) goNext();
@@ -87,6 +90,10 @@ function Login() {
       setMessage(parsed.error.issues[0]?.message ?? "Informations invalides.");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setMessage("Validez d'abord la vérification anti-robot.");
+      return;
+    }
     setBusy(true);
     setMessage(null);
     if (signUp) {
@@ -96,9 +103,12 @@ function Login() {
         options: {
           emailRedirectTo: window.location.origin,
           data: { full_name: fullName },
+          captchaToken: captchaToken ?? undefined,
         },
       });
       setBusy(false);
+      setCaptchaToken(null);
+      setCaptchaReset((n) => n + 1);
       if (error) {
         if (error.message.includes("User already registered") || error.status === 422) {
           setMessage("Cet e-mail est déjà utilisé. Veuillez vous connecter.");
@@ -112,8 +122,14 @@ function Login() {
       }
       return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken ?? undefined },
+    });
     setBusy(false);
+    setCaptchaToken(null);
+    setCaptchaReset((n) => n + 1);
     if (error) setMessage("Identifiants invalides.");
     else goNext();
   };
@@ -199,6 +215,7 @@ function Login() {
               placeholder="Mot de passe"
               className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
             />
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
             <button
               type="submit"
               disabled={busy}
