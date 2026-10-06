@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "@/lib/toast";
-import { ChevronRight, Play, Share2, Sparkles, Trash2, Menu, CheckCircle2, X } from "lucide-react";
+import { ChevronRight, Play, Share2, Sparkles, Trash2, Menu, CheckCircle2, X, Clapperboard } from "lucide-react";
 import { submitToGallery } from "@/lib/community.functions";
 import { deleteGeneration } from "@/lib/generation.functions";
 import { registerDevice } from "@/lib/device.functions";
@@ -27,6 +27,7 @@ import { OnboardingSurvey } from "@/components/samflash/OnboardingSurvey";
 import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs";
 import { takePrefill } from "@/lib/prefill";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
+import { EmptyState } from "@/components/samflash/EmptyState";
 import logoAsset from "@/assets/sam-flash-logo.png";
 
 export const Route = createFileRoute("/app")({
@@ -66,6 +67,7 @@ function AppFeed() {
     null,
   );
   const [viewer, setViewer] = useState<Generation | null>(null);
+  const [visibleCount, setVisibleCount] = useState(12);
   const navigate = useNavigate();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
@@ -266,7 +268,7 @@ function AppFeed() {
                   className="aspect-[2/3] animate-pulse rounded-2xl border border-border bg-card/40 backdrop-blur-xl"
                 />
               ))
-            : items.map((g) => (
+            : items.slice(0, visibleCount).map((g) => (
                 <div
                   key={g.id}
                   className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl"
@@ -331,11 +333,29 @@ function AppFeed() {
                 </div>
               ))}
           {!feedLoading && items.length === 0 && !pending && (
-            <p className="col-span-2 py-10 text-center text-sm text-muted-foreground">
-              {t("emptyFeed")}
-            </p>
+            <div className="col-span-full">
+              <EmptyState
+                icon={Clapperboard}
+                title="Aucune création pour l'instant"
+                description="Décrivez votre idée dans la barre ci-dessus : votre première vidéo ou image apparaîtra ici."
+              />
+            </div>
           )}
         </div>
+        {items.length > visibleCount && (
+          <div className="mt-6 flex flex-col items-center gap-2 px-4">
+            <p className="text-xs text-muted-foreground">
+              {visibleCount} sur {items.length} créations
+            </p>
+            <button
+              type="button"
+              onClick={() => setVisibleCount((n) => n + 12)}
+              className="rounded-full bg-secondary px-6 py-2.5 text-[13px] font-medium"
+            >
+              Voir plus
+            </button>
+          </div>
+        )}
         </section>
 
         <SupportReplyNotifier enabled={!!session} />

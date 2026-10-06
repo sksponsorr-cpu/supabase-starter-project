@@ -102,6 +102,11 @@ import {
 } from "@/lib/developer.functions";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Star as ReviewStarIcon, Wrench as MaintenanceIcon } from "lucide-react";
+import { AdminSupportPanel } from "@/components/samflash/AdminSupportPanel";
+import { AdminReviewsPanel } from "@/components/samflash/AdminReviewsPanel";
+import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
+import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { formatSeconds } from "@/lib/quota";
 
 export const Route = createFileRoute("/admin")({
@@ -587,6 +592,8 @@ function AdminPage() {
     { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
     { id: "users", label: "Utilisateurs", icon: User, show: isAdmin },
     { id: "acquisition", label: "Acquisition", icon: Megaphone, show: isAdmin },
+    { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
+    { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
@@ -1664,103 +1671,11 @@ function AdminPage() {
               </section>
             )}
 
-            {active === "support" && canSupport && (
-              <section className="pt-5">
-                <h2 className="text-[22px] font-semibold tracking-tight">Boîte de support</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Chaque réponse déclenche une notification chez le client.
-                </p>
-                <ul className="mt-4 space-y-2">
-                  {tickets.map((tkt) => (
-                    <li
-                      key={tkt.id}
-                      className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => void openThread(tkt.id)}
-                        className="flex w-full items-center gap-2 text-left"
-                      >
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-                          {tkt.status}
-                        </span>
-                        <span className="truncate font-medium">{tkt.subject}</span>
-                        <span className="ml-auto text-[11px] text-muted-foreground">
-                          {new Date(tkt.created_at).toLocaleDateString("fr-FR")}
-                        </span>
-                      </button>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{tkt.email}</p>
+            {active === "support" && canSupport && <AdminSupportPanel />}
 
-                      {openTicket === tkt.id && (
-                        <div className="mt-3 border-t border-border pt-3">
-                          <p className="whitespace-pre-wrap">{tkt.body}</p>
-                          <ul className="mt-2 space-y-1">
-                            {replies.map((r) => (
-                              <li
-                                key={r.id}
-                                className={`rounded-2xl px-3 py-2 text-[13px] ${r.is_staff ? "bg-primary/10" : "bg-secondary"}`}
-                              >
-                                <span className="text-[10px] text-muted-foreground">
-                                  {r.is_staff ? "Équipe" : "Client"}
-                                </span>
-                                <p className="whitespace-pre-wrap">{r.body}</p>
-                              </li>
-                            ))}
-                          </ul>
-                          <textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            aria-label="Votre réponse"
-                            rows={3}
-                            placeholder="Répondre au client…"
-                            className="mt-2 w-full rounded-2xl border border-border bg-background/60 px-3 py-2"
-                          />
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={replyText.trim().length === 0}
-                              onClick={() =>
-                                void sendReply({
-                                  data: { messageId: tkt.id, body: replyText.trim() },
-                                }).then(async () => {
-                                  setReplyText("");
-                                  setReplies(
-                                    (await fetchReplies({
-                                      data: { messageId: tkt.id },
-                                    })) as SupportReply[],
-                                  );
-                                  await load();
-                                  setOpenTicket(tkt.id);
-                                })
-                              }
-                              className="rounded-full bg-foreground px-5 py-2.5 text-xs font-semibold text-background disabled:opacity-50"
-                            >
-                              Répondre
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void setTicketStatus({
-                                  data: { messageId: tkt.id, status: "resolu" },
-                                }).then(() => load())
-                              }
-                              className="rounded-full bg-secondary px-5 py-2.5 text-xs"
-                            >
-                              Marquer résolu
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                  {tickets.length === 0 && (
-                    <li className="py-6 text-center text-sm text-muted-foreground">
-                      Aucun message de support.
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
+            {active === "reviews" && isAdmin && <AdminReviewsPanel />}
+
+            {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
 
             {active === "subscriptions" && isAdmin && (
               <section className="pt-5">
@@ -1936,65 +1851,7 @@ function AdminPage() {
               </section>
             )}
 
-            {active === "acquisition" && isAdmin && (
-              <section className="pt-5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[22px] font-semibold tracking-tight">Acquisition</h2>
-                  <button
-                    type="button"
-                    onClick={() => void loadOnboarding()}
-                    aria-label="Actualiser"
-                    className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${onboardingLoading ? "animate-spin" : ""}`} />
-                  </button>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Réponses à « Comment avez-vous découvert Sam flash 10.0 ? » ({onboarding?.total ?? 0} au total).
-                </p>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {(["youtube", "tiktok", "facebook", "google", "gemini", "other", "ignore"] as const).map((k) => {
-                    const n = onboarding?.counts[k] ?? 0;
-                    const pct = onboarding?.total ? Math.round((n / onboarding.total) * 100) : 0;
-                    return (
-                      <div key={k} className="rounded-3xl border border-border/70 bg-card/50 p-4 backdrop-blur-xl">
-                        <p className="text-sm text-muted-foreground">
-                          {SOURCE_LABELS[k].emoji} {SOURCE_LABELS[k].label}
-                        </p>
-                        <p className="mt-1 text-2xl font-bold tracking-tight">{n}</p>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                        </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{pct} %</p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 overflow-hidden rounded-3xl border border-border/70 bg-card/50 backdrop-blur-xl">
-                  <div className="divide-y divide-border/60">
-                    {(onboarding?.items ?? []).map((r) => (
-                      <div key={r.user_id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                        <span className="min-w-0 flex-1 truncate">{r.email ?? r.user_id.slice(0, 8)}</span>
-                        <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-medium">
-                          {SOURCE_LABELS[r.source]?.emoji} {SOURCE_LABELS[r.source]?.label ?? r.source}
-                          {r.source === "other" && r.other_text ? ` : ${r.other_text}` : ""}
-                        </span>
-                        <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
-                          {new Date(r.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                        </span>
-                      </div>
-                    ))}
-                    {!onboardingLoading && (onboarding?.items.length ?? 0) === 0 && (
-                      <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                        Aucune réponse pour le moment.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </section>
-            )}
+            {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
 
             {active === "content" && isAdmin && (
               <section className="pt-5">

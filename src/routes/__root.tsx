@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Compass, Home, RefreshCw, TriangleAlert } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -15,26 +16,63 @@ import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 import { ReferralCapture } from "../components/samflash/ReferralCapture";
+import { MaintenanceGate } from "../components/samflash/MaintenanceGate";
+
+function ErrorLayout({
+  icon,
+  code,
+  title,
+  text,
+  children,
+}: {
+  icon: ReactNode;
+  code?: string;
+  title: string;
+  text: string;
+  children: ReactNode;
+}) {
+  return (
+    <main
+      className="flex min-h-screen items-center justify-center bg-background px-5"
+      style={{ background: "var(--gradient-hero)" }}
+    >
+      <div className="w-full max-w-md rounded-3xl border border-border/70 bg-card/50 p-8 text-center backdrop-blur-xl">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary">
+          {icon}
+        </span>
+        {code ? (
+          <p className="mt-5 text-6xl font-bold tracking-tight text-foreground">{code}</p>
+        ) : null}
+        <h1 className={`${code ? "mt-2" : "mt-5"} text-2xl font-semibold tracking-tight text-foreground`}>
+          {title}
+        </h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{text}</p>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">{children}</div>
+      </div>
+    </main>
+  );
+}
+
+const primaryBtn =
+  "inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform active:scale-95";
+const secondaryBtn =
+  "inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-6 py-3 text-sm font-medium text-foreground transition-transform active:scale-95";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
+    <ErrorLayout
+      icon={<Compass className="h-7 w-7" />}
+      code="404"
+      title="Page introuvable"
+      text="Cette adresse n'existe pas ou a été déplacée. Vérifiez le lien ou retournez à l'accueil."
+    >
+      <Link to="/" className={primaryBtn}>
+        <Home className="h-4 w-4" /> Retour à l'accueil
+      </Link>
+      <Link to="/app" className={secondaryBtn}>
+        Ouvrir le studio
+      </Link>
+    </ErrorLayout>
   );
 }
 
@@ -46,33 +84,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
+    <ErrorLayout
+      icon={<TriangleAlert className="h-7 w-7" />}
+      title="Oups, un problème est survenu"
+      text="Cette page n'a pas pu se charger. Ce n'est pas de votre faute : réessayez, ou revenez à l'accueil. Si le problème persiste, contactez le support depuis Réglages."
+    >
+      <button
+        type="button"
+        onClick={() => {
+          router.invalidate();
+          reset();
+        }}
+        className={primaryBtn}
+      >
+        <RefreshCw className="h-4 w-4" /> Réessayer
+      </button>
+      <a href="/" className={secondaryBtn}>
+        <Home className="h-4 w-4" /> Accueil
+      </a>
+    </ErrorLayout>
   );
 }
 
@@ -128,7 +158,9 @@ function RootComponent() {
       <ThemeProvider>
         <I18nProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          <MaintenanceGate>
+            <Outlet />
+          </MaintenanceGate>
           <ReferralCapture />
           <Toaster position="top-center" richColors closeButton />
         </I18nProvider>
