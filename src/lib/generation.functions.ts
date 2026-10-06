@@ -81,6 +81,8 @@ export const generateMedia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(normalize)
   .handler(async ({ data, context }) => {
+    const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
+    await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
     const { runGeneration } = await import("@/lib/services/generation.server");
     return await runGeneration(context.userId, data);
   });
@@ -102,6 +104,8 @@ export const retryGeneration = createServerFn({ method: "POST" })
 
     if (!row) throw new Error("Création introuvable");
 
+    const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
+    await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
     const { runGeneration } = await import("@/lib/services/generation.server");
     return await runGeneration(
       context.userId,
