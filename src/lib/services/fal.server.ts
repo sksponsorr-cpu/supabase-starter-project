@@ -259,11 +259,28 @@ export async function startModel(
 /** 
  * Vérifie l'état d'une requête Fal en cours et finalise le téléchargement si terminé.
  */
+/** Sécurité : n'envoie jamais la clé FAL ailleurs que chez fal. */
+export function assertFalUrl(raw: string): string {
+  const url = new URL(raw);
+  const host = url.hostname;
+  const ok =
+    url.protocol === "https:" &&
+    (host === "fal.run" || host.endsWith(".fal.run") || host === "fal.ai" || host.endsWith(".fal.ai"));
+  if (!ok) throw new Error("URL non autorisée");
+  return url.toString();
+}
+
 export async function checkModelStatus(
   statusUrl: string,
   responseUrl: string,
   kind: "image" | "video"
 ): Promise<FalStatusResult> {
+  try {
+    statusUrl = assertFalUrl(statusUrl);
+    responseUrl = assertFalUrl(responseUrl);
+  } catch {
+    return { status: "error", error: "Suivi de génération invalide" };
+  }
   let statusRes: Response;
   try {
     statusRes = await fetch(statusUrl, { headers: headers() });
