@@ -36,10 +36,12 @@ export function NoticeBanner({
   message,
   kind,
   onClose,
+  action,
 }: {
   message: string;
   kind?: NoticeKind;
   onClose: () => void;
+  action?: { label: string; onClick: () => void };
 }) {
   const k = kind ?? noticeKind(message);
   const s = STYLES[k];
@@ -72,6 +74,15 @@ export function NoticeBanner({
               {d}
             </p>
           ))}
+          {action && (
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="mt-3 w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+            >
+              {action.label}
+            </button>
+          )}
         </div>
         <button
           type="button"
