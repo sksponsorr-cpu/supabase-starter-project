@@ -106,6 +106,7 @@ import { Star as ReviewStarIcon, Wrench as MaintenanceIcon } from "lucide-react"
 import { AdminSupportPanel } from "@/components/samflash/AdminSupportPanel";
 import { AdminReviewsPanel } from "@/components/samflash/AdminReviewsPanel";
 import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
+import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { formatSeconds } from "@/lib/quota";
 
@@ -592,6 +593,7 @@ function AdminPage() {
     { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
     { id: "users", label: "Utilisateurs", icon: User, show: isAdmin },
     { id: "acquisition", label: "Acquisition", icon: Megaphone, show: isAdmin },
+    { id: "landing", label: "Page d'accueil", icon: Megaphone, show: isAdmin },
     { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
     { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
@@ -1852,6 +1854,8 @@ function AdminPage() {
             )}
 
             {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
+
+            {active === "landing" && isAdmin && <AdminLandingPanel />}
 
             {active === "content" && isAdmin && (
               <section className="pt-5">
