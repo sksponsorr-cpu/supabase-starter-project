@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import { toast } from "@/lib/toast";
 import { useLocation } from "@tanstack/react-router";
-import { NoticeBanner } from "@/components/samflash/NoticeBanner";
+import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
 
 const IDEAS = [
@@ -55,6 +55,13 @@ function quotaMessage(
     return "Votre abonnement a expiré. Renouvelez-le pour continuer !";
   }
   return "Votre quota est épuisé pour aujourd'hui.";
+}
+
+/** Titre clair pour l'offre gratuite quand la limite est atteinte. */
+function freeTitle(code: string, msg: string, free: boolean) {
+  return free && (code === "subscription_required" || code === "device_free_used")
+    ? `Offre gratuite terminée\n\n${msg}`
+    : msg;
 }
 
 type Props = {
@@ -323,10 +330,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         const message =
           access.message ??
           quotaMessage(access.code as "subscription_required", null, access.remainingSeconds);
-        setSent(message);
+        setSent(freeTitle(access.code, message, userPlan === "free"));
         toast.error(message);
-        onQuotaExceeded?.();
-        setTimeout(() => setSent(null), 4000);
+        // Offre gratuite : le message reste affiché avec le bouton « Passer au forfait supérieur ».
+        if (userPlan !== "free") {
+          onQuotaExceeded?.();
+          setTimeout(() => setSent(null), 4000);
+        }
         return;
       }
     } catch {
@@ -435,9 +445,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         playChime("error");
         setText(prompt);
         const message = quotaMessage(result.code, result.retryAt, result.remainingSeconds);
-        setSent(message);
+        setSent(freeTitle(result.code, message, userPlan === "free"));
         toast.error(message);
-        onQuotaExceeded?.();
+        if (userPlan !== "free") onQuotaExceeded?.();
       } else {
         playChime("error");
         setText(prompt);
@@ -447,7 +457,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         
         if (result.message === "SERVICE_UNAVAILABLE") {
           if (userPlan === "free") {
-            errorMessage = "Les services de génération sont temporairement saturés à cause du grand nombre de demandes.\n\nDésolé pour cette gêne occasionnée.\nVeuillez réessayer dans quelques heures (cela peut prendre plus longtemps selon la demande).\n\nMerci de votre patience.";
+            errorMessage = "Les services de génération sont temporairement saturés à cause du grand nombre de demandes.\n\nDésolé pour cette gêne occasionnée.\nVeuillez réessayer dans quelques minutes.\n\nMerci de votre patience.";
           } else {
             errorMessage = "Désolé pour cette gêne occasionnée.\nLe service est momentanément indisponible car une mise à jour est en cours.\n\nVos secondes ne sont pas décomptées.\nRéessayez dans 15 à 20 minutes.\n\nMerci de votre patience.";
           }
@@ -476,7 +486,17 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
-      {sent && <NoticeBanner message={sent} onClose={() => setSent(null)} />}
+      {sent && (
+        <NoticeBanner
+          message={sent}
+          onClose={() => setSent(null)}
+          action={
+            userPlan === "free" && noticeKind(sent) === "warning"
+              ? { label: "Passer au forfait supérieur", onClick: () => onQuotaExceeded?.() }
+              : undefined
+          }
+        />
+      )}
 
       <div
         className={`relative overflow-hidden rounded-[28px] border bg-card/60 p-2 sm:p-3 backdrop-blur-2xl transition-[border-color,box-shadow,background-color] duration-300 ease-out flex flex-col gap-1 sm:gap-2 ${
