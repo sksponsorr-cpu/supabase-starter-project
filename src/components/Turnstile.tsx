@@ -22,7 +22,11 @@ function loadScript(): Promise<void> {
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       s.async = true;
       s.onload = () => resolve();
-      s.onerror = () => reject(new Error("Turnstile indisponible"));
+      s.onerror = () => {
+        scriptPromise = null;
+        s.remove();
+        reject(new Error("Turnstile indisponible"));
+      };
       document.head.appendChild(s);
     });
   }
@@ -42,9 +46,12 @@ export function Turnstile({
   const cb = useRef(onToken);
   cb.current = onToken;
 
+  // Un seul effet : à chaque changement de resetKey, le widget est supprimé puis recréé.
+  // Cela relance aussi le chargement du script s'il avait échoué.
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
     let cancelled = false;
+    if (resetKey > 0) cb.current(null);
     void loadScript()
       .then(() => {
         if (cancelled || !box.current || !window.turnstile) return;
@@ -62,13 +69,6 @@ export function Turnstile({
       if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);
       widgetId.current = null;
     };
-  }, []);
-
-  useEffect(() => {
-    if (resetKey > 0 && widgetId.current && window.turnstile) {
-      window.turnstile.reset(widgetId.current);
-      cb.current(null);
-    }
   }, [resetKey]);
 
   if (!TURNSTILE_SITE_KEY) return null;
