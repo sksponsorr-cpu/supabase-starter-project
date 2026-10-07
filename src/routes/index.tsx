@@ -57,11 +57,39 @@ function Login() {
   const [message, setMessage] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [inApp, setInApp] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [captchaSlow, setCaptchaSlow] = useState(false);
 
   useEffect(() => {
     if (!loading && session) goNext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, session, next]);
+
+  // Facebook, TikTok, Instagram… : Google refuse la connexion dans ces navigateurs intégrés.
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    if (/FBAN|FBAV|FB_IAB|Instagram|musical_ly|TikTok|BytedanceWebview|Snapchat|; wv\)/i.test(ua)) setInApp(true);
+  }, []);
+
+  // Si la vérification anti-robot n'apparaît pas au bout de 8 s, propose de la relancer.
+  useEffect(() => {
+    if (mode !== "email" || !TURNSTILE_SITE_KEY || captchaToken) {
+      setCaptchaSlow(false);
+      return;
+    }
+    const id = window.setTimeout(() => setCaptchaSlow(true), 8000);
+    return () => window.clearTimeout(id);
+  }, [mode, captchaToken, captchaReset]);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin);
+      setCopied(true);
+    } catch {
+      setMessage("Copiez l'adresse sam-flash.lat et ouvrez-la dans Chrome.");
+    }
+  };
 
   const google = async () => {
     setBusy(true);
@@ -97,7 +125,7 @@ function Login() {
     setBusy(true);
     setMessage(null);
     if (signUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -110,15 +138,30 @@ function Login() {
       setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       if (error) {
-        if (error.message.includes("User already registered") || error.status === 422) {
-          setMessage("Cet e-mail est déjà utilisé. Veuillez vous connecter.");
-        } else if (error.message.includes("Password should be")) {
-          setMessage("Le mot de passe est trop faible (minimum 8 caractères).");
+        const code = (error as { code?: string }).code ?? "";
+        const msg = error.message.toLowerCase();
+        if (code === "user_already_exists" || code === "email_exists" || msg.includes("already registered")) {
+          setMessage("Cet e-mail a déjà un compte. Appuyez sur « J'ai déjà un compte » pour vous connecter.");
+        } else if (code === "weak_password" || msg.includes("password should be")) {
+          setMessage("Mot de passe trop faible. Utilisez au moins 8 caractères avec des lettres et des chiffres.");
+        } else if (code.includes("captcha") || msg.includes("captcha")) {
+          setMessage("La vérification de sécurité a échoué. Réessayez.");
+        } else if (error.status === 429 || code.includes("rate_limit")) {
+          setMessage("Trop de tentatives. Patientez quelques minutes puis réessayez.");
+        } else if (code === "email_address_invalid" || code === "validation_failed") {
+          setMessage("Cette adresse e-mail n'est pas valide.");
+        } else if (code === "signup_disabled") {
+          setMessage("Les inscriptions sont momentanément fermées.");
         } else {
-          setMessage("Inscription impossible. Vérifiez vos informations et réessayez.");
+          setMessage("Inscription impossible pour le moment. Réessayez dans un instant.");
         }
+      } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+        // Supabase renvoie un faux succès quand l'e-mail existe déjà.
+        setMessage("Cet e-mail a déjà un compte. Appuyez sur « J'ai déjà un compte » pour vous connecter.");
+      } else if (data.session) {
+        goNext();
       } else {
-        setMessage("Compte créé. Vérifiez votre e-mail pour confirmer votre inscription.");
+        setMessage("Compte créé. Vérifiez votre e-mail (et les spams) pour confirmer votre inscription.");
       }
       return;
     }
@@ -130,8 +173,13 @@ function Login() {
     setBusy(false);
     setCaptchaToken(null);
     setCaptchaReset((n) => n + 1);
-    if (error) setMessage("Identifiants invalides.");
-    else goNext();
+    if (error) {
+      setMessage(
+        error.message.toLowerCase().includes("not confirmed")
+          ? "Confirmez d'abord votre e-mail (vérifiez aussi les spams)."
+          : "E-mail ou mot de passe incorrect. Pas encore de compte ? Appuyez sur « Créer un nouveau compte ».",
+      );
+    } else goNext();
   };
 
   return (
@@ -161,6 +209,7 @@ function Login() {
       <div className="animate-float space-y-3 w-full max-w-sm mx-auto">
         {mode === "providers" ? (
           <>
+            {!inApp && (
             <button
               type="button"
               disabled={busy}
@@ -171,6 +220,7 @@ function Login() {
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="text-xl font-semibold">G</span>}
               Continuer avec Google
             </button>
+            )}
             <button
               type="button"
               onClick={() => setMode("email")}
@@ -190,6 +240,9 @@ function Login() {
             >
               <ChevronLeft className="h-4 w-4" /> Retour
             </button>
+            <h2 className="text-xl font-semibold text-foreground">
+              {signUp ? "Créer un nouveau compte" : "Se connecter"}
+            </h2>
             {signUp && (
               <input
                 value={fullName}
@@ -209,13 +262,27 @@ function Login() {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mot de passe"
               className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
             />
+            {signUp && (
+              <p className="px-1 text-xs text-muted-foreground">
+                Au moins 8 caractères. Mélangez lettres et chiffres pour un compte plus sûr.
+              </p>
+            )}
             <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
+            {captchaSlow && (
+              <button
+                type="button"
+                onClick={() => setCaptchaReset((n) => n + 1)}
+                className="w-full text-center text-xs text-muted-foreground underline"
+              >
+                La vérification ne s'affiche pas ? Réessayer
+              </button>
+            )}
             <button
               type="submit"
               disabled={busy}
@@ -227,12 +294,24 @@ function Login() {
             </button>
             <button
               type="button"
-              onClick={() => setSignUp((v) => !v)}
-              className="w-full text-center text-sm text-muted-foreground"
+              onClick={() => {
+                setSignUp((v) => !v);
+                setMessage(null);
+              }}
+              className="flex w-full items-center justify-center rounded-full border border-primary/60 py-3.5 text-[16px] font-medium text-foreground transition-transform active:scale-[0.98]"
             >
-              {signUp ? "J'ai déjà un compte" : "Créer un compte"}
+              {signUp ? "J'ai déjà un compte" : "Créer un nouveau compte"}
             </button>
           </form>
+        )}
+
+        {inApp && mode === "providers" && (
+          <div className="rounded-xl bg-secondary/60 p-3 text-center text-xs text-muted-foreground">
+            Pour utiliser Google, ouvrez ce lien dans Chrome.
+            <button type="button" onClick={copyLink} className="mt-1 block w-full font-medium text-primary">
+              {copied ? "Lien copié ✓" : "Copier le lien"}
+            </button>
+          </div>
         )}
 
         {message && (
