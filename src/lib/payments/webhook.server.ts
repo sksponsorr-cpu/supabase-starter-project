@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { verifyCallbackToken } from "@/lib/payments/token.server";
 import { expiryFor, planTypeFor } from "@/lib/plans";
+import { isCreditProduct } from "@/lib/credits";
 
 const payloadSchema = z
   .object({
@@ -52,7 +53,7 @@ export async function applyOrderOutcome(
     return "ok";
   }
 
-  if (outcome === "payee" && updatedOrder.user_id) {
+  if (outcome === "payee" && updatedOrder.user_id && !isCreditProduct(updatedOrder.product_id)) {
     const planType = planTypeFor(updatedOrder.product_id, updatedOrder.period === "yearly" ? "yearly" : "monthly");
     const endsAt = expiryFor(planType);
     const { data: existing } = await supabaseAdmin
@@ -84,6 +85,23 @@ export async function applyOrderOutcome(
       });
     }
 
+    // Crédits de l'abonnement : mois courant (ou premier mois pour l'annuel)
+    {
+      const yearly = planType === "super_grok_annuel";
+      const { data: monthAmount } = await supabaseAdmin.rpc("monthly_credits", {
+        p_product: updatedOrder.product_id,
+        p_yearly: yearly,
+      });
+      if (monthAmount && monthAmount > 0) {
+        await supabaseAdmin.rpc("add_credits", {
+          p_user: updatedOrder.user_id,
+          p_amount: monthAmount,
+          p_kind: yearly ? "annuel_mensuel" : "abonnement",
+          p_ref: updatedOrder.id,
+        });
+      }
+    }
+
     // Envoi de l'e-mail de bienvenue via Brevo
     try {
       let targetEmail = updatedOrder.customer_email;
@@ -113,6 +131,22 @@ export async function applyOrderOutcome(
       }
     } catch (emailError) {
       console.error("[BREVO-WELCOME] Erreur lors de l'envoi de l'e-mail de bienvenue:", emailError);
+    }
+  }
+
+  // Recharges et pass : crédits ajoutés directement, sans abonnement
+  if (outcome === "payee" && updatedOrder.user_id && isCreditProduct(updatedOrder.product_id)) {
+    const { data: packAmount } = await supabaseAdmin.rpc("monthly_credits", {
+      p_product: updatedOrder.product_id,
+      p_yearly: false,
+    });
+    if (packAmount && packAmount > 0) {
+      await supabaseAdmin.rpc("add_credits", {
+        p_user: updatedOrder.user_id,
+        p_amount: packAmount,
+        p_kind: updatedOrder.product_id.startsWith("pass_") ? "pass" : "recharge",
+        p_ref: updatedOrder.id,
+      });
     }
   }
 
