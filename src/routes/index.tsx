@@ -8,6 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
+import { LandingSection } from "@/components/samflash/LandingSection";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -325,6 +326,7 @@ function Login() {
           confidentialité
         </p>
       </div>
+      <LandingSection />
     </main>
   );
 }
