@@ -185,7 +185,7 @@ export async function runGeneration(
   }
 
   // Abonnés : décompte en crédits. Gratuit : quota existant inchangé.
-  const creditCost = !isAdmin && access.isSubscribed ? creditCostFor(input.mediaType, seconds, input.resolution) : null;
+  let creditCost: number | null = !isAdmin ? creditCostFor(input.mediaType, seconds, input.resolution) : null;
   if (creditCost !== null) {
     const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
       p_user: userId,
@@ -193,7 +193,9 @@ export async function runGeneration(
       p_ref: crypto.randomUUID(),
     });
     if (spendError) throw new Error(spendError.message);
-    if (!spent) {
+    if (!spent && !access.isSubscribed) {
+      creditCost = null; // pas assez de crédits : quota gratuit
+    } else if (!spent) {
       return {
         ok: false,
         reason: "quota",
@@ -203,7 +205,8 @@ export async function runGeneration(
         limitSeconds: 0,
       };
     }
-  } else if (!isAdmin) {
+  }
+  if (creditCost === null && !isAdmin) {
   if (isVideo) {
     // Pipeline strict : abonnement valide + solde de secondes suffisant,
     // vérifiés en base avant tout appel au moteur de génération.

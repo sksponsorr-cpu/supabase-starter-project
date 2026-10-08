@@ -108,6 +108,18 @@ export async function checkGenerationAccess(
 
   const base = { planType: plan, isSubscribed, remainingSeconds, limitSeconds };
 
+  // Crédits rechargés : utilisables par tous, prioritaires sur les limites gratuites
+  if (!isSubscribed) {
+    const { data: wallet } = await supabaseAdmin
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", userId)
+      .maybeSingle();
+    if ((wallet?.credits_balance ?? 0) >= creditCostFor(mediaType, seconds, "480p")) {
+      return { ...base, allowed: true, code: "ok", message: null };
+    }
+  }
+
   if (!isSubscribed && (await deviceFreeAlreadyUsed(userId))) {
     console.log("[ADMIN-CHECK] refus: device_free_used");
     return { ...base, allowed: false, code: "device_free_used", message: DEVICE_MESSAGE };
