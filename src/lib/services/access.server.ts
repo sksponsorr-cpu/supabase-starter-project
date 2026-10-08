@@ -165,7 +165,7 @@ export async function checkGenerationAccess(
 
   // Abonnés : contrôle du solde de crédits (remplace l'ancien quota en secondes)
   {
-    const cost = creditCostFor(mediaType, seconds);
+    const cost = creditCostFor(mediaType, seconds, "480p");
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
       .select("credits_balance")

@@ -185,7 +185,7 @@ export async function runGeneration(
   }
 
   // Abonnés : décompte en crédits. Gratuit : quota existant inchangé.
-  const creditCost = !isAdmin && access.isSubscribed ? creditCostFor(input.mediaType, seconds) : null;
+  const creditCost = !isAdmin && access.isSubscribed ? creditCostFor(input.mediaType, seconds, input.resolution) : null;
   if (creditCost !== null) {
     const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
       p_user: userId,
