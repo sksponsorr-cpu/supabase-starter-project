@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          landing_content: Json
           promo_enabled: boolean
           promo_prices: Json
           updated_at: string
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id: string
+          landing_content?: Json
           promo_enabled?: boolean
           promo_prices?: Json
           updated_at?: string
@@ -32,6 +34,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          landing_content?: Json
           promo_enabled?: boolean
           promo_prices?: Json
           updated_at?: string
