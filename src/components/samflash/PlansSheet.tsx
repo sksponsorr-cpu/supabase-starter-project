@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
-import { IMAGE_CREDIT_COST, VIDEO_CREDITS_PER_SECOND } from "@/lib/credits";
+import { creditCostFor } from "@/lib/credits";
 
 type PlanId = "base" | "plus" | "heavy";
 
@@ -100,7 +100,21 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   });
   const [activating, setActivating] = useState(false);
   const [packId, setPackId] = useState<string | null>(null);
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const [isSubscriber, setIsSubscriber] = useState(false);
+
+  // Crédits affichés uniquement aux abonnés
+  useEffect(() => {
+    if (!user) return;
+    void supabase
+      .from("subscriptions")
+      .select("is_active, ends_at")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsSubscriber(Boolean(data?.is_active) && (!data?.ends_at || new Date(data.ends_at) > new Date()));
+      });
+  }, [user]);
   const packs = prices.filter((p) => p.tier === "credits");
   const fetchPrices = useServerFn(listPrices);
   const fetchPromo = useServerFn(getPromoSettings);
@@ -256,11 +270,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
-          {monthlyCredits !== null && monthlyCredits > 0 && (
+          {isSubscriber && monthlyCredits !== null && monthlyCredits > 0 && (
             <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3">
               <p className="text-xl font-semibold">{monthlyCredits.toLocaleString("fr-FR")} crédits / mois</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Image : {IMAGE_CREDIT_COST} crédit · Vidéo : {VIDEO_CREDITS_PER_SECOND} crédit par seconde
+                Image : {creditCostFor("image", 0, "480p")} à {creditCostFor("image", 0, "1080p")} crédits selon la qualité · Vidéo : {creditCostFor("video", 1, "480p")} crédit par seconde en 480p, {creditCostFor("video", 1, "720p")} en 720p
                 {period === "yearly" ? " · payé une fois, crédités chaque mois pendant 12 mois" : ""}
               </p>
             </div>
@@ -378,7 +392,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </p>
         {notice && <p className="mt-2 text-center text-sm text-primary">{notice}</p>}
 
-        {/* Solde de crédits et recharges */}
+        {isSubscriber && (
         <div className="mt-8 rounded-2xl border border-border bg-card/60 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Vos crédits</span>
@@ -400,7 +414,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           )}
+          <a href="/tableau-de-bord" className="mt-4 block text-center text-sm font-medium text-primary">
+            Voir mon tableau de bord
+          </a>
         </div>
+        )}
 
         {packId && (
           <CheckoutSheet

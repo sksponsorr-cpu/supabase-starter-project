@@ -15,9 +15,7 @@ import {
   Bell,
   Globe,
   SlidersHorizontal,
-  Boxes,
   Atom,
-  Link2,
   Database,
   FolderClosed,
   Star,
@@ -613,19 +611,6 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 onClick={() => setView("appearance")}
               />
               <Row
-                icon={Vibrate}
-                label={t("haptics")}
-                trailing={
-                  <Toggle
-                    on={prefs.haptics ?? true}
-                    onChange={(v) => {
-                      void savePrefs({ haptics: v });
-                      if (v) vibrate(40);
-                    }}
-                  />
-                }
-              />
-              <Row
                 icon={Bell}
                 label={t("notifications")}
                 onClick={() => setView("notifications")}
@@ -645,22 +630,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 label={t("customize")}
                 onClick={() => openGeneric(t("customize"), "customize")}
               />
-              <Row icon={Boxes} label={t("skills")} onClick={() => openGeneric(t("skills"), "skills")} />
-              <Row icon={Atom} label={t("advanced")} onClick={() => openGeneric(t("advanced"), "advanced")} />
             </Group>
 
             <SectionTitle>{t("data")}</SectionTitle>
             <Group>
-              <Row
-                icon={Link2}
-                label={t("sharedChats")}
-                onClick={() => setView("shared")}
-              />
-              <Row
-                icon={Database}
-                label={t("dataControls")}
-                onClick={() => setView("data")}
-              />
               <Row icon={FolderClosed} label={t("storage")} onClick={() => setView("storage")} />
             </Group>
 
