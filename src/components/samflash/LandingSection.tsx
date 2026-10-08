@@ -26,7 +26,11 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
       { threshold: 0.15 },
     );
     io.observe(el);
-    return () => io.disconnect();
+    const t = window.setTimeout(() => setShown(true), 1500);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(t);
+    };
   }, []);
   const style: CSSProperties = {
     opacity: shown ? 1 : 0,
@@ -89,6 +93,7 @@ function PreviewVideo({
   className: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -101,10 +106,11 @@ function PreviewVideo({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [src]);
+  }, [src, failed]);
   useEffect(() => {
     if (ref.current) ref.current.muted = !sound;
   }, [sound]);
+  if (failed) return null;
   return (
     <button
       type="button"
@@ -123,6 +129,7 @@ function PreviewVideo({
         disableRemotePlayback
         controlsList="nodownload noplaybackrate noremoteplayback"
         draggable={false}
+        onError={() => setFailed(true)}
         onContextMenu={(e) => e.preventDefault()}
         className="pointer-events-none h-full w-full object-cover"
       />
@@ -313,7 +320,7 @@ export function LandingSection() {
         <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
           Sam flash 2.0
         </span>
-        <h2 className="mt-4 bg-gradient-to-b from-white to-white/60 bg-clip-text text-3xl font-semibold leading-tight tracking-tight text-transparent">
+        <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-foreground">
           {title}
         </h2>
         <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">{text}</p>
@@ -331,14 +338,41 @@ export function LandingSection() {
       )}
 
       {c.videos.length > 0 && (
-        <Reveal>
-          <Coverflow items={c.videos} sound={sound} setSound={setSound} />
-        </Reveal>
+        <div className="space-y-6">
+          <Reveal className="text-center">
+            <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              Fait avec Sam flash 2.0
+            </span>
+            <h3 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-foreground">
+              Voici ce que tu peux créer en quelques secondes
+            </h3>
+            <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Ces vidéos ont été fabriquées sur Sam flash 2.0, telles quelles. Appuie pour regarder, avec le son.
+            </p>
+          </Reveal>
+          <Reveal>
+            <Coverflow items={c.videos} sound={sound} setSound={setSound} />
+          </Reveal>
+          <Reveal className="text-center">
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="w-full rounded-full bg-primary py-4 text-[16px] font-semibold text-primary-foreground"
+              style={{ boxShadow: "var(--shadow-glow)" }}
+            >
+              Créer ma première vidéo
+            </button>
+            <p className="mt-3 text-xs text-muted-foreground">Commence gratuitement avec la formule Découverte.</p>
+          </Reveal>
+        </div>
       )}
 
       <div className="space-y-4">
         <Reveal className="text-center">
           <h3 className="text-2xl font-semibold tracking-tight">Ce que tu reçois selon ton abonnement</h3>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            Choisis la formule qui te convient. Tu peux changer ou annuler à tout moment.
+          </p>
         </Reveal>
         {PLAN_CARDS.map((p, i) => (
           <Reveal key={p.name} delay={i * 80}>
