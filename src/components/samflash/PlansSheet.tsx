@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
-import { creditCostFor } from "@/lib/credits";
+import { creditCostFor, OFFER_END_ISO } from "@/lib/credits";
 
 type PlanId = "base" | "plus" | "heavy";
 
@@ -86,6 +86,39 @@ const PLANS: Plan[] = [
   },
 ];
 
+
+function OfferCountdown() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const diff = new Date(OFFER_END_ISO).getTime() - now;
+  if (diff <= 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-card/60 p-3 text-center">
+        <p className="text-sm font-medium">L'offre de lancement est terminée.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Les prix vont augmenter.</p>
+      </div>
+    );
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor(diff / 3_600_000) % 24;
+  const minutes = Math.floor(diff / 60_000) % 60;
+  const seconds = Math.floor(diff / 1000) % 60;
+
+  return (
+    <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3 text-center">
+      <p className="text-xs text-muted-foreground">Offre de lancement : fin dans</p>
+      <p className="mt-1 font-mono text-lg font-semibold">
+        {days}j {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">Ensuite, les prix vont augmenter.</p>
+    </div>
+  );
+}
 
 export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState<PlanId>("base");
@@ -270,6 +303,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+          <OfferCountdown />
+
           {monthlyCredits !== null && monthlyCredits > 0 && (
             <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3">
               <p className="text-xl font-semibold">{monthlyCredits.toLocaleString("fr-FR")} crédits / mois</p>

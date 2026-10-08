@@ -495,9 +495,11 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           message={sent}
           onClose={() => setSent(null)}
           action={
-            userPlan === "free" && noticeKind(sent) === "warning"
-              ? { label: "Passer au forfait supérieur", onClick: () => onQuotaExceeded?.() }
-              : undefined
+            sent.startsWith("Crédits insuffisants")
+              ? { label: "Recharger votre compte", onClick: () => onQuotaExceeded?.() }
+              : userPlan === "free" && noticeKind(sent) === "warning"
+                ? { label: "Passer au forfait supérieur", onClick: () => onQuotaExceeded?.() }
+                : undefined
           }
         />
       )}
