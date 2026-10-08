@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
+import { IMAGE_CREDIT_COST, VIDEO_CREDITS_PER_SECOND } from "@/lib/credits";
 
 type PlanId = "base" | "plus" | "heavy";
 
@@ -174,6 +175,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
   // Aucun prix « de secours » n'est affiché avant le chargement : cela évitait
   // de montrer l'ancien tarif puis de basculer sur le nouveau.
+  // Crédits reçus par mois, calculés comme côté base (taux x prix, + bonus)
+  const monthlyCredits = price
+    ? period === "yearly" && price.amount_eur_yearly !== null
+      ? Math.round((price.amount_eur_yearly / 12) * (price.credits_rate ?? 0)) + price.credits_bonus
+      : (price.credits_fixed ?? Math.round(price.amount_eur * (price.credits_rate ?? 0)) + price.credits_bonus)
+    : null;
   const basePriceLabel = price
     ? `${price.amount_eur.toFixed(2)} € /mois`
     : pricesLoaded
@@ -248,23 +255,28 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="mt-6 space-y-5 rounded-3xl border border-border bg-card/50 p-5 backdrop-blur-xl">
+        <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+          {monthlyCredits !== null && monthlyCredits > 0 && (
+            <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3">
+              <p className="text-xl font-semibold">{monthlyCredits.toLocaleString("fr-FR")} crédits / mois</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Image : {IMAGE_CREDIT_COST} crédit · Vidéo : {VIDEO_CREDITS_PER_SECOND} crédit par seconde
+                {period === "yearly" ? " · payé une fois, crédités chaque mois pendant 12 mois" : ""}
+              </p>
+            </div>
+          )}
+
           {plan.features.map((f) => (
-            <div key={f.title} className="flex items-start gap-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary">
-                <f.icon className="h-5 w-5 text-foreground" />
+            <div key={f.title} className="flex items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+                <f.icon className="h-4 w-4 text-foreground" />
               </span>
-              <span>
-                <span className="block text-[17px] font-medium leading-snug">{f.title}</span>
-                {f.sub && (
-                  <span className="mt-1 block text-sm text-muted-foreground">{f.sub}</span>
-                )}
-              </span>
+              <span className="text-[15px] font-medium leading-snug">{f.title}</span>
             </div>
           ))}
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4">
           {hasYearly ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
