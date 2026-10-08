@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getLanding, setLanding } from "@/lib/landing.functions";
+import { getLanding, setLanding, uploadLandingVideo } from "@/lib/landing.functions";
 import { listRecentGenerations } from "@/lib/admin.functions";
 import { toast } from "@/lib/toast";
 
@@ -16,6 +16,8 @@ export function AdminLandingPanel() {
   const load = useServerFn(getLanding);
   const save = useServerFn(setLanding);
   const listGens = useServerFn(listRecentGenerations);
+  const upload = useServerFn(uploadLandingVideo);
+  const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [intro, setIntro] = useState("");
@@ -49,6 +51,24 @@ export function AdminLandingPanel() {
   const usable = gens.filter((g) => g.media_type === "video" && g.media_url && g.status !== "error");
   const addVideo = (g: Gen) =>
     setVideos((v) => `${v ? v + "\n" : ""}${g.media_url} | ${g.prompt.replace(/\|/g, " ").slice(0, 40)}`);
+
+  const pickFile = async (file: File | undefined, target: "intro" | "list") => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await upload({ data: fd });
+      if (!r.ok) return void toast.error(r.message);
+      if (target === "intro") setIntro(r.url);
+      else setVideos((v) => `${v ? v + "\n" : ""}${r.url} | ${file.name.replace(/\|/g, " ").slice(0, 40)}`);
+      toast.success("Vidéo envoyée. Pensez à enregistrer.");
+    } catch {
+      toast.error("Envoi impossible (vidéo trop lourde ?).");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const split = (line: string) => {
     const i = line.indexOf("|");
@@ -122,6 +142,32 @@ export function AdminLandingPanel() {
         </div>
       )}
 
+      <label className="block w-full cursor-pointer rounded-full border border-primary/60 py-3 text-center text-sm font-medium">
+        {uploading ? "Envoi en cours…" : "Importer la vidéo de présentation depuis ma galerie"}
+        <input
+          type="file"
+          accept="video/*"
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => {
+            void pickFile(e.target.files?.[0], "intro");
+            e.target.value = "";
+          }}
+        />
+      </label>
+      <label className="block w-full cursor-pointer rounded-full border border-primary/60 py-3 text-center text-sm font-medium">
+        {uploading ? "Envoi en cours…" : "Ajouter une vidéo à la liste depuis ma galerie"}
+        <input
+          type="file"
+          accept="video/*"
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => {
+            void pickFile(e.target.files?.[0], "list");
+            e.target.value = "";
+          }}
+        />
+      </label>
       <input className={box} placeholder="Vidéo de présentation (https://…)" value={intro} onChange={(e) => setIntro(e.target.value)} />
       <textarea
         className={box}
