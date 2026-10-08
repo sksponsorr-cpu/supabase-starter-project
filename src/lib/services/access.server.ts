@@ -1,3 +1,4 @@
+import { creditCostFor } from "@/lib/credits";
 /**
  * Contrôle d'accès à la génération : formule active, quota vidéo restant
  * et limitation de l'offre gratuite à un seul compte par appareil.
@@ -9,7 +10,8 @@ export type AccessCode =
   | "device_free_used"
   | "subscription_required"
   | "video_seconds"
-  | "subscription_expired";
+  | "subscription_expired"
+  | "insufficient_credits";
 
 export type AccessResult = {
   allowed: boolean;
@@ -161,6 +163,24 @@ export async function checkGenerationAccess(
     return { ...base, allowed: true, code: "ok", message: null };
   }
 
+  // Abonnés : contrôle du solde de crédits (remplace l'ancien quota en secondes)
+  {
+    const cost = creditCostFor(mediaType, seconds);
+    const { data: wallet } = await supabaseAdmin
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", userId)
+      .maybeSingle();
+    if ((wallet?.credits_balance ?? 0) < cost) {
+      return {
+        ...base,
+        allowed: false,
+        code: "insufficient_credits",
+        message: "Crédits insuffisants. Rechargez votre compte pour continuer.",
+      };
+    }
+  }
+
   // LOGIQUE POUR LES UTILISATEURS PAYANTS (Super Grok / Superhearly)
   if (mediaType === "video") {
     if (!isSubscribed && expired) {
@@ -171,17 +191,6 @@ export async function checkGenerationAccess(
         code: "subscription_expired",
         message:
           "Votre abonnement est arrivé à expiration. Réabonnez-vous pour continuer à générer des vidéos.",
-      };
-    }
-    if (seconds > 0 && remainingSeconds < seconds) {
-      console.log("[ADMIN-CHECK] refus: limite quotidienne", { isSubscribed, seconds, remainingSeconds });
-      return {
-        ...base,
-        allowed: false,
-        code: isSubscribed ? "video_seconds" : "subscription_required",
-        message: isSubscribed
-          ? "Limite quotidienne atteinte : vos secondes vidéo sont épuisées pour cette période."
-          : "Votre offre gratuite est épuisée. Abonnez-vous à Super Grok pour générer plus de vidéos.",
       };
     }
   }

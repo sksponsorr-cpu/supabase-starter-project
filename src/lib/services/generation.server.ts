@@ -9,6 +9,8 @@
  * Vidéos : 6 secondes maximum, 480p ou 720p.
  */
 
+import { creditCostFor } from "@/lib/credits";
+
 export type GenerationInput = {
   prompt: string;
   mediaType: "image" | "video";
@@ -36,6 +38,7 @@ export type GenerationRow = {
 };
 
 export type QuotaReason =
+  | "insufficient_credits"
   | "image_daily"
   | "video_daily"
   | "video_pause"
@@ -181,7 +184,26 @@ export async function runGeneration(
     };
   }
 
-  if (!isAdmin) {
+  // Abonnés : décompte en crédits. Gratuit : quota existant inchangé.
+  const creditCost = !isAdmin && access.isSubscribed ? creditCostFor(input.mediaType, seconds) : null;
+  if (creditCost !== null) {
+    const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
+      p_user: userId,
+      p_amount: creditCost,
+      p_ref: crypto.randomUUID(),
+    });
+    if (spendError) throw new Error(spendError.message);
+    if (!spent) {
+      return {
+        ok: false,
+        reason: "quota",
+        code: "insufficient_credits",
+        retryAt: null,
+        remainingSeconds: 0,
+        limitSeconds: 0,
+      };
+    }
+  } else if (!isAdmin) {
   if (isVideo) {
     // Pipeline strict : abonnement valide + solde de secondes suffisant,
     // vérifiés en base avant tout appel au moteur de génération.
@@ -225,6 +247,15 @@ export async function runGeneration(
   const refund = async () => {
     if (!debited) return;
     debited = false;
+    if (creditCost !== null) {
+      await supabaseAdmin.rpc("add_credits", {
+        p_user: userId,
+        p_amount: creditCost,
+        p_kind: "remboursement",
+        p_ref: "echec-generation",
+      });
+      return;
+    }
     if (isVideo) {
       await supabaseAdmin.rpc("refund_video_seconds", { _user_id: userId, _seconds: seconds });
     } else {
