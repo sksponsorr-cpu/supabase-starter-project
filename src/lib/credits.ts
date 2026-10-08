@@ -1,17 +1,30 @@
 /**
  * Coût des générations en crédits (abonnés uniquement).
- * Modifie ces deux valeurs pour changer le prix d'une génération.
+ * Les valeurs de base correspondent à la qualité 480p.
+ * La qualité supérieure multiplie le coût.
  */
 
-/** Crédits consommés par une image. */
+/** Crédits pour une image en 480p. */
 export const IMAGE_CREDIT_COST = 1;
 
-/** Crédits consommés par seconde de vidéo. */
+/** Crédits par seconde de vidéo en 480p. */
 export const VIDEO_CREDITS_PER_SECOND = 1;
 
-export function creditCostFor(mediaType: "image" | "video", seconds: number): number {
-  if (mediaType === "image") return IMAGE_CREDIT_COST;
-  return Math.max(1, Math.ceil(seconds * VIDEO_CREDITS_PER_SECOND));
+/** Multiplicateur selon la qualité. */
+export const RESOLUTION_MULTIPLIER: Record<string, number> = {
+  "480p": 1,
+  "720p": 2,
+  "1080p": 3,
+};
+
+export function creditCostFor(
+  mediaType: "image" | "video",
+  seconds: number,
+  resolution: string = "720p",
+): number {
+  const mult = RESOLUTION_MULTIPLIER[resolution] ?? 2;
+  if (mediaType === "image") return Math.max(1, Math.round(IMAGE_CREDIT_COST * mult));
+  return Math.max(1, Math.ceil(seconds * VIDEO_CREDITS_PER_SECOND * mult));
 }
 
 /** Produits achetés en crédits (recharges et pass), et non en abonnement. */
