@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getLanding, setLanding, uploadLandingVideo } from "@/lib/landing.functions";
+import { getLanding, setLanding, uploadLandingVideo, presignLandingUpload } from "@/lib/landing.functions";
 import { listRecentGenerations } from "@/lib/admin.functions";
 import { toast } from "@/lib/toast";
 
@@ -17,6 +17,8 @@ export function AdminLandingPanel() {
   const save = useServerFn(setLanding);
   const listGens = useServerFn(listRecentGenerations);
   const upload = useServerFn(uploadLandingVideo);
+  const presign = useServerFn(presignLandingUpload);
+  const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -52,19 +54,44 @@ export function AdminLandingPanel() {
   const addVideo = (g: Gen) =>
     setVideos((v) => `${v ? v + "\n" : ""}${g.media_url} | ${g.prompt.replace(/\|/g, " ").slice(0, 40)}`);
 
+  const putWithProgress = (url: string, file: File) =>
+    new Promise<void>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", url);
+      x.setRequestHeader("Content-Type", file.type);
+      x.upload.onprogress = (e) => e.lengthComputable && setProgress(Math.round((e.loaded / e.total) * 100));
+      x.onload = () => (x.status >= 200 && x.status < 300 ? resolve() : reject(new Error(String(x.status))));
+      x.onerror = () => reject(new Error("réseau"));
+      x.send(file);
+    });
+
   const pickFile = async (file: File | undefined, target: "intro" | "list") => {
     if (!file) return;
     setUploading(true);
+    setProgress(0);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const r = await upload({ data: fd });
-      if (!r.ok) return void toast.error(r.message);
-      if (target === "intro") setIntro(r.url);
-      else setVideos((v) => `${v ? v + "\n" : ""}${r.url} | ${file.name.replace(/\|/g, " ").slice(0, 40)}`);
+      let link: string;
+      if (file.size <= 20 * 1024 * 1024) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await upload({ data: fd });
+        if (!r.ok) return void toast.error(r.message);
+        link = r.url;
+      } else {
+        const r = await presign({ data: { type: file.type, size: file.size } });
+        if (!r.ok) return void toast.error(r.message);
+        try {
+          await putWithProgress(r.uploadUrl, file);
+        } catch {
+          return void toast.error("Envoi refusé par Cloudflare R2 : vérifiez les règles CORS du bucket (autoriser PUT).");
+        }
+        link = r.publicUrl;
+      }
+      if (target === "intro") setIntro(link);
+      else setVideos((v) => `${v ? v + "\n" : ""}${link} | ${file.name.replace(/\|/g, " ").slice(0, 40)}`);
       toast.success("Vidéo envoyée. Pensez à enregistrer.");
     } catch {
-      toast.error("Envoi impossible (vidéo trop lourde ?).");
+      toast.error("Envoi impossible. Réessayez avec une connexion stable.");
     } finally {
       setUploading(false);
     }
@@ -143,7 +170,7 @@ export function AdminLandingPanel() {
       )}
 
       <label className="block w-full cursor-pointer rounded-full border border-primary/60 py-3 text-center text-sm font-medium">
-        {uploading ? "Envoi en cours…" : "Importer la vidéo de présentation depuis ma galerie"}
+        {uploading ? `Envoi en cours… ${progress}%` : "Importer la vidéo de présentation depuis ma galerie"}
         <input
           type="file"
           accept="video/*"
@@ -156,7 +183,7 @@ export function AdminLandingPanel() {
         />
       </label>
       <label className="block w-full cursor-pointer rounded-full border border-primary/60 py-3 text-center text-sm font-medium">
-        {uploading ? "Envoi en cours…" : "Ajouter une vidéo à la liste depuis ma galerie"}
+        {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une vidéo à la liste depuis ma galerie"}
         <input
           type="file"
           accept="video/*"
