@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Plus, Trash2, Loader2, MessageSquare, Gift } from "lucide-react";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Plus, Trash2, Loader2, MessageSquare, Gift, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { toast } from "@/lib/toast";
@@ -166,16 +166,16 @@ export function Sidebar({
               </button>
             </div>
           ) : (
-            <button 
-              onClick={handleAddProject}
-              disabled={isCreating}
+            <Link
+              to="/tableau-de-bord"
+              onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
               className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-3 shrink-0"
             >
               <div className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary/50 group-hover:bg-secondary transition-colors">
-                {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <LayoutDashboard className="w-4 h-4" />
               </div>
-              <span className="font-medium whitespace-nowrap">Ajouter un projet</span>
-            </button>
+              <span className="font-medium whitespace-nowrap">Tableau de bord</span>
+            </Link>
           )}
           
           <div className="space-y-0.5 -mx-2">

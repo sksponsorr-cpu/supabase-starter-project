@@ -270,7 +270,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
-          {isSubscriber && monthlyCredits !== null && monthlyCredits > 0 && (
+          {monthlyCredits !== null && monthlyCredits > 0 && (
             <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3">
               <p className="text-xl font-semibold">{monthlyCredits.toLocaleString("fr-FR")} crédits / mois</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -392,7 +392,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </p>
         {notice && <p className="mt-2 text-center text-sm text-primary">{notice}</p>}
 
-        {isSubscriber && (
         <div className="mt-8 rounded-2xl border border-border bg-card/60 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Vos crédits</span>
@@ -418,7 +417,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             Voir mon tableau de bord
           </a>
         </div>
-        )}
 
         {packId && (
           <CheckoutSheet
