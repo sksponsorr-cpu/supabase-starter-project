@@ -108,6 +108,7 @@ import { AdminReviewsPanel } from "@/components/samflash/AdminReviewsPanel";
 import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
 import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
+import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
 import { formatSeconds } from "@/lib/quota";
 
 export const Route = createFileRoute("/admin")({
@@ -596,6 +597,7 @@ function AdminPage() {
     { id: "landing", label: "Page d'accueil", icon: Megaphone, show: isAdmin },
     { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
     { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
+    { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
@@ -1678,6 +1680,7 @@ function AdminPage() {
             {active === "reviews" && isAdmin && <AdminReviewsPanel />}
 
             {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
+            {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
 
             {active === "subscriptions" && isAdmin && (
               <section className="pt-5">
