@@ -68,7 +68,7 @@ export const setLanding = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-const MAX_VIDEO = 80 * 1024 * 1024;
+const MAX_VIDEO = 20 * 1024 * 1024;
 
 /** Envoie une vidéo depuis la galerie vers Cloudflare R2 et renvoie son lien permanent. */
 export const uploadLandingVideo = createServerFn({ method: "POST" })
@@ -82,7 +82,7 @@ export const uploadLandingVideo = createServerFn({ method: "POST" })
     const file = data.get("file");
     if (!(file instanceof File)) return { ok: false as const, message: "Aucun fichier reçu." };
     if (!file.type.startsWith("video/")) return { ok: false as const, message: "Ce fichier n'est pas une vidéo." };
-    if (file.size > MAX_VIDEO) return { ok: false as const, message: "Vidéo trop lourde (80 Mo maximum)." };
+    if (file.size > MAX_VIDEO) return { ok: false as const, message: "Vidéo trop lourde pour cet envoi (20 Mo maximum)." };
     const r2 = await import("@/lib/r2.server");
     if (!r2.isR2Configured()) return { ok: false as const, message: "Cloudflare R2 n'est pas configuré." };
     const ext = file.type === "video/quicktime" ? "mov" : file.type === "video/webm" ? "webm" : "mp4";
@@ -96,4 +96,24 @@ export const uploadLandingVideo = createServerFn({ method: "POST" })
     } catch (e) {
       return { ok: false as const, message: e instanceof Error ? e.message : "Envoi impossible." };
     }
+  });
+
+const MAX_DIRECT = 500 * 1024 * 1024;
+
+/** Prépare un envoi direct (navigateur → Cloudflare R2) pour les grosses vidéos. */
+export const presignLandingUpload = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const r = (input ?? {}) as Record<string, unknown>;
+    return { type: str(r["type"], 60), size: typeof r["size"] === "number" ? r["size"] : 0 };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertLandingAdmin(context);
+    if (!data.type.startsWith("video/")) return { ok: false as const, message: "Ce fichier n'est pas une vidéo." };
+    if (data.size > MAX_DIRECT) return { ok: false as const, message: "Vidéo trop lourde (500 Mo maximum)." };
+    const r2 = await import("@/lib/r2.server");
+    if (!r2.isR2Configured()) return { ok: false as const, message: "Cloudflare R2 n'est pas configuré." };
+    const ext = data.type === "video/quicktime" ? "mov" : data.type === "video/webm" ? "webm" : "mp4";
+    const { uploadUrl, publicUrl } = await r2.presignR2Put(`landing/${crypto.randomUUID()}.${ext}`);
+    return { ok: true as const, uploadUrl, publicUrl };
   });
