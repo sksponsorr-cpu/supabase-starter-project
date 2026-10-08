@@ -457,9 +457,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         
         if (result.message === "SERVICE_UNAVAILABLE") {
           if (userPlan === "free") {
-            errorMessage = "Les services de génération sont temporairement saturés à cause du grand nombre de demandes.\n\nDésolé pour cette gêne occasionnée.\nVeuillez réessayer dans quelques minutes.\n\nMerci de votre patience.";
+            errorMessage = "L'offre gratuite est momentanément en pause.\n\nVotre vidéo et vos images offertes ne sont pas décomptées.\n\nAbonnez-vous dès maintenant : vos générations reprennent dès la reprise du service, avec des jours supplémentaires offerts.";
           } else {
-            errorMessage = "Désolé pour cette gêne occasionnée.\nLe service est momentanément indisponible car une mise à jour est en cours.\n\nVos secondes ne sont pas décomptées.\nRéessayez dans 15 à 20 minutes.\n\nMerci de votre patience.";
+            errorMessage = "Votre abonnement est bien actif, mais la génération est momentanément indisponible.\n\nVos secondes ne sont pas décomptées.\nPour vous remercier de votre patience, des jours supplémentaires vous sont offerts.\n\nRéessayez un peu plus tard. Si le problème dure, contactez-nous.\n\nMerci de votre confiance.";
           }
         }
         

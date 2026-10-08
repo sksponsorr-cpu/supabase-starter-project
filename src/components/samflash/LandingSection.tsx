@@ -225,11 +225,12 @@ function Orbs() {
   );
 }
 
-const PLAN_CARDS: { name: string; seconds: number; items: string[] }[] = [
+const PLAN_CARDS: { name: string; seconds: number; label?: string; items: string[] }[] = [
   {
     name: "Découverte",
     seconds: PLAN_VIDEO_SECONDS.free,
-    items: ["Essaie Sam flash 2.0 gratuitement", "Images et vidéos IA depuis ton mobile"],
+    label: "Offre d'essai",
+    items: ["1 vidéo offerte (8 secondes maximum)", "2 images offertes", "Un compte gratuit par appareil"],
   },
   {
     name: "Super grok",
@@ -266,11 +267,11 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Puis-je essayer gratuitement ?",
-    a: `Oui. La formule Découverte te donne ${formatDuration(PLAN_VIDEO_SECONDS.free)} de vidéo par période de 24 h, sans abonnement.`,
+    a: "Oui. À l'inscription, tu reçois une vidéo (8 secondes maximum) et 2 images offertes, sans abonnement. L'offre d'essai est limitée à un compte par appareil.",
   },
   {
     q: "Combien de vidéo puis-je créer par jour ?",
-    a: `Cela dépend de ta formule, sur 24 h glissantes : Découverte ${formatDuration(PLAN_VIDEO_SECONDS.free)}, Super grok ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)}, Super grok plus ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_plus)}, Super grok heavy ${formatDuration(PLAN_VIDEO_SECONDS.superhearly_monthly)}.`,
+    a: `Avec un abonnement, cela dépend de ta formule, sur 24 h glissantes : Super grok ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)}, Super grok plus ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_plus)}, Super grok heavy ${formatDuration(PLAN_VIDEO_SECONDS.superhearly_monthly)}.`,
   },
   {
     q: "Quelle qualité de vidéo ?",
@@ -362,7 +363,7 @@ export function LandingSection() {
             >
               Créer ma première vidéo
             </button>
-            <p className="mt-3 text-xs text-muted-foreground">Commence gratuitement avec la formule Découverte.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Essaie gratuitement : une vidéo et 2 images offertes.</p>
           </Reveal>
         </div>
       )}
@@ -379,7 +380,7 @@ export function LandingSection() {
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
               <div className="flex items-baseline justify-between">
                 <p className="text-base font-semibold">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{formatDuration(p.seconds)} de vidéo / jour</p>
+                <p className="text-xs text-muted-foreground">{p.label ?? `${formatDuration(p.seconds)} de vidéo / jour`}</p>
               </div>
               <ul className="mt-3 space-y-2">
                 {p.items.map((it) => (
