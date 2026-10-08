@@ -31,3 +31,9 @@ export function creditCostFor(
 export function isCreditProduct(productId: string | null | undefined): boolean {
   return !!productId && (productId.startsWith("pack_") || productId.startsWith("pass_"));
 }
+
+/**
+ * Fin de l'offre de lancement (heure de Paris).
+ * Modifie cette date pour changer le compteur affiché sur les abonnements.
+ */
+export const OFFER_END_ISO = "2026-10-15T23:59:59+02:00";
