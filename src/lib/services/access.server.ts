@@ -4,6 +4,19 @@ import { creditCostFor } from "@/lib/credits";
  * et limitation de l'offre gratuite à un seul compte par appareil.
  */
 import { toPlanType, type PlanType } from "@/lib/plans";
+import { getRequest } from "@tanstack/react-start/server";
+import { createHash } from "node:crypto";
+
+/** Adresse IP du client, hachée (lue côté serveur, non falsifiable depuis le navigateur). */
+function clientIpHash(): string | null {
+  try {
+    const raw = getRequest()?.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (!raw) return null;
+    return createHash("sha256").update(raw).digest("hex");
+  } catch {
+    return null;
+  }
+}
 
 export type AccessCode =
   | "ok"
@@ -108,74 +121,67 @@ export async function checkGenerationAccess(
 
   const base = { planType: plan, isSubscribed, remainingSeconds, limitSeconds };
 
-  // Crédits rechargés : utilisables par tous, prioritaires sur les limites gratuites
+  // Durée maximale d'une vidéo selon l'offre (secondes)
+  const planKey = plan as string;
+  const maxVideoSeconds =
+    planKey === "superhearly" || planKey === "superhearly_monthly" ? 15
+    : planKey === "super_grok_plus" ? 10
+    : 8;
+
   if (!isSubscribed) {
+    if (mediaType === "video") {
+      // Vidéo réservée à ceux qui ont déjà acheté quelque chose (recharge ou abonnement)
+      const { data: bought } = await supabaseAdmin
+        .from("credit_ledger")
+        .select("id")
+        .eq("user_id", userId)
+        .in("kind", ["recharge", "pass", "abonnement", "annuel_mensuel"])
+        .limit(1);
+      if (!bought || bought.length === 0) {
+        return {
+          ...base,
+          allowed: false,
+          code: "subscription_required",
+          message: "La génération vidéo est réservée aux abonnés. Rechargez votre compte ou abonnez-vous pour continuer.",
+        };
+      }
+      if (seconds > 8) {
+        return {
+          ...base,
+          allowed: false,
+          code: "subscription_required",
+          message: "Avec une recharge, les vidéos sont limitées à 8 secondes. Passez à un abonnement supérieur pour des vidéos plus longues.",
+        };
+      }
+    }
+    await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
       .select("credits_balance")
       .eq("id", userId)
       .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) >= creditCostFor(mediaType, seconds, "480p")) {
-      return { ...base, allowed: true, code: "ok", message: null };
-    }
-  }
-
-  if (!isSubscribed && (await deviceFreeAlreadyUsed(userId))) {
-    console.log("[ADMIN-CHECK] refus: device_free_used");
-    return { ...base, allowed: false, code: "device_free_used", message: DEVICE_MESSAGE };
-  }
-
-  // LIMITES À VIE POUR LES UTILISATEURS GRATUITS
-  if (!isSubscribed) {
-    const { count: imageCount } = await supabaseAdmin
-      .from("generations")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("media_type", "image")
-      .neq("status", "error");
-
-    const { count: videoCount } = await supabaseAdmin
-      .from("generations")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("media_type", "video")
-      .neq("status", "error");
-
-    if (mediaType === "image" && (imageCount ?? 0) >= 2) {
-      console.log("[ADMIN-CHECK] refus: limite 2 images");
+    if ((wallet?.credits_balance ?? 0) < creditCostFor(mediaType, seconds, "480p")) {
       return {
         ...base,
         allowed: false,
-        code: "subscription_required",
-        message: "Limite à vie de 2 images gratuites atteinte. Passez à une offre supérieure pour continuer.",
+        code: "insufficient_credits",
+        message: "Crédits insuffisants. Rechargez votre compte ou passez à un abonnement supérieur pour continuer.",
       };
     }
-
-    if (mediaType === "video") {
-      if ((videoCount ?? 0) >= 1) {
-        console.log("[ADMIN-CHECK] refus: limite 1 video gratuite");
-        return {
-          ...base,
-          allowed: false,
-          code: "subscription_required",
-          message: "Limite à vie d'une vidéo gratuite atteinte. Passez à une offre supérieure pour continuer.",
-        };
-      }
-      if (seconds > 8) {
-        console.log("[ADMIN-CHECK] refus: limite de 8 secondes max");
-        return {
-          ...base,
-          allowed: false,
-          code: "subscription_required",
-          message: "Les vidéos gratuites sont limitées à 8 secondes maximum. Passez à une offre supérieure pour des vidéos plus longues.",
-        };
-      }
-    }
-
     return { ...base, allowed: true, code: "ok", message: null };
   }
 
-  // Abonnés : contrôle du solde de crédits (remplace l'ancien quota en secondes)
+  // Abonnés : durée vidéo selon l'offre
+  if (mediaType === "video" && seconds > maxVideoSeconds) {
+    return {
+      ...base,
+      allowed: false,
+      code: "subscription_required",
+      message: `Votre offre permet des vidéos jusqu'à ${maxVideoSeconds} secondes. Passez à un abonnement supérieur pour aller plus loin.`,
+    };
+  }
+
+  // Abonnés : contrôle du solde de crédits
   {
     const cost = creditCostFor(mediaType, seconds, "480p");
     const { data: wallet } = await supabaseAdmin
