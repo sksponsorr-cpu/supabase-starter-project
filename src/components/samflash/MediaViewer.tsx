@@ -188,7 +188,7 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
               controls
               playsInline
               autoPlay
-              preload="auto"
+              preload="metadata"
               className="max-h-full w-full rounded-3xl border border-border object-contain shadow-2xl"
             >
               {vttUrl && (
