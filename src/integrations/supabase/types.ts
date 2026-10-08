@@ -738,6 +738,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_credits: {
+        Args: { p_amount: number; p_kind: string; p_ref?: string | null; p_user: string }
+        Returns: number
+      }
+      spend_credits: {
+        Args: { p_amount: number; p_ref?: string | null; p_user: string }
+        Returns: boolean
+      }
+      monthly_credits: {
+        Args: { p_product: string; p_yearly?: boolean }
+        Returns: number
+      }
       current_tier: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
