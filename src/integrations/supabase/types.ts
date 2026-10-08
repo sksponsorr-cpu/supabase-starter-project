@@ -524,6 +524,36 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_ledger: {
+        Row: {
+          balance_after: number
+          created_at: string
+          delta: number
+          id: string
+          kind: string
+          ref: string | null
+          user_id: string
+        }
+        Insert: {
+          balance_after: number
+          created_at?: string
+          delta: number
+          id?: string
+          kind: string
+          ref?: string | null
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          delta?: number
+          id?: string
+          kind?: string
+          ref?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           auto_renew: boolean
@@ -738,18 +768,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_credits: {
-        Args: { p_amount: number; p_kind: string; p_ref?: string | null; p_user: string }
-        Returns: number
-      }
-      spend_credits: {
-        Args: { p_amount: number; p_ref?: string | null; p_user: string }
-        Returns: boolean
-      }
-      monthly_credits: {
-        Args: { p_product: string; p_yearly?: boolean }
-        Returns: number
-      }
       current_tier: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
