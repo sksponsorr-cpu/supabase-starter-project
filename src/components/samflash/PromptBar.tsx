@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
@@ -488,6 +489,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     }
   };
 
+  const { profile: authProfile } = useAuth();
+  useEffect(() => {
+    if (!authProfile || userPlan !== "free") return;
+    if ((authProfile.credits_balance ?? 1) <= 0) {
+      setSent("Crédits insuffisants. Rechargez votre compte ou passez à un abonnement supérieur pour continuer.");
+    }
+  }, [authProfile?.credits_balance, userPlan]);
+
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
       {sent && (
@@ -680,12 +689,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           const isFree = userPlan === "free";
           const isPlus = userPlan === "super_grok_plus";
           const isHeavy = userPlan === "superhearly_monthly" || userPlan === "superhearly";
-          const activeDurations = isFree ? ["5s", "8s"] : ["5s", "8s", "10s"];
-          const upcomingDurations = isHeavy
-            ? ["15s", "20s", "30s"]
-            : isPlus
-            ? ["15s", "20s"]
-            : [];
+          const maxSec = isHeavy ? 15 : isPlus ? 10 : 8;
+          const activeDurations = ["5s", "8s", "10s", "15s"].filter((d) => parseInt(d, 10) <= maxSec);
+          const upcomingDurations = isHeavy ? [] : isPlus ? ["15s"] : [];
 
           return (
             <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
