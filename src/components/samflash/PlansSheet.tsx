@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
+import { useAuth } from "@/hooks/useAuth";
 
 type PlanId = "base" | "plus" | "heavy";
 
@@ -97,6 +98,9 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     prices: {},
   });
   const [activating, setActivating] = useState(false);
+  const [packId, setPackId] = useState<string | null>(null);
+  const { profile } = useAuth();
+  const packs = prices.filter((p) => p.tier === "credits");
   const fetchPrices = useServerFn(listPrices);
   const fetchPromo = useServerFn(getPromoSettings);
   const activatePromo = useServerFn(activatePromoOffer);
@@ -361,6 +365,38 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             : plan.footnote}
         </p>
         {notice && <p className="mt-2 text-center text-sm text-primary">{notice}</p>}
+
+        {/* Solde de crédits et recharges */}
+        <div className="mt-8 rounded-2xl border border-border bg-card/60 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Vos crédits</span>
+            <span className="text-lg font-semibold">{profile?.credits_balance ?? 0}</span>
+          </div>
+          {packs.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium">Recharger</p>
+              {packs.map((pack) => (
+                <button
+                  key={pack.id}
+                  type="button"
+                  onClick={() => setPackId(pack.id)}
+                  className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left"
+                >
+                  <span>{pack.label}</span>
+                  <span className="font-semibold">{pack.amount_eur.toFixed(2)} €</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {packId && (
+          <CheckoutSheet
+            productId={packId}
+            productLabel={prices.find((p) => p.id === packId)?.label ?? "Recharge"}
+            onClose={() => setPackId(null)}
+          />
+        )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Conditions d'utilisation · Politique de confidentialité · Restaurer les achats

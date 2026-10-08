@@ -34,7 +34,8 @@ function quotaMessage(
     | "video_seconds"
     | "device_free_used"
     | "subscription_required"
-    | "subscription_expired",
+    | "subscription_expired"
+    | "insufficient_credits",
   retryAt: string | null,
   remainingSeconds?: number,
 ) {
@@ -50,6 +51,9 @@ function quotaMessage(
   }
   if (code === "subscription_required" || code === "device_free_used") {
     return "Quota gratuit épuisé. Abonnez-vous pour continuer !";
+  }
+  if (code === "insufficient_credits") {
+    return "Crédits insuffisants. Rechargez votre compte pour continuer.";
   }
   if (code === "subscription_expired") {
     return "Votre abonnement a expiré. Renouvelez-le pour continuer !";
