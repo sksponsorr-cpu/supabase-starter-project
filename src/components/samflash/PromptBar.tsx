@@ -335,13 +335,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         const message =
           access.message ??
           quotaMessage(access.code as "subscription_required", null, access.remainingSeconds);
+        // Message du serveur conservé tel quel (vidéo réservée aux abonnés, durée max, etc.)
         setSent(freeTitle(access.code, message, userPlan === "free"));
         toast.error(message);
-        // Offre gratuite : le message reste affiché avec le bouton « Passer au forfait supérieur ».
-        if (userPlan !== "free") {
-          onQuotaExceeded?.();
-          setTimeout(() => setSent(null), 4000);
-        }
+        // Le message reste affiché avec un bouton vers les offres, pour tous les comptes.
         return;
       }
     } catch {
@@ -449,10 +446,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       } else if (result.reason === "quota") {
         playChime("error");
         setText(prompt);
-        const message = quotaMessage(result.code, result.retryAt, result.remainingSeconds);
+        const message = result.message ?? quotaMessage(result.code, result.retryAt, result.remainingSeconds);
         setSent(freeTitle(result.code, message, userPlan === "free"));
         toast.error(message);
-        if (userPlan !== "free") onQuotaExceeded?.();
+        // Le bouton « Voir les offres » est affiché dans le bandeau.
       } else {
         playChime("error");
         setText(prompt);
@@ -504,8 +501,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           message={sent}
           onClose={() => setSent(null)}
           action={
-            sent.startsWith("Crédits insuffisants")
-              ? { label: "Recharger votre compte", onClick: () => onQuotaExceeded?.() }
+            sent.startsWith("Crédits insuffisants") || sent.includes("réservée aux abonnés") || sent.includes("limitées à")
+              ? { label: "Voir les offres", onClick: () => onQuotaExceeded?.() }
               : userPlan === "free" && noticeKind(sent) === "warning"
                 ? { label: "Passer au forfait supérieur", onClick: () => onQuotaExceeded?.() }
                 : undefined
