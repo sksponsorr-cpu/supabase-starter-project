@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { LandingSection } from "@/components/samflash/LandingSection";
+import { PublicInfo } from "@/components/samflash/PublicInfo";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -328,6 +329,7 @@ function Login() {
         </p>
       </div>
       <LandingSection />
+      <PublicInfo />
       <footer className="px-5 pb-10 pt-4 text-center text-xs text-muted-foreground">
         <a href="/conditions" className="underline">Conditions</a>
         {" · "}
