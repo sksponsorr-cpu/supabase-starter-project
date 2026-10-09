@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Area,
@@ -46,6 +46,7 @@ import {
   getAdminAccess,
   getAdminStats,
   listRecentGenerations,
+  finalizeStuckGenerations,
   listAdminPrices,
   updateAdminPrice,
   listAdminOrders,
@@ -147,6 +148,7 @@ function AdminPage() {
   const fetchAccess = useServerFn(getAdminAccess);
   const fetchStats = useServerFn(getAdminStats);
   const fetchRecent = useServerFn(listRecentGenerations);
+  const sweepStuck = useServerFn(finalizeStuckGenerations);
   const fetchPrices = useServerFn(listAdminPrices);
   const savePrice = useServerFn(updateAdminPrice);
   const fetchOrders = useServerFn(listAdminOrders);
@@ -180,6 +182,9 @@ function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([]);
   const [items, setItems] = useState<AdminGeneration[]>([]);
+  const [openGen, setOpenGen] = useState<string | null>(null);
+  const [sweeping, setSweeping] = useState(false);
+  const didSweep = useRef(false);
   const [prices, setPrices] = useState<AdminPrice[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [subscriptions, setSubscriptions] = useState<AdminSubscription[]>([]);
@@ -578,8 +583,41 @@ function AdminPage() {
     }
   }, [selectedUserDetail, subReason, subPlan, addSubscriptionToUser, openUserModal, loadUserList, userListPage, userSearch, load]);
 
+  const runSweep = useCallback(
+    async (silent: boolean) => {
+      setSweeping(true);
+      try {
+        const r = await sweepStuck({});
+        if (r.ready || r.failed) {
+          toast.success(`${r.ready} création(s) terminée(s), ${r.failed} échec(s) remboursé(s).`);
+          await load();
+        } else if (!silent) {
+          toast.success(
+            r.waiting > 0
+              ? `${r.waiting} création(s) toujours en cours chez fal.`
+              : "Aucune création bloquée.",
+          );
+        }
+      } catch {
+        if (!silent) toast.error("Impossible de terminer les créations bloquées.");
+      } finally {
+        setSweeping(false);
+      }
+    },
+    [sweepStuck, load],
+  );
+
+  useEffect(() => {
+    if (isAdmin && !didSweep.current) {
+      didSweep.current = true;
+      void runSweep(true);
+    }
+  }, [isAdmin, runSweep]);
+
   const cards = stats
     ? [
+        { label: "En ligne (5 min)", value: String(stats.onlineNow), icon: User, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+        { label: "Actifs (24 h)", value: String(stats.active24h), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-500/10" },
         { label: "Utilisateurs", value: String(stats.users), icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
         { label: "Générations", value: String(stats.generations), icon: Images, color: "text-purple-500", bg: "bg-purple-500/10" },
         { label: "Aujourd'hui", value: String(stats.generationsToday), icon: Clock, color: "text-teal-500", bg: "bg-teal-500/10" },
@@ -1864,6 +1902,14 @@ function AdminPage() {
               <section className="pt-5">
                 <div className="flex items-center gap-2">
                   <h2 className="text-[22px] font-semibold tracking-tight">Créations récentes</h2>
+                  <button
+                    type="button"
+                    disabled={sweeping}
+                    onClick={() => void runSweep(false)}
+                    className="rounded-full bg-secondary px-3 py-2 text-[11px] font-medium disabled:opacity-50"
+                  >
+                    {sweeping ? "Vérification…" : "Terminer les bloquées"}
+                  </button>
                   <Link
                     to="/galerie"
                     className="ml-auto rounded-full bg-secondary px-4 py-2 text-xs font-medium"
@@ -1877,22 +1923,59 @@ function AdminPage() {
                       key={g.id}
                       className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] uppercase">
-                          {g.media_type}
-                        </span>
-                        <span
-                          className={`text-[11px] ${g.status === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                      <button
+                        type="button"
+                        onClick={() => setOpenGen(openGen === g.id ? null : g.id)}
+                        className="block w-full text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] uppercase">
+                            {g.media_type}
+                          </span>
+                          <span
+                            className={`text-[11px] ${g.status === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                          >
+                            {g.status}
+                          </span>
+                          <span className="ml-auto text-[11px] text-muted-foreground">
+                            {new Date(g.created_at).toLocaleString("fr-FR")}
+                          </span>
+                        </div>
+                        <p
+                          className={`mt-1 ${openGen === g.id ? "whitespace-pre-wrap break-words" : "line-clamp-2"}`}
                         >
-                          {g.status}
-                        </span>
-                        <span className="ml-auto text-[11px] text-muted-foreground">
-                          {new Date(g.created_at).toLocaleString("fr-FR")}
-                        </span>
-                      </div>
-                      <p className="mt-1 line-clamp-2">{g.prompt}</p>
-                      {g.error_message && (
-                        <p className="mt-1 text-[11px] text-destructive">{g.error_message}</p>
+                          {g.prompt}
+                        </p>
+                        {g.error_message?.startsWith("fal:") ? (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            En cours de traitement chez fal…
+                          </p>
+                        ) : (
+                          g.error_message && (
+                            <p className="mt-1 text-[11px] text-destructive">{g.error_message}</p>
+                          )
+                        )}
+                      </button>
+                      {openGen === g.id && (
+                        <div className="mt-3 space-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                          <p>Utilisateur : {g.user_email ?? "—"}</p>
+                          <p>
+                            Réglages :{" "}
+                            {[g.resolution, g.duration, g.aspect_ratio].filter(Boolean).join(" · ") || "—"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void navigator.clipboard
+                                .writeText(g.prompt)
+                                .then(() => toast.success("Prompt copié"))
+                                .catch(() => toast.error("Copie impossible."))
+                            }
+                            className="mt-1 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-medium text-foreground"
+                          >
+                            Copier le prompt
+                          </button>
+                        </div>
                       )}
                     </li>
                   ))}

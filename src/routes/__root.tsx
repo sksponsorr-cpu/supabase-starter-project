@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { PresencePing } from "@/components/samflash/PresencePing";
 import { Compass, Home, RefreshCw, TriangleAlert } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -162,6 +163,7 @@ function RootComponent() {
             <Outlet />
           </MaintenanceGate>
           <ReferralCapture />
+          <PresencePing />
           <Toaster position="top-center" richColors closeButton />
         </I18nProvider>
       </ThemeProvider>
