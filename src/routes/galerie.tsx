@@ -53,7 +53,12 @@ function GalleryPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setItems((await fetchGallery({})) as CommunityItem[]);
+      const fresh = (await fetchGallery({})) as CommunityItem[];
+      // On garde l'adresse déjà chargée : la vidéo ne repart pas de zéro à chaque rafraîchissement.
+      setItems((prev) => {
+        const old = new Map(prev.map((p) => [p.id, p.media_url]));
+        return fresh.map((it) => ({ ...it, media_url: old.get(it.id) ?? it.media_url }));
+      });
       if (session) {
         const access = await fetchAccess({});
         const allowed = access.isAdmin || access.isModerator;
@@ -136,7 +141,6 @@ function GalleryPage() {
                     type="button"
                     aria-label="Ouvrir la création"
                     onPointerEnter={() => warmVideo(g.media_url)}
-                    onTouchStart={() => warmVideo(g.media_url)}
                     onClick={() => setViewer(g)}
                     className="block h-full w-full text-left"
                   >

@@ -81,7 +81,6 @@ function HistoryPage() {
                     type="button"
                     aria-label={t("openMedia")}
                     onPointerEnter={() => warmVideo(g.media_url)}
-                    onTouchStart={() => warmVideo(g.media_url)}
                     onClick={() => setViewer(g)}
                     className="block h-full w-full text-left"
                   >
