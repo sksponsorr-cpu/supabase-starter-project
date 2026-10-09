@@ -58,7 +58,7 @@ export const TERMS: LegalDoc = {
       h: "8. Droit applicable et contact",
       p: [
         "Les présentes CGU sont soumises au droit applicable au lieu d'établissement de l'éditeur. En cas de litige, une solution amiable sera recherchée en priorité.",
-        "Contact : support@samflash.app",
+        "Contact : Supportgrok@sam-flash.lat",
       ],
     },
   ],
@@ -71,7 +71,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "1. Responsable du traitement",
       p: [
-        "L'éditeur de « Sam flash 2.0 » est responsable du traitement des données personnelles collectées via l'application. Contact : privacy@samflash.app",
+        "L'éditeur de « Sam flash 2.0 » est responsable du traitement des données personnelles collectées via l'application. Contact : Supportgrok@sam-flash.lat",
       ],
     },
     {
@@ -116,7 +116,7 @@ export const PRIVACY: LegalDoc = {
       h: "7. Vos droits",
       p: [
         "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation, d'opposition et de portabilité, ainsi que du droit de retirer votre consentement à tout moment.",
-        "Ces droits s'exercent depuis les paramètres de l'application ou en écrivant à privacy@samflash.app. Vous pouvez également introduire une réclamation auprès de l'autorité de protection des données compétente.",
+        "Ces droits s'exercent depuis les paramètres de l'application ou en écrivant à Supportgrok@sam-flash.lat. Vous pouvez également introduire une réclamation auprès de l'autorité de protection des données compétente.",
       ],
     },
     {
