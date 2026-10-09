@@ -196,76 +196,8 @@ export const checkGenerationStatus = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Pas de tâche asynchrone associée" };
     }
 
-    try {
-      const payload = JSON.parse(row.error_message.slice(4));
-      const { checkModelStatus } = await import("@/lib/services/fal.server");
-      const statusRes = await checkModelStatus(payload.status_url, payload.response_url, row.media_type as "image" | "video");
-
-      if (statusRes.status === "pending") {
-        return { ok: true as const, status: "pending" };
-      }
-
-      if (statusRes.status === "error") {
-        console.error("[GENERATION-ERROR] checkGenerationStatus model error:", statusRes.error);
-        // Remboursement
-        const { secondsFor } = await import("@/lib/services/generation.server");
-        const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "5s" } as any);
-        if (row.media_type === "video") {
-          await supabaseAdmin.rpc("refund_video_seconds", { _user_id: context.userId, _seconds: seconds });
-        } else {
-          await supabaseAdmin.rpc("refund_media_quota", { _user_id: context.userId, _media_type: row.media_type });
-        }
-
-        const { sanitizeGenerationError } = await import("@/lib/services/fal.server");
-        const sanitized = sanitizeGenerationError(statusRes.error);
-
-        await supabaseAdmin
-          .from("generations")
-          .update({ status: "error", error_message: sanitized })
-          .eq("id", data.id);
-        
-        return { ok: true as const, status: "error", error: sanitized };
-      }
-
-      // Succès
-      let mediaUrl = statusRes.mediaUrl;
-      let storagePath: string | null = null;
-      const ext = statusRes.contentType.includes("video") ? "mp4" : "jpg";
-      const r2 = await import("@/lib/services/r2.server");
-      if (statusRes.bytes && r2.isR2Configured()) {
-        // URL publique stable (CDN Cloudflare, cache navigateur) au lieu d'une URL signée qui change à chaque chargement.
-        mediaUrl = await r2.uploadToR2(`${context.userId}/${crypto.randomUUID()}.${ext}`, statusRes.bytes, statusRes.contentType);
-      } else if (statusRes.bytes) {
-        const path = `${context.userId}/${crypto.randomUUID()}.${ext}`;
-        await supabaseAdmin.storage.from("generations").upload(path, statusRes.bytes, { contentType: statusRes.contentType });
-        const { data: signed } = await supabaseAdmin.storage.from("generations").createSignedUrl(path, 60 * 60 * 6);
-        storagePath = path;
-        mediaUrl = signed?.signedUrl ?? mediaUrl;
-      }
-
-      await supabaseAdmin
-        .from("generations")
-        .update({ status: "ready", media_url: mediaUrl, storage_path: storagePath, error_message: null })
-        .eq("id", data.id);
-
-      await supabaseAdmin.from("community_gallery").insert({
-        generation_id: data.id,
-        user_id: context.userId,
-        prompt: row.prompt,
-        media_type: row.media_type,
-        media_url: mediaUrl,
-        storage_path: storagePath,
-        status: "en_attente",
-      });
-
-      return { ok: true as const, status: "ready", mediaUrl };
-    } catch (e) {
-      console.error("[GENERATION-ERROR] checkGenerationStatus exception:", e);
-      return {
-        ok: false as const,
-        error: "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.",
-      };
-    }
+    const { finalizePendingRow } = await import("@/lib/services/generation.server");
+    return await finalizePendingRow(row as never, context.userId);
   });
 export const cancelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

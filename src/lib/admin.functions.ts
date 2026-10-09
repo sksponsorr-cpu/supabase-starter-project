@@ -10,6 +10,8 @@ export type AdminStats = {
   pendingModeration: number;
   activeSubscriptions: number;
   secondsToday: number;
+  onlineNow: number;
+  active24h: number;
 };
 
 export type AdminGeneration = {
@@ -21,6 +23,10 @@ export type AdminGeneration = {
   error_message: string | null;
   duration_seconds: number;
   created_at: string;
+  resolution?: string | null;
+  duration?: string | null;
+  aspect_ratio?: string | null;
+  user_email?: string | null;
 };
 
 /** Vérifie le rôle admin via le client authentifié (RLS), jamais via le service role. */
@@ -89,7 +95,9 @@ export const getAdminStats = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const today = new Date().toISOString().slice(0, 10);
 
-    const [profiles, generations, todayGen, errors, pending, subs, usage] = await Promise.all([
+    const since5 = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const [profiles, generations, todayGen, errors, pending, subs, usage, online, active24] = await Promise.all([
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("generations").select("id", { count: "exact", head: true }),
       supabaseAdmin
@@ -109,6 +117,15 @@ export const getAdminStats = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("status", "active"),
       supabaseAdmin.from("daily_usage").select("seconds_used").eq("usage_date", today),
+      // Colonne last_seen_at ajoutée par la migration « présence » ; 0 tant qu'elle n'existe pas.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabaseAdmin.from("profiles") as any)
+        .select("id", { count: "exact", head: true })
+        .gte("last_seen_at", since5),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabaseAdmin.from("profiles") as any)
+        .select("id", { count: "exact", head: true })
+        .gte("last_seen_at", since24),
     ]);
 
     const stats: AdminStats = {
@@ -119,6 +136,8 @@ export const getAdminStats = createServerFn({ method: "GET" })
       pendingModeration: pending.count ?? 0,
       activeSubscriptions: subs.count ?? 0,
       secondsToday: (usage.data ?? []).reduce((sum, r) => sum + (r.seconds_used ?? 0), 0),
+      onlineNow: (online as { count: number | null }).count ?? 0,
+      active24h: (active24 as { count: number | null }).count ?? 0,
     };
     return stats;
   });
@@ -131,11 +150,52 @@ export const listRecentGenerations = createServerFn({ method: "GET" })
     const { data } = await supabaseAdmin
       .from("generations")
       .select(
-        "id, prompt, media_type, status, media_url, error_message, duration_seconds, created_at",
+        "id, user_id, prompt, media_type, resolution, duration, aspect_ratio, status, media_url, error_message, duration_seconds, created_at",
       )
       .order("created_at", { ascending: false })
       .limit(40);
-    return (data ?? []) as AdminGeneration[];
+    const rows = data ?? [];
+    const ids = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
+    const emails = new Map<string, string | null>();
+    if (ids.length > 0) {
+      const { data: profs } = await supabaseAdmin.from("profiles").select("id, email").in("id", ids);
+      for (const p of profs ?? []) emails.set(p.id, p.email);
+    }
+    return rows.map(({ user_id, ...g }) => ({
+      ...g,
+      user_email: emails.get(user_id) ?? null,
+    })) as AdminGeneration[];
+  });
+
+/**
+ * Termine les créations restées « en attente » (l'utilisateur a quitté la page avant la fin) :
+ * récupère le média chez fal et le range, ou rembourse en cas d'échec.
+ */
+export const finalizeStuckGenerations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { finalizePendingRow } = await import("@/lib/services/generation.server");
+    const before = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: rows } = await supabaseAdmin
+      .from("generations")
+      .select("*")
+      .eq("status", "pending")
+      .like("error_message", "fal:%")
+      .lt("created_at", before)
+      .order("created_at", { ascending: false })
+      .limit(15);
+    let ready = 0;
+    let failed = 0;
+    let waiting = 0;
+    for (const row of rows ?? []) {
+      const r = await finalizePendingRow(row as never, row.user_id);
+      if (r.ok && r.status === "ready") ready += 1;
+      else if (r.ok && r.status === "error") failed += 1;
+      else waiting += 1;
+    }
+    return { checked: rows?.length ?? 0, ready, failed, waiting };
   });
 
 
