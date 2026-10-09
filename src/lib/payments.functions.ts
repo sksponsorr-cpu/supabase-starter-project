@@ -91,15 +91,102 @@ export const listPaymentMethods = createServerFn({ method: "POST" })
     return { ok: true as const, methods };
   });
 
-/** Devis : conversion du prix EUR vers la devise locale du pays choisi. */
+/** Bornes du curseur de crédits (abonnements uniquement). */
+export const CREDIT_MIN = 50;
+export const CREDIT_MAX = 5000;
+
+type OfferRow = {
+  id: string;
+  label: string;
+  tier: string;
+  amount_eur: number;
+  amount_eur_yearly: number | null;
+  credits_rate: number | null;
+  credits_bonus: number | null;
+  credits_fixed: number | null;
+};
+
+/** Crédits inclus par mois dans l'offre (même calcul que la fonction SQL monthly_credits). */
+function baseMonthlyCredits(p: OfferRow, yearly: boolean): number {
+  if (p.credits_fixed !== null && p.credits_fixed !== undefined) return Math.round(Number(p.credits_fixed));
+  const base = yearly ? Number(p.amount_eur_yearly ?? p.amount_eur) / 12 : Number(p.amount_eur);
+  return Math.round(base * Number(p.credits_rate ?? 0)) + Math.round(Number(p.credits_bonus ?? 0));
+}
+
+/**
+ * Prix selon le nombre de crédits choisi.
+ * Prix unitaire = prix mensuel de l'offre ÷ crédits inclus. Le total = unitaire × crédits choisis.
+ * Annuel : le total couvre 12 mois.
+ */
+function priceForCredits(p: OfferRow, period: "monthly" | "yearly", requested?: number | null) {
+  const yearly = period === "yearly" && p.amount_eur_yearly !== null;
+  const baseCredits = baseMonthlyCredits(p, yearly);
+  if (!baseCredits || baseCredits <= 0) return null;
+  const basePerMonth = yearly ? Number(p.amount_eur_yearly) / 12 : Number(p.amount_eur);
+  const unit = basePerMonth / baseCredits;
+  const monthlyCredits = requested ?? baseCredits;
+  const amountEur = Math.round(unit * monthlyCredits * (yearly ? 12 : 1) * 100) / 100;
+  return { amountEur, monthlyCredits, baseCredits, yearly, unitEur: Math.round(unit * 10000) / 10000 };
+}
+
+/** Vérifie un code promo (montant fixe) pour cet utilisateur. */
+async function applyPromo(code: string | null | undefined, userId: string, amountEur: number) {
+  if (!code || !code.trim()) return { ok: true as const, code: null, discountEur: 0, finalEur: amountEur };
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const normalized = code.trim().toUpperCase();
+  const { data: promo } = await supabaseAdmin
+    .from("promo_codes")
+    .select("code, discount_eur, starts_at, ends_at, max_uses, used_count, active")
+    .eq("code", normalized)
+    .maybeSingle();
+  if (!promo || !promo.active) return { ok: false as const, message: "Code promo invalide." };
+  const now = Date.now();
+  if (now < new Date(promo.starts_at).getTime() || now > new Date(promo.ends_at).getTime()) {
+    return { ok: false as const, message: "Ce code promo n'est plus valable." };
+  }
+  if (promo.max_uses !== null && promo.used_count >= promo.max_uses) {
+    return { ok: false as const, message: "Ce code promo a atteint sa limite d'utilisation." };
+  }
+  const { data: used } = await supabaseAdmin
+    .from("promo_redemptions")
+    .select("id")
+    .eq("code", normalized)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (used) return { ok: false as const, message: "Vous avez déjà utilisé ce code." };
+
+  const discountEur = Math.min(Number(promo.discount_eur), amountEur);
+  const finalEur = Math.round((amountEur - discountEur) * 100) / 100;
+  if (finalEur < 0.5) return { ok: false as const, message: "Ce code ne peut pas réduire le montant à zéro." };
+  return { ok: true as const, code: normalized, discountEur, finalEur };
+}
+
+/** Enregistre l'utilisation d'un code promo après création de la commande. */
+async function recordPromo(code: string | null, userId: string, orderId: string | null) {
+  if (!code) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: promo } = await supabaseAdmin
+    .from("promo_codes")
+    .select("used_count")
+    .eq("code", code)
+    .maybeSingle();
+  await supabaseAdmin.from("promo_redemptions").insert({ code, user_id: userId, order_id: orderId });
+  if (promo) {
+    await supabaseAdmin.from("promo_codes").update({ used_count: promo.used_count + 1 }).eq("code", code);
+  }
+}
+
+/** Devis : prix selon les crédits choisis, code promo, puis conversion en devise locale. */
 export const quotePrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string; countryCode: string; period?: string }) =>
+  .inputValidator((input: unknown) =>
     z
       .object({
         productId: z.string().min(1),
         countryCode: z.string().length(2),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -109,22 +196,22 @@ export const quotePrice = createServerFn({ method: "POST" })
 
     const { data: price } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, credits_rate, credits_bonus, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
+    if (!price || price.tier === "credits") return { ok: false as const, message: "Offre introuvable." };
 
-    const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+    const priced = priceForCredits(price as OfferRow, data.period, data.credits);
+    if (!priced) return { ok: false as const, message: "Offre non configurée." };
+
+    const promo = await applyPromo(data.promoCode, context.userId, priced.amountEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
 
     const { convertFromEur } = await import("@/lib/services/fx.server");
-    const conv = await convertFromEur(amountEur, country.currency, country.zeroDecimal);
+    const conv = await convertFromEur(promo.finalEur, country.currency, country.zeroDecimal);
     if (!conv.ok) return { ok: false as const, message: conv.message };
 
-    // Frais SwyChr ajoutés pour que le total affiché corresponde au prélèvement réel.
     const { addPaymentFees } = await import("@/lib/payments/fees");
     const fees = addPaymentFees(conv.amount, country.zeroDecimal);
 
@@ -132,7 +219,11 @@ export const quotePrice = createServerFn({ method: "POST" })
       ok: true as const,
       label: price.label,
       period: data.period,
-      amountEur,
+      credits: priced.monthlyCredits,
+      unitEur: priced.unitEur,
+      promoCode: promo.code,
+      discountEur: promo.discountEur,
+      amountEur: promo.finalEur,
       amountLocal: fees.total,
       baseAmountLocal: fees.base,
       feeLocal: fees.fee,
@@ -153,6 +244,8 @@ export const startPayment = createServerFn({ method: "POST" })
         mobile: z.string().min(6).max(20),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -166,16 +259,17 @@ export const startPayment = createServerFn({ method: "POST" })
 
     const { data: price } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, credits_rate, credits_bonus, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
+    if (!price || price.tier === "credits") return { ok: false as const, message: "Offre introuvable." };
 
-    const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+    const priced = priceForCredits(price as OfferRow, data.period, data.credits);
+    if (!priced) return { ok: false as const, message: "Offre non configurée." };
+    const promo = await applyPromo(data.promoCode, context.userId, priced.amountEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
+    const amountEur = promo.finalEur;
 
     const { local: mobileLocal, international: mobile } = normalizeMobile(data.mobile, country);
     if (mobileLocal.length < 8) return { ok: false as const, message: "Numéro de téléphone invalide." };
@@ -226,6 +320,7 @@ export const startPayment = createServerFn({ method: "POST" })
       tier: price.tier,
       status: "en_attente",
       period: data.period,
+      credits: priced.monthlyCredits,
       amount_eur: amountEur,
       amount_local: totalLocal,
       currency: country.currency,
@@ -237,6 +332,7 @@ export const startPayment = createServerFn({ method: "POST" })
       customer_email: email,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
+    await recordPromo(promo.code, context.userId, transactionId);
 
     // URL de callback transmise au prestataire : le jeton HMAC authentifie l'appel.
     const { callbackToken } = await import("@/lib/payments/token.server");
@@ -302,6 +398,8 @@ export const startCardPayment = createServerFn({ method: "POST" })
         productId: z.string().min(1).max(40),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -311,16 +409,17 @@ export const startCardPayment = createServerFn({ method: "POST" })
 
     const { data: price } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, credits_rate, credits_bonus, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
+    if (!price || price.tier === "credits") return { ok: false as const, message: "Offre introuvable." };
 
-    const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+    const priced = priceForCredits(price as OfferRow, data.period, data.credits);
+    if (!priced) return { ok: false as const, message: "Offre non configurée." };
+    const promo = await applyPromo(data.promoCode, context.userId, priced.amountEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
+    const amountEur = promo.finalEur;
 
     const { planTypeFor } = await import("@/lib/plans");
     const planType = planTypeFor(price.id, data.period);
@@ -335,6 +434,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
       tier: price.tier,
       status: "en_attente",
       period: data.period,
+      credits: priced.monthlyCredits,
       provider: "chariow",
       amount_eur: amountEur,
       amount_local: amountEur,
@@ -347,6 +447,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
       customer_email: email,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
+    await recordPromo(promo.code, context.userId, transactionId);
 
     const publicOrigin = await resolvePublicOrigin();
     const { createCardCheckout } = await import("@/lib/services/chariow.server");
