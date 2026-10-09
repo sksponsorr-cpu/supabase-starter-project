@@ -26,7 +26,7 @@ export async function applyOrderOutcome(
 
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("id, user_id, tier, status, period, product_id, amount_eur, customer_email, customer_name")
+    .select("id, user_id, tier, status, period, product_id, amount_eur, credits, customer_email, customer_name")
     .eq("transaction_id", transactionId)
     .maybeSingle();
 
@@ -45,7 +45,7 @@ export async function applyOrderOutcome(
     })
     .eq("id", order.id)
     .eq("status", "en_attente")
-    .select("id, user_id, tier, status, period, product_id, amount_eur, customer_email, customer_name")
+    .select("id, user_id, tier, status, period, product_id, amount_eur, credits, customer_email, customer_name")
     .maybeSingle();
 
   if (updateError || !updatedOrder) {
@@ -88,11 +88,17 @@ export async function applyOrderOutcome(
     // Crédits de l'abonnement : mois courant (ou premier mois pour l'annuel)
     {
       const yearly = planType === "super_grok_annuel";
-      const { data: monthAmount } = await supabaseAdmin.rpc("monthly_credits", {
-        p_product: updatedOrder.product_id,
-        p_yearly: yearly,
-      });
-      if (monthAmount && monthAmount > 0) {
+      // Crédits choisis au moment de la commande ; sinon calcul de l'offre (comportement d'origine).
+      const orderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
+      let monthAmount = orderCredits > 0 ? orderCredits : 0;
+      if (monthAmount === 0) {
+        const { data: fallbackAmount } = await supabaseAdmin.rpc("monthly_credits", {
+          p_product: updatedOrder.product_id,
+          p_yearly: yearly,
+        });
+        monthAmount = Number(fallbackAmount ?? 0);
+      }
+      if (monthAmount > 0) {
         await supabaseAdmin.rpc("add_credits", {
           p_user: updatedOrder.user_id,
           p_amount: monthAmount,
@@ -136,11 +142,16 @@ export async function applyOrderOutcome(
 
   // Recharges et pass : crédits ajoutés directement, sans abonnement
   if (outcome === "payee" && updatedOrder.user_id && isCreditProduct(updatedOrder.product_id)) {
-    const { data: packAmount } = await supabaseAdmin.rpc("monthly_credits", {
-      p_product: updatedOrder.product_id,
-      p_yearly: false,
-    });
-    if (packAmount && packAmount > 0) {
+    const packOrderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
+    let packAmount = packOrderCredits > 0 ? packOrderCredits : 0;
+    if (packAmount === 0) {
+      const { data: fallbackPack } = await supabaseAdmin.rpc("monthly_credits", {
+        p_product: updatedOrder.product_id,
+        p_yearly: false,
+      });
+      packAmount = Number(fallbackPack ?? 0);
+    }
+    if (packAmount > 0) {
       await supabaseAdmin.rpc("add_credits", {
         p_user: updatedOrder.user_id,
         p_amount: packAmount,
