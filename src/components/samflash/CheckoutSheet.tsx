@@ -30,11 +30,17 @@ export function CheckoutSheet({
   productId,
   productLabel,
   period = "monthly",
+  credits,
+  promoCode,
+  countryCode,
   onClose,
 }: {
   productId: string;
   productLabel: string;
   period?: "monthly" | "yearly";
+  credits?: number;
+  countryCode?: string;
+  promoCode?: string | null;
   onClose: () => void;
 }) {
   const { user, profile } = useAuth();
@@ -48,7 +54,7 @@ export function CheckoutSheet({
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
-  const [country, setCountry] = useState<string>("");
+  const [country, setCountry] = useState<string>(countryCode ?? "");
   const [methods, setMethods] = useState<Method[]>([]);
   const [method, setMethod] = useState<Method | null>(null);
   const [mobile, setMobile] = useState("");
@@ -83,7 +89,7 @@ export function CheckoutSheet({
       try {
         const [m, q] = await Promise.all([
           fetchMethods({ data: { countryCode: code } }),
-          fetchQuote({ data: { productId, countryCode: code, period } }),
+          fetchQuote({ data: { productId, countryCode: code, period, credits, promoCode: promoCode ?? undefined } }),
         ]);
         if (m.ok) setMethods(m.methods);
         else setError(m.message);
@@ -102,7 +108,7 @@ export function CheckoutSheet({
         setBusy(false);
       }
     },
-    [fetchMethods, fetchQuote, productId, period],
+    [fetchMethods, fetchQuote, productId, period, credits, promoCode],
   );
 
   /** Préfixes réels attendus pour l'opérateur choisi (ex. Airtel RDC : 99/97). */
@@ -133,6 +139,8 @@ export function CheckoutSheet({
           mobile: mobile.replace(/\D/g, ""),
           fullName: fullName.trim(),
           period,
+          credits,
+          promoCode: promoCode ?? undefined,
         },
       });
       if (!res.ok) {
@@ -150,7 +158,7 @@ export function CheckoutSheet({
     } finally {
       setBusy(false);
     }
-  }, [method, selectedCountry, pay, productId, mobile, fullName]);
+  }, [method, selectedCountry, pay, productId, mobile, fullName, credits, promoCode]);
 
 
   useEffect(() => {
@@ -371,15 +379,6 @@ export function CheckoutSheet({
                 <p className="text-2xl font-semibold">
                   {formatLocalAmount(quote.amountLocal, quote.currency)}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  soit {quote.amountEur.toFixed(2)} € — {selectedCountry?.name}
-                </p>
-                {quote.feeLocal != null && quote.feeLocal > 0 && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    dont {formatLocalAmount(quote.feeLocal, quote.currency)} de frais de paiement
-                    inclus — aucun supplément sur la page de paiement
-                  </p>
-                )}
               </div>
             )}
             <p className="mb-3 text-sm text-muted-foreground">Choisissez un moyen de paiement</p>

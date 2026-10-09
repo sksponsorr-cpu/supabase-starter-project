@@ -1,24 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { listPrices, type PriceRow } from "@/lib/payments.functions";
+import { listCountries, listPrices, quotePrice, CREDIT_MIN, CREDIT_MAX, type PriceRow } from "@/lib/payments.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { activatePromoOffer, getPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
 import { toast } from "@/lib/toast";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
-import {
-  X,
-  Zap,
-  Sparkles,
-  Rocket,
-  FolderPlus,
-  MonitorPlay,
-  Brain,
-  Infinity as InfinityIcon,
-  Check,
-} from "lucide-react";
+import { formatLocalAmount } from "@/lib/payments/countries";
+import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor, OFFER_END_ISO } from "@/lib/credits";
+import { detectCountry } from "@/lib/country.functions";
 
 type PlanId = "base" | "plus" | "heavy";
 
@@ -28,9 +20,6 @@ type Plan = {
   badge?: string;
   tagline: React.ReactNode;
   features: { icon: React.ElementType; title: string; sub?: string }[];
-  monthly: string;
-  monthlyNote?: string;
-  yearly?: { price: string; perMonth: string };
   cta: string;
   footnote: string;
 };
@@ -41,16 +30,10 @@ const PLANS: Plan[] = [
     label: "Super grok",
     tagline: <>Créez sans limite avec Super grok</>,
     features: [
-      {
-        icon: Sparkles,
-        title: "Créez des images et des vidéos IA époustouflantes",
-        sub: "Avec des vidéos HD 720p de 6 secondes",
-      },
+      { icon: Sparkles, title: "Créez des images et des vidéos IA époustouflantes", sub: "Avec des vidéos HD 720p de 6 secondes" },
       { icon: FolderPlus, title: "Importez plus de fichiers pour des réponses plus pertinentes" },
       { icon: Zap, title: "Des réponses fulgurantes" },
     ],
-    monthly: "35 € /mois",
-    yearly: { price: "349 € /an", perMonth: "29,08 € /mois" },
     cta: "Passer à Super grok",
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
@@ -64,7 +47,6 @@ const PLANS: Plan[] = [
       { icon: Rocket, title: "Générations prioritaires" },
       { icon: InfinityIcon, title: "Crédits mensuels étendus" },
     ],
-    monthly: "79 € /mois",
     cta: "Passer à Super grok plus",
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
@@ -80,12 +62,23 @@ const PLANS: Plan[] = [
       { icon: Brain, title: "Résolution des problèmes les plus complexes" },
       { icon: Sparkles, title: "Accès anticipé aux nouveaux modèles" },
     ],
-    monthly: "349 € /mois",
     cta: "Passer à Super grok heavy",
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
 ];
 
+/** Crédits inclus par mois (même calcul que le serveur). */
+function includedCredits(p: PriceRow, yearly: boolean): number {
+  if (p.credits_fixed !== null) return Math.round(p.credits_fixed);
+  const base = yearly && p.amount_eur_yearly !== null ? p.amount_eur_yearly / 12 : p.amount_eur;
+  return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
+}
+
+/** Pays choisi manuellement par l'utilisateur (prioritaire sur la détection). */
+function manualCountry(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("sf_country_manual");
+}
 
 function OfferCountdown() {
   const [now, setNow] = useState(() => Date.now());
@@ -99,7 +92,6 @@ function OfferCountdown() {
     return (
       <div className="rounded-2xl border border-border bg-card/60 p-3 text-center">
         <p className="text-sm font-medium">L'offre de lancement est terminée.</p>
-        <p className="mt-1 text-xs text-muted-foreground">Les prix vont augmenter.</p>
       </div>
     );
   }
@@ -108,14 +100,12 @@ function OfferCountdown() {
   const hours = Math.floor(diff / 3_600_000) % 24;
   const minutes = Math.floor(diff / 60_000) % 60;
   const seconds = Math.floor(diff / 1000) % 60;
-
   return (
     <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3 text-center">
       <p className="text-xs text-muted-foreground">Offre de lancement : fin dans</p>
       <p className="mt-1 font-mono text-lg font-semibold">
         {days}j {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">Ensuite, les prix vont augmenter.</p>
     </div>
   );
 }
@@ -123,41 +113,46 @@ function OfferCountdown() {
 export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState<PlanId>("base");
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
-  const [notice] = useState<string | null>(null);
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [pricesLoaded, setPricesLoaded] = useState(false);
+  const [countries, setCountries] = useState<{ code: string; name: string; currency: string }[]>([]);
+  const [countryCode, setCountryCode] = useState<string>(manualCountry() ?? "CD");
+  const [detected, setDetected] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoApplied, setPromoApplied] = useState<string | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [quote, setQuote] = useState<{
+    amountLocal: number;
+    currency: string;
+    discountEur: number;
+    credits: number;
+  } | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [promo, setPromo] = useState<{ enabled: boolean; prices: Record<string, number | null> }>({
     enabled: false,
     prices: {},
   });
-  const [activating, setActivating] = useState(false);
-  const [packId, setPackId] = useState<string | null>(null);
-  const { profile, user } = useAuth();
-  const [isSubscriber, setIsSubscriber] = useState(false);
+  const { profile } = useAuth();
 
-  // Crédits affichés uniquement aux abonnés
-  useEffect(() => {
-    if (!user) return;
-    void supabase
-      .from("subscriptions")
-      .select("is_active, ends_at")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setIsSubscriber(Boolean(data?.is_active) && (!data?.ends_at || new Date(data.ends_at) > new Date()));
-      });
-  }, [user]);
-  const packs = prices.filter((p) => p.tier === "credits");
   const fetchPrices = useServerFn(listPrices);
+  const fetchCountries = useServerFn(listCountries);
+  const fetchQuote = useServerFn(quotePrice);
   const fetchPromo = useServerFn(getPromoSettings);
+  const fetchDetected = useServerFn(detectCountry);
   const activatePromo = useServerFn(activatePromoOffer);
-  const plan = PLANS.find((p) => p.id === active)!;
-  const price = prices.find((p) => p.id === active);
 
-  useEffect(() => {
-    setPeriod("monthly");
-  }, [active]);
+  const plan = PLANS.find((p) => p.id === active)!;
+  // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
+  const price = prices.find((p) => p.id === active && p.tier !== "credits");
+  const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
+  const yearly = period === "yearly" && yearlyAvailable;
+  const baseCredits = price ? includedCredits(price, yearly) : 0;
+  const minCredits = CREDIT_MIN;
+  const maxCredits = CREDIT_MAX;
+  const sliderValue = credits ?? baseCredits;
 
   useEffect(() => {
     let cancelled = false;
@@ -171,34 +166,112 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         .catch(() => {
           if (!cancelled) setPricesLoaded(true);
         });
-
     void refresh();
-
-    // Tout changement de tarif dans le bureau d'administration arrive ici en direct.
     const channel = supabase
       .channel("product_prices_live")
       .on("postgres_changes", { event: "*", schema: "public", table: "product_prices" }, () => {
         void refresh();
       })
       .subscribe();
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
     return () => {
       cancelled = true;
-      document.removeEventListener("visibilitychange", onVisible);
       void supabase.removeChannel(channel);
     };
   }, [fetchPrices]);
+
+  useEffect(() => {
+    fetchCountries({})
+      .then((list) => setCountries(list as { code: string; name: string; currency: string }[]))
+      .catch(() => setCountries([]));
+  }, [fetchCountries]);
+
+  // Détection automatique : appliquée seulement si l'utilisateur n'a pas choisi lui-même.
+  useEffect(() => {
+    let cancelled = false;
+    fetchDetected({})
+      .then((r) => {
+        if (!cancelled && r.code) setDetected(r.code);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDetected]);
+
+  useEffect(() => {
+    if (manualCountry()) return;
+    if (detected && countries.some((c) => c.code === detected)) setCountryCode(detected);
+  }, [detected, countries]);
 
   useEffect(() => {
     fetchPromo({})
       .then((p) => setPromo(p))
       .catch(() => setPromo({ enabled: false, prices: {} }));
   }, [fetchPromo]);
+
+  // Réinitialise le curseur quand on change d'offre ou de période.
+  useEffect(() => {
+    setCredits(null);
+  }, [active, period]);
+
+  // Devis en temps réel (curseur, pays, période, code promo).
+  useEffect(() => {
+    if (!price) return;
+    let cancelled = false;
+    setQuoteBusy(true);
+    const timer = window.setTimeout(() => {
+      fetchQuote({
+        data: {
+          productId: price.id,
+          countryCode,
+          period,
+          credits: sliderValue,
+          promoCode: promoApplied ?? undefined,
+        },
+      })
+        .then((q) => {
+          if (cancelled) return;
+          if (q.ok) {
+            setPromoError(null);
+            setQuote({
+              amountLocal: q.amountLocal,
+              currency: q.currency,
+              discountEur: q.discountEur,
+              credits: q.credits,
+            });
+          } else {
+            setQuote(null);
+            if (promoApplied) {
+              setPromoError(q.message);
+              setPromoApplied(null);
+            }
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setQuote(null);
+        })
+        .finally(() => {
+          if (!cancelled) setQuoteBusy(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [price?.id, countryCode, period, sliderValue, promoApplied, fetchQuote]);
+
+  const applyPromo = () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoError(null);
+    setPromoApplied(code);
+  };
+
+  const changeCountry = (code: string) => {
+    setCountryCode(code);
+    window.localStorage.setItem("sf_country_manual", code);
+  };
 
   const promoAmount = promo.enabled ? (promo.prices[active] ?? null) : null;
   const promoFree = promo.enabled && promoAmount === 0;
@@ -220,35 +293,15 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // Aucun prix « de secours » n'est affiché avant le chargement : cela évitait
-  // de montrer l'ancien tarif puis de basculer sur le nouveau.
-  // Crédits reçus par mois, calculés comme côté base (taux x prix, + bonus)
-  const monthlyCredits = price
-    ? period === "yearly" && price.amount_eur_yearly !== null
-      ? Math.round((price.amount_eur_yearly / 12) * (price.credits_rate ?? 0)) + price.credits_bonus
-      : (price.credits_fixed ?? Math.round(price.amount_eur * (price.credits_rate ?? 0)) + price.credits_bonus)
-    : null;
-  const basePriceLabel = price
-    ? `${price.amount_eur.toFixed(2)} € /mois`
-    : pricesLoaded
-      ? plan.monthly
-      : "…";
-  const monthlyLabel =
-    promoAmount !== null
-      ? promoAmount === 0
-        ? "GRATUIT"
-        : `${promoAmount.toFixed(2)} € /mois`
-      : basePriceLabel;
-  const yearlyAmount = price?.amount_eur_yearly ?? null;
-  const yearlyLabel =
-    yearlyAmount !== null ? `${yearlyAmount.toFixed(2)} € /an` : pricesLoaded ? plan.yearly?.price : "…";
-  const yearlyPerMonth =
-    yearlyAmount !== null
-      ? `${(yearlyAmount / 12).toFixed(2)} € /mois`
-      : pricesLoaded
-        ? plan.yearly?.perMonth
-        : "";
-  const hasYearly = yearlyAmount !== null || Boolean(plan.yearly);
+  const videosPossible = useMemo(() => {
+    const cost = creditCostFor("video", 5, "480p");
+    return Math.floor(sliderValue / cost);
+  }, [sliderValue]);
+
+  const selectedCountry = countries.find((c) => c.code === countryCode);
+  const unitLocal =
+    quote && sliderValue > 0 ? quote.amountLocal / sliderValue : null;
+  const yearlyNote = yearly ? " · payé une fois pour 12 mois" : "";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background">
@@ -275,15 +328,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <h2 className="inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
             Sam flash
             {plan.badge && (
-              <span className="rounded-xl bg-secondary px-3 py-1 text-lg font-medium">
-                {plan.badge}
-              </span>
+              <span className="rounded-xl bg-secondary px-3 py-1 text-lg font-medium">{plan.badge}</span>
             )}
           </h2>
           <p className="mt-1 text-sm font-medium text-primary/90">Studio IA</p>
           <p className="mt-2 text-xl font-medium text-foreground/90">{plan.tagline}</p>
         </div>
-
 
         <div className="mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
           {PLANS.map((p) => (
@@ -292,9 +342,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               type="button"
               onClick={() => setActive(p.id)}
               className={`flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-colors ${
-                active === p.id
-                  ? "bg-secondary text-foreground shadow-[var(--shadow-glow)]"
-                  : "text-muted-foreground"
+                active === p.id ? "bg-secondary text-foreground shadow-[var(--shadow-glow)]" : "text-muted-foreground"
               }`}
             >
               {p.label}
@@ -302,15 +350,83 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+        {/* Choix de la période */}
+        {yearlyAvailable && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPeriod("monthly")}
+              className={`rounded-2xl border p-3 text-left ${period === "monthly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"}`}
+            >
+              <span className="text-muted-foreground">Mensuel</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod("yearly")}
+              className={`rounded-2xl border p-3 text-left ${period === "yearly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"}`}
+            >
+              <span className="text-muted-foreground">Annuel</span>
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 space-y-4 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
           <OfferCountdown />
 
-          {monthlyCredits !== null && monthlyCredits > 0 && (
-            <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3">
-              <p className="text-xl font-semibold">{monthlyCredits.toLocaleString("fr-FR")} crédits / mois</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Image : {creditCostFor("image", 0, "480p")} à {creditCostFor("image", 0, "1080p")} crédits selon la qualité · Vidéo : {creditCostFor("video", 1, "480p")} crédit par seconde en 480p, {creditCostFor("video", 1, "720p")} en 720p
-                {period === "yearly" ? " · payé une fois, crédités chaque mois pendant 12 mois" : ""}
+          {/* Pays : détecté au premier passage, modifiable */}
+          {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
+            <p className="text-xs text-muted-foreground">
+              Votre pays n'est pas encore pris en charge. Choisissez un pays proche ci-dessous.
+            </p>
+          )}
+          {countries.length > 0 && (
+            <label className="block text-sm">
+              <span className="text-muted-foreground">Votre pays</span>
+              <select
+                value={countryCode}
+                onChange={(e) => changeCountry(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2"
+              >
+                {countries.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name} ({c.currency})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {/* Curseur de crédits */}
+          {price && (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Crédits par mois</span>
+                <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
+              </div>
+              <input
+                type="range"
+                min={minCredits}
+                max={maxCredits}
+                step={10}
+                value={sliderValue}
+                onChange={(e) => setCredits(Number(e.target.value))}
+                className="w-full accent-primary"
+                aria-label="Nombre de crédits par mois"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{minCredits}</span>
+                <span>{maxCredits.toLocaleString("fr-FR")}</span>
+              </div>
+              <p className="text-sm">
+                ≈ <span className="font-semibold">{videosPossible}</span> vidéos de 5 s en 480p par mois
+              </p>
+              {unitLocal !== null && selectedCountry && (
+                <p className="text-xs text-muted-foreground">
+                  Soit {formatLocalAmount(unitLocal, selectedCountry.currency)} par crédit
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Les crédits non utilisés expirent après 10 jours.{yearlyNote}
               </p>
             </div>
           )}
@@ -325,148 +441,84 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="mt-4">
-          {hasYearly ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setPeriod("monthly")}
-                className={`rounded-2xl border p-4 text-left ${
-                  period === "monthly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"
-                }`}
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-muted-foreground">Mensuel</span>
-                  {promoAmount !== null ? (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-                      Promo lancement
-                    </span>
-                  ) : (
-                    plan.monthlyNote && (
-                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {plan.monthlyNote}
-                      </span>
-                    )
-                  )}
-                </span>
-                {promoAmount !== null && (
-                  <span className="mt-2 block text-sm text-muted-foreground line-through">
-                    {basePriceLabel}
-                  </span>
-                )}
-                <span
-                  className={`block font-semibold ${
-                    promoFree ? "text-3xl text-primary" : "mt-2 text-2xl"
-                  }`}
-                >
-                  {monthlyLabel}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPeriod("yearly")}
-                className={`rounded-2xl border p-4 text-left ${
-                  period === "yearly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"
-                }`}
-              >
-                <span className="text-muted-foreground">Annuel</span>
-                <span className="mt-2 block text-2xl font-semibold">{yearlyLabel}</span>
-                <span className="block text-sm text-muted-foreground">{yearlyPerMonth}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card/40 p-4">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground">Mensuel</span>
-                {promoAmount !== null && (
-                  <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-                    Promo lancement
-                  </span>
-                )}
-              </span>
-              {promoAmount !== null && (
-                <span className="mt-1 block text-sm text-muted-foreground line-through">
-                  {basePriceLabel}
-                </span>
-              )}
-              <span
-                className={`mt-1 block text-3xl font-semibold ${promoFree ? "text-primary" : ""}`}
-              >
-                {monthlyLabel}
-              </span>
-            </div>
+        {/* Code promo */}
+        <div className="mt-4 space-y-2">
+          <div className="flex gap-2">
+            <input
+              value={promoInput}
+              onChange={(e) => setPromoInput(e.target.value)}
+              placeholder="EX : BIENVENUE20"
+              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 uppercase"
+            />
+            <button
+              type="button"
+              onClick={applyPromo}
+              className="rounded-xl bg-secondary px-4 py-2 text-sm font-medium"
+            >
+              Appliquer
+            </button>
+          </div>
+          {promoApplied && quote && quote.discountEur > 0 && (
+            <p className="text-sm text-primary">Code {promoApplied} appliqué : −{quote.discountEur.toFixed(2)} €</p>
           )}
+          {promoError && <p className="text-sm text-destructive">{promoError}</p>}
+        </div>
+
+        {/* Prix total */}
+        <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4">
+          <p className="text-sm text-muted-foreground">
+            {period === "yearly" && yearly ? "Total pour 12 mois" : "Total par mois"}
+          </p>
+          <p className="mt-1 text-3xl font-semibold">
+            {quoteBusy && !quote
+              ? "…"
+              : quote && selectedCountry
+                ? formatLocalAmount(quote.amountLocal, quote.currency)
+                : pricesLoaded
+                  ? "Indisponible"
+                  : "…"}
+          </p>
         </div>
 
         <button
           type="button"
-          disabled={activating}
+          disabled={activating || (!promoFree && !quote)}
           onClick={() => (promoFree ? void claimPromo() : setCheckoutOpen(true))}
           className="mt-6 w-full rounded-full bg-foreground py-4 text-[17px] font-semibold text-background transition-transform active:scale-[0.98] disabled:opacity-50"
         >
-          {activating
-            ? "Activation…"
-            : promoFree
-              ? "Activer l'offre de lancement (offerte)"
-              : plan.cta}
+          {activating ? "Activation…" : promoFree ? "Activer l'offre de lancement (offerte)" : plan.cta}
         </button>
 
-        {checkoutOpen && (
+        {checkoutOpen && price && (
           <CheckoutSheet
-            productId={active}
-            productLabel={price?.label ?? plan.label}
+            productId={price.id}
+            productLabel={price.label}
             period={period}
+            countryCode={countryCode}
+            credits={sliderValue}
+            promoCode={promoApplied}
             onClose={() => setCheckoutOpen(false)}
           />
         )}
 
         <p className="mt-3 text-center text-sm text-muted-foreground">
-          {promoFree
-            ? `Offre de lancement : ${PROMO_DAYS} jours offerts, sans paiement.`
-            : plan.footnote}
+          {promoFree ? `Offre de lancement : ${PROMO_DAYS} jours offerts, sans paiement.` : plan.footnote}
         </p>
-        {notice && <p className="mt-2 text-center text-sm text-primary">{notice}</p>}
 
         <div className="mt-8 rounded-2xl border border-border bg-card/60 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Vos crédits</span>
             <span className="text-lg font-semibold">{profile?.credits_balance ?? 0}</span>
           </div>
-          {packs.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">Recharger</p>
-              {packs.map((pack) => (
-                <button
-                  key={pack.id}
-                  type="button"
-                  onClick={() => setPackId(pack.id)}
-                  className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left"
-                >
-                  <span>{pack.label}</span>
-                  <span className="font-semibold">{pack.amount_eur.toFixed(2)} €</span>
-                </button>
-              ))}
-            </div>
-          )}
           <a href="/tableau-de-bord" className="mt-4 block text-center text-sm font-medium text-primary">
             Voir mon tableau de bord
           </a>
         </div>
 
-        {packId && (
-          <CheckoutSheet
-            productId={packId}
-            productLabel={prices.find((p) => p.id === packId)?.label ?? "Recharge"}
-            onClose={() => setPackId(null)}
-          />
-        )}
-
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Conditions d'utilisation · Politique de confidentialité · Restaurer les achats
+          Conditions d'utilisation · Politique de confidentialité
         </p>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          Sam flash 2.0 — Studio IA
-        </p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">Sam flash 2.0 — Studio IA</p>
       </div>
     </div>
   );
