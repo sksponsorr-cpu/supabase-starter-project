@@ -322,11 +322,19 @@ function Login() {
         )}
 
         <p className="pt-4 text-center text-xs text-muted-foreground">
-          En continuant, vous acceptez les Conditions d'utilisation et la Politique de
-          confidentialité
+          En continuant, vous acceptez les{" "}
+          <a href="/conditions" className="underline">Conditions d'utilisation</a> et la{" "}
+          <a href="/confidentialite" className="underline">Politique de confidentialité</a>
         </p>
       </div>
       <LandingSection />
+      <footer className="px-5 pb-10 pt-4 text-center text-xs text-muted-foreground">
+        <a href="/conditions" className="underline">Conditions</a>
+        {" · "}
+        <a href="/confidentialite" className="underline">Confidentialité</a>
+        {" · "}
+        <a href="/contact" className="underline">Contact</a>
+      </footer>
     </main>
   );
 }
