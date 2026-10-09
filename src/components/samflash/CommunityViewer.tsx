@@ -85,7 +85,7 @@ export function CommunityViewer({ item, onClose }: { item: CommunityItem; onClos
               playsInline
               autoPlay
               loop
-              preload="auto"
+              preload="metadata"
               className="max-h-full w-full rounded-3xl border border-border object-contain shadow-2xl"
             />
           ) : (
