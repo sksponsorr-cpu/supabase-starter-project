@@ -56,6 +56,7 @@ export type GenerationResult =
       retryAt: string | null;
       remainingSeconds?: number;
       limitSeconds?: number;
+      message?: string | null;
     }
   | { ok: false; reason: "error"; message: string; id: string | null };
 
@@ -181,6 +182,7 @@ export async function runGeneration(
       retryAt: null,
       remainingSeconds: access.remainingSeconds,
       limitSeconds: access.limitSeconds,
+      message: access.message,
     };
   }
 
@@ -193,9 +195,7 @@ export async function runGeneration(
       p_ref: crypto.randomUUID(),
     });
     if (spendError) throw new Error(spendError.message);
-    if (!spent && !access.isSubscribed) {
-      creditCost = null; // pas assez de crédits : quota gratuit
-    } else if (!spent) {
+    if (!spent) {
       return {
         ok: false,
         reason: "quota",
