@@ -337,7 +337,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           quotaMessage(access.code as "subscription_required", null, access.remainingSeconds);
         // Message du serveur conservé tel quel (vidéo réservée aux abonnés, durée max, etc.)
         setSent(freeTitle(access.code, message, userPlan === "free"));
-        toast.error(message);
         // Le message reste affiché avec un bouton vers les offres, pour tous les comptes.
         return;
       }
@@ -448,14 +447,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         setText(prompt);
         const message = result.message ?? quotaMessage(result.code, result.retryAt, result.remainingSeconds);
         setSent(freeTitle(result.code, message, userPlan === "free"));
-        toast.error(message);
         // Le bouton « Voir les offres » est affiché dans le bandeau.
       } else {
         playChime("error");
         setText(prompt);
         
         // Gérer le message selon le type d'utilisateur
-        let errorMessage = result.message ?? "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.";
+        let errorMessage = result.message ?? (userPlan === "free" ? "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur." : "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.");
         
         if (result.message === "SERVICE_UNAVAILABLE") {
           if (userPlan === "free") {
@@ -476,7 +474,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         playChime("error");
         setText(prompt);
         // Erreur inattendue : message persistant, pas de setTimeout
-        setSent("Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.");
+        setSent(userPlan === "free" ? "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur." : "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.");
       }
     } finally {
       setBusy(false);
@@ -486,14 +484,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     }
   };
 
-  const { profile: authProfile } = useAuth();
-  useEffect(() => {
-    if (!authProfile || userPlan !== "free") return;
-    if ((authProfile.credits_balance ?? 1) <= 0) {
-      setSent("Crédits insuffisants. Rechargez votre compte ou passez à un abonnement supérieur pour continuer.");
-    }
-  }, [authProfile?.credits_balance, userPlan]);
-
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
       {sent && (
@@ -501,7 +491,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           message={sent}
           onClose={() => setSent(null)}
           action={
-            sent.startsWith("Crédits insuffisants") || sent.includes("réservée aux abonnés") || sent.includes("limitées à")
+            sent.startsWith("Crédits insuffisants") || sent.startsWith("L'offre gratuite est terminée") || sent.includes("réservée aux abonnés") || sent.includes("limitées à")
               ? { label: "Voir les offres", onClick: () => onQuotaExceeded?.() }
               : userPlan === "free" && noticeKind(sent) === "warning"
                 ? { label: "Passer au forfait supérieur", onClick: () => onQuotaExceeded?.() }
