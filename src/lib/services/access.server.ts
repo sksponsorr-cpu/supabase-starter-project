@@ -8,7 +8,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "node:crypto";
 
 /** Adresse IP du client, hachée (lue côté serveur, non falsifiable depuis le navigateur). */
-function clientIpHash(): string | null {
+export function clientIpHash(): string | null {
   try {
     const raw = getRequest()?.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
     if (!raw) return null;
@@ -165,7 +165,7 @@ export async function checkGenerationAccess(
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Crédits insuffisants. Rechargez votre compte ou passez à un abonnement supérieur pour continuer.",
+        message: "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur.",
       };
     }
     return { ...base, allowed: true, code: "ok", message: null };
