@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { playChime } from "@/lib/chime";
 import type { Generation } from "@/hooks/useGenerations";
 import { stashPrefill } from "@/lib/prefill";
+import { usePauseTiles } from "@/components/samflash/VideoTile";
 
 type Props = {
   item: Generation;
@@ -19,6 +20,7 @@ const action =
   "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-secondary/80 px-3 py-3 text-sm font-medium backdrop-blur-xl transition-colors disabled:opacity-40";
 
 export function MediaViewer({ item, onClose, onChanged }: Props) {
+  usePauseTiles();
   const { t, lang } = useI18n();
   const isVideo = item.media_type === "video";
   const [busy, setBusy] = useState<null | "subs" | "retry" | "toVideo" | "delete">(null);
@@ -188,7 +190,7 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
               controls
               playsInline
               autoPlay
-              preload="metadata"
+              preload="auto"
               className="max-h-full w-full rounded-3xl border border-border object-contain shadow-2xl"
             >
               {vttUrl && (

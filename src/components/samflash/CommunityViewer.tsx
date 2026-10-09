@@ -7,12 +7,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { stashPrefill } from "@/lib/prefill";
 import { toast } from "@/lib/toast";
 import type { CommunityItem } from "@/lib/community.functions";
+import { usePauseTiles } from "@/components/samflash/VideoTile";
 
 const action =
   "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-secondary/80 px-3 py-3 text-sm font-medium backdrop-blur-xl transition-colors disabled:opacity-40";
 
 /** Visionneuse de la galerie communautaire : voir, modifier le prompt, ou générer à partir de celui-ci. */
 export function CommunityViewer({ item, onClose }: { item: CommunityItem; onClose: () => void }) {
+  usePauseTiles();
   const navigate = useNavigate();
   const { session } = useAuth();
   const generate = useServerFn(generateMedia);
@@ -85,7 +87,7 @@ export function CommunityViewer({ item, onClose }: { item: CommunityItem; onClos
               playsInline
               autoPlay
               loop
-              preload="metadata"
+              preload="auto"
               className="max-h-full w-full rounded-3xl border border-border object-contain shadow-2xl"
             />
           ) : (
