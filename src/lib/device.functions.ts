@@ -21,6 +21,14 @@ export const registerDevice = createServerFn({ method: "POST" })
         { onConflict: "user_id,fingerprint" },
       );
 
+    // Bonus gratuit : donné dès l'ouverture de l'application (appareil désormais connu)
+    try {
+      const { clientIpHash } = await import("@/lib/services/access.server");
+      await supabaseAdmin.rpc("claim_free_credits", { p_user: context.userId, p_ip_hash: clientIpHash() });
+    } catch (e) {
+      console.error("[claim_free_credits]", e);
+    }
+
     const { data: existing } = await supabaseAdmin
       .from("device_fingerprints")
       .select("first_user_id")
