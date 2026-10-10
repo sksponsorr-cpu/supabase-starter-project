@@ -25,6 +25,7 @@ export function AdminLandingPanel() {
   const [intro, setIntro] = useState("");
   const [videos, setVideos] = useState("");
   const [faq, setFaq] = useState("");
+  const [showcase, setShowcase] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [gens, setGens] = useState<Gen[]>([]);
@@ -36,6 +37,7 @@ export function AdminLandingPanel() {
         setText(d.text);
         setIntro(d.introVideo);
         setVideos(d.videos.map((v) => `${v.url} | ${v.caption}`).join("\n"));
+        setShowcase((d.showcase ?? []).map((v) => `${v.cat} | ${v.url} | ${v.caption}`).join("\n"));
         setFaq(d.faq.map((f) => `${f.q} | ${f.a}`).join("\n"));
       })
       .catch(() => undefined);
@@ -113,6 +115,10 @@ export function AdminLandingPanel() {
           introVideo: intro,
           videos: lines(videos).map((l) => ({ url: split(l)[0]!, caption: split(l)[1]! })),
           faq: lines(faq).map((l) => ({ q: split(l)[0]!, a: split(l)[1]! })),
+          showcase: lines(showcase).map((l) => {
+            const parts = l.split("|").map((x) => x.trim());
+            return { cat: parts[0] ?? "", url: parts[1] ?? "", caption: parts[2] ?? "" };
+          }),
         },
       });
       if (r.ok) toast.success("Page d'accueil enregistrée.");
@@ -202,6 +208,13 @@ export function AdminLandingPanel() {
         placeholder={"Une vidéo par ligne :\nhttps://…/video1.mp4 | Légende"}
         value={videos}
         onChange={(e) => setVideos(e.target.value)}
+      />
+      <textarea
+        className={box}
+        rows={5}
+        placeholder={"Exemples créateurs, une par ligne :\npub | https://…/exemple.mp4 | Publicité TikTok\nclone | https://…/clone.mp4 | Clonage\navatar | https://…/avatar.mp4 | Avatar\nscene | https://…/scene.mp4 | Mise en scène\n(catégories : pub, clone, avatar, scene)"}
+        value={showcase}
+        onChange={(e) => setShowcase(e.target.value)}
       />
       <textarea
         className={box}

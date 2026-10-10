@@ -296,7 +296,7 @@ export function LandingSection() {
   useEffect(() => {
     load()
       .then(setC)
-      .catch(() => setC({ title: "", text: "", introVideo: "", videos: [], faq: [] }));
+      .catch(() => setC({ title: "", text: "", introVideo: "", videos: [], faq: [], showcase: [] }));
   }, [load]);
 
   if (!c) return null;
@@ -308,14 +308,8 @@ export function LandingSection() {
   const faq = c.faq.length > 0 ? c.faq : DEFAULT_FAQ;
 
   return (
-    <section className="relative mx-auto mt-6 w-full max-w-md space-y-16 pb-16 pt-6">
+    <section className="relative mx-auto mt-2 w-full max-w-md space-y-6 pb-6 pt-2">
       <Orbs />
-
-      <div aria-hidden className="flex justify-center">
-        <span className="flex h-10 w-6 items-start justify-center rounded-full border border-[#0b1220]/30 bg-white/70 pt-2">
-          <span className="h-2 w-1 animate-bounce rounded-full bg-[#0b1220]/60" />
-        </span>
-      </div>
 
       <Reveal className="text-center">
         <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
