@@ -16,7 +16,7 @@ const credentialsSchema = z.object({
   fullName: z.string().trim().max(80).optional(),
 });
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/connexion")({
   validateSearch: (s: Record<string, unknown>): { next?: string } =>
     typeof s['next'] === "string" && s['next'].startsWith("/") ? { next: s['next'] } : {},
 
@@ -184,107 +184,130 @@ function Login() {
   };
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#eef2ff] text-[#0b1220]">
-      {/* En-tête : logo en haut à gauche, bouton en bleu à droite */}
-      <header className="sticky top-0 z-30 flex items-center justify-between bg-[#eef2ff]/90 px-5 py-4 backdrop-blur">
-        <div className="flex items-center gap-2.5">
-          <img src={logoAsset} alt="Logo Sam flash 2.0" className="h-9 w-9 rounded-full object-cover" />
-          <span className="text-lg font-semibold tracking-tight">Sam flash 2.0</span>
-        </div>
-        <a
-          href="/connexion"
-          className="rounded-full bg-[#3b4ef8] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#3b4ef8]/30"
-        >
-          Commencer
-        </a>
-      </header>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#eef2ff] px-5 py-10 text-[#0b1220]">
+      <a href="/" className="mb-6 self-start text-sm text-[#4b5563]">← Retour à l'accueil</a>
+      <img src={logoAsset} alt="Logo Sam flash 2.0" className="mb-4 h-16 w-16 rounded-full object-cover" />
+      <h1 className="mb-8 text-center text-2xl font-bold">Créer mon compte ou me connecter</h1>
+      <div id="inscription" className="animate-float mt-8 space-y-3 w-full max-w-sm mx-auto">
+        {mode === "providers" ? (
+          <>
+            {!inApp && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={google}
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-secondary/50 py-4 text-[17px] font-medium backdrop-blur-2xl transition-transform active:scale-[0.98] disabled:opacity-60"
+              style={{ boxShadow: "var(--shadow-glow)" }}
+            >
+              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="text-xl font-semibold">G</span>}
+              S'inscrire avec Google
+            </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode("email")}
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-primary/60 bg-secondary/50 py-4 text-[17px] font-medium backdrop-blur-2xl transition-transform active:scale-[0.98]"
+              style={{ boxShadow: "var(--shadow-glow)" }}
+            >
+              <Mail className="h-5 w-5" />
+              S'inscrire avec l'adresse e-mail
+            </button>
+          </>
+        ) : (
+          <form onSubmit={submitEmail} className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setMode("providers")}
+              className="flex items-center gap-1 text-sm text-muted-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" /> Retour
+            </button>
+            <h2 className="text-xl font-semibold text-foreground">
+              {signUp ? "Créer un nouveau compte" : "Se connecter"}
+            </h2>
+            {signUp && (
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Nom complet"
+                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+              />
+            )}
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-mail"
+              className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+            />
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mot de passe"
+              className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+            />
+            {signUp && (
+              <p className="px-1 text-xs text-muted-foreground">
+                Au moins 8 caractères. Mélangez lettres et chiffres pour un compte plus sûr.
+              </p>
+            )}
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
+            {captchaSlow && (
+              <button
+                type="button"
+                onClick={() => setCaptchaReset((n) => n + 1)}
+                className="w-full text-center text-xs text-muted-foreground underline"
+              >
+                La vérification ne s'affiche pas ? Réessayer
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-[17px] font-semibold text-primary-foreground disabled:opacity-60"
+              style={{ boxShadow: "var(--shadow-glow)" }}
+            >
+              {busy && <Loader2 className="h-5 w-5 animate-spin" />}
+              {signUp ? "Créer mon compte" : "Se connecter"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSignUp((v) => !v);
+                setMessage(null);
+              }}
+              className="flex w-full items-center justify-center rounded-full border border-primary/60 py-3.5 text-[16px] font-medium text-foreground transition-transform active:scale-[0.98]"
+            >
+              {signUp ? "J'ai déjà un compte" : "Créer un nouveau compte"}
+            </button>
+          </form>
+        )}
 
-      {/* Hero clair et bleu */}
-      <section className="relative mx-auto flex w-full max-w-md flex-col items-center px-5 pb-10 pt-6 text-center">
-        <span className="rounded-full border border-[#3b4ef8]/30 bg-white px-4 py-1.5 text-sm font-medium text-[#3b4ef8]">
-          Création vidéo IA pour les créateurs
-        </span>
-        <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-          Transformez une idée en <span className="rounded-xl bg-[#3b4ef8] px-2 text-white">vidéo</span> prête à publier
-        </h1>
-        <p className="mt-5 text-base leading-relaxed text-[#4b5563] md:text-lg">
-          Partagez sur TikTok, YouTube et Facebook, et monétisez vos contenus.
+        {inApp && mode === "providers" && (
+          <div className="rounded-xl bg-secondary/60 p-3 text-center text-xs text-muted-foreground">
+            Pour utiliser Google, ouvrez ce lien dans Chrome.
+            <button type="button" onClick={copyLink} className="mt-1 block w-full font-medium text-primary">
+              {copied ? "Lien copié ✓" : "Copier le lien"}
+            </button>
+          </div>
+        )}
+
+        {message && (
+          <div className={`mt-3 rounded-xl p-3 text-sm text-center ${message.startsWith("Compte") ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+            {message}
+          </div>
+        )}
+
+        <p className="pt-4 text-center text-xs text-[#4b5563]">
+          En continuant, vous acceptez les{" "}
+          <a href="/conditions" className="underline">Conditions d'utilisation</a> et la{" "}
+          <a href="/confidentialite" className="underline">Politique de confidentialité</a>
         </p>
-
-        <div className="mt-8 flex w-full flex-col gap-3">
-          <a
-            href="/connexion"
-            className="flex items-center justify-center rounded-full bg-[#3b4ef8] py-4 text-[17px] font-semibold text-white shadow-xl shadow-[#3b4ef8]/30"
-          >
-            Créer mon compte gratuitement →
-          </a>
-          <a
-            href="#presentation"
-            className="flex items-center justify-center rounded-full bg-white py-4 text-[16px] font-semibold text-[#0b1220] shadow"
-          >
-            ▶ Voir la vidéo de présentation
-          </a>
-        </div>
-
-        <div className="mt-5 rounded-2xl bg-white px-5 py-3 shadow">
-          <p className="text-sm font-semibold">Essai : 2 000 FCFA · 40 crédits</p>
-          <p className="text-xs text-[#4b5563]">Soit 8 vidéos de 5 secondes en 480p</p>
-        </div>
-        <p className="mt-3 text-xs text-[#4b5563]">Mobile Money, sans carte bancaire</p>
-      </section>
-
-      <div id="presentation" />
-      <LandingSection />
-
-      <section className="mx-auto mt-10 w-full max-w-md px-5">
-        <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Tout ce qu'il faut pour monétiser vos contenus</h2>
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          {[
-            { t: "Vidéos IA", d: "TikTok, YouTube, Facebook et WhatsApp" },
-            { t: "Images IA", d: "Visuels pour vos publications" },
-            { t: "ChatGPT", d: "Idées, scripts et légendes", to: "/chat-ia", search: { p: "gpt" } },
-            { t: "Claude AI", d: "Rédaction et programmation", to: "/chat-ia", search: { p: "claude" } },
-            { t: "Clonage vidéo", d: "Reproduisez un mouvement", to: "/clonage-video", img: "/showcase/clonage-anim.svg" },
-            { t: "Avatar AI", d: "Un avatar qui parle", to: "/avatar-ai", img: "/showcase/avatar-anim.svg" },
-          ].map((f) => {
-            const body = (
-              <>
-                <p className="font-semibold text-[#0b1220]">{f.t}</p>
-                <p className="mt-1 text-xs text-[#4b5563]">{f.d}</p>
-                {f.img && <img src={f.img} alt={`Exemple ${f.t}`} className="mt-3 aspect-[4/5] w-full rounded-xl object-cover" />}
-              </>
-            );
-            return (
-              <div key={f.t} className="rounded-2xl border border-[#dbe2ff] bg-white p-4 shadow-sm">
-                {f.to ? (
-                  <Link to={f.to} search={f.search} className="block">
-                    {body}
-                  </Link>
-                ) : (
-                  body
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-center text-xs text-[#4b5563]">
-          Les outils IA avancés sont en cours d'ouverture progressive.
-        </p>
-      </section>
-
-      <section className="mx-auto mt-12 w-full max-w-md px-5">
-        <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Ce que les créateurs créent avec Sam flash</h2>
-        <p className="mt-2 text-center text-sm text-[#4b5563]">Tous les modèles inclus, un seul portefeuille de crédits.</p>
-        <ShowcaseGallery />
-      </section>
-
-      <footer className="px-5 pb-10 pt-4 text-center text-xs text-muted-foreground">
-        <a href="/conditions" className="underline">Conditions</a>
-        {" · "}
-        <a href="/confidentialite" className="underline">Confidentialité</a>
-        {" · "}
-        <a href="/contact" className="underline">Contact</a>
-      </footer>
+      </div>
     </main>
   );
 }
@@ -313,7 +336,7 @@ function ShowcaseGallery() {
             key={f.id}
             type="button"
             onClick={() => setFilter(f.id)}
-            className={`rounded-full border px-4 py-2 text-sm ${filter === f.id ? "border-[#0b1220] bg-[#0b1220] text-white" : "border-[#dbe2ff] bg-white text-[#0b1220]"}`}
+            className={`rounded-full border px-4 py-2 text-sm ${filter === f.id ? "border-foreground bg-foreground text-background" : "border-border bg-card/50"}`}
           >
             {f.label}
           </button>
