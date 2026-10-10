@@ -90,6 +90,19 @@ function ToolsPage() {
               key={tool.id}
               className="flex flex-col overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm"
             >
+              {href ? (
+                <Link to={href} className="flex flex-1 flex-col" aria-label={`Ouvrir ${tool.name}`}>
+                  <div className="flex h-36 items-center justify-center bg-zinc-100">
+                    <ToolLogo src={tool.logo} name={tool.name} className="h-20 w-20" />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2 p-5">
+                    <h2 className="text-lg font-semibold">{tool.name}</h2>
+                    <p className="text-sm leading-relaxed text-zinc-600">{tool.description}</p>
+                    <span className="mt-auto pt-4 text-sm font-medium text-zinc-900">Ouvrir →</span>
+                  </div>
+                </Link>
+              ) : (
+              <>
               <div className="flex h-36 items-center justify-center bg-zinc-100">
                 <ToolLogo src={tool.logo} name={tool.name} className="h-20 w-20" />
               </div>
@@ -115,6 +128,8 @@ function ToolsPage() {
                   )}
                 </div>
               </div>
+              </>
+              )}
             </article>
             );
           })}
