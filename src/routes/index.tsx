@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Mail, Loader2, ChevronLeft } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
@@ -9,7 +9,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { LandingSection } from "@/components/samflash/LandingSection";
-import { PublicInfo } from "@/components/samflash/PublicInfo";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -203,12 +202,77 @@ function Login() {
           <h1 className="max-w-xs text-3xl md:text-4xl font-semibold leading-tight tracking-tight text-foreground">
             Sam flash 2.0
           </h1>
-          <p className="mt-2 text-xs md:text-sm tracking-[0.1em] md:tracking-[0.2em] text-muted-foreground px-4">Générez vidéos et images par IA</p>
-          <p className="mt-6 font-mono text-sm md:text-base text-muted-foreground">Understand the Universe_</p>
+          <p className="mt-3 max-w-sm px-4 text-center text-base md:text-lg font-medium text-foreground/90">
+            Transformez une idée en vidéo prête à partager sur TikTok, YouTube et Facebook, et à monétiser avec AdSense.
+          </p>
+          <div className="mt-5 flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-center">
+            <p className="text-sm font-semibold text-foreground">Essai : 2 000 FCFA · 40 crédits</p>
+            <p className="text-xs text-muted-foreground">Soit 8 vidéos de 5 secondes en 480p</p>
+          </div>
+          <div className="mt-6 flex w-full max-w-sm flex-col gap-3 px-4">
+            <a
+              href="#inscription"
+              className="flex items-center justify-center rounded-full bg-primary py-4 text-[17px] font-semibold text-primary-foreground"
+            >
+              Créer mon compte gratuitement
+            </a>
+            <a
+              href="#presentation"
+              className="flex items-center justify-center rounded-full border border-border bg-secondary/50 py-4 text-[16px] font-medium"
+            >
+              Voir la vidéo de présentation
+            </a>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Mobile Money, sans carte bancaire</p>
         </div>
       </div>
 
-      <div className="animate-float space-y-3 w-full max-w-sm mx-auto">
+      <div id="presentation" />
+      <LandingSection />
+
+      <section className="mx-auto mt-10 w-full max-w-md px-5">
+        <h2 className="text-center text-2xl font-semibold text-foreground">Tout ce qu'il faut pour monétiser vos contenus</h2>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          {[
+            { t: "Vidéos IA", d: "TikTok, YouTube, Facebook et WhatsApp" },
+            { t: "Images IA", d: "Visuels pour vos publications" },
+            { t: "ChatGPT", d: "Idées, scripts et légendes", to: "/chat-ia", search: { p: "gpt" } },
+            { t: "Claude AI", d: "Rédaction et programmation", to: "/chat-ia", search: { p: "claude" } },
+            { t: "Clonage vidéo", d: "Reproduisez un mouvement", to: "/clonage-video", img: "/showcase/clonage-anim.svg" },
+            { t: "Avatar AI", d: "Un avatar qui parle", to: "/avatar-ai", img: "/showcase/avatar-anim.svg" },
+          ].map((f) => {
+            const body = (
+              <>
+                <p className="font-semibold text-foreground">{f.t}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{f.d}</p>
+                {f.img && <img src={f.img} alt={`Exemple ${f.t}`} className="mt-3 aspect-[4/5] w-full rounded-xl object-cover" />}
+              </>
+            );
+            return (
+              <div key={f.t} className="rounded-2xl border border-border bg-card/50 p-4">
+                {f.to ? (
+                  <Link to={f.to} search={f.search} className="block">
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          Les outils IA avancés sont en cours d'ouverture progressive.
+        </p>
+      </section>
+
+      <section className="mx-auto mt-12 w-full max-w-md px-5">
+        <h2 className="text-center text-2xl font-semibold text-foreground">Ce que les créateurs créent avec Sam flash</h2>
+        <p className="mt-2 text-center text-sm text-muted-foreground">Tous les modèles inclus, un seul portefeuille de crédits.</p>
+        <ShowcaseGallery />
+      </section>
+
+      <div id="inscription" className="animate-float mt-8 space-y-3 w-full max-w-sm mx-auto">
         {mode === "providers" ? (
           <>
             {!inApp && (
@@ -220,7 +284,7 @@ function Login() {
               style={{ boxShadow: "var(--shadow-glow)" }}
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="text-xl font-semibold">G</span>}
-              Continuer avec Google
+              S'inscrire avec Google
             </button>
             )}
             <button
@@ -230,7 +294,7 @@ function Login() {
               style={{ boxShadow: "var(--shadow-glow)" }}
             >
               <Mail className="h-5 w-5" />
-              Continuer avec l'e-mail
+              S'inscrire avec l'adresse e-mail
             </button>
           </>
         ) : (
@@ -328,8 +392,6 @@ function Login() {
           <a href="/confidentialite" className="underline">Politique de confidentialité</a>
         </p>
       </div>
-      <LandingSection />
-      <PublicInfo />
       <footer className="px-5 pb-10 pt-4 text-center text-xs text-muted-foreground">
         <a href="/conditions" className="underline">Conditions</a>
         {" · "}
@@ -338,5 +400,44 @@ function Login() {
         <a href="/contact" className="underline">Contact</a>
       </footer>
     </main>
+  );
+}
+
+function ShowcaseGallery() {
+  const FILTERS = [
+    { id: "all", label: "Tout" },
+    { id: "pub", label: "Publicité vidéo" },
+    { id: "clone", label: "Clonage vidéo" },
+    { id: "avatar", label: "Avatar vidéo" },
+    { id: "scene", label: "Mise en scène" },
+  ] as const;
+  const ITEMS = [
+    { cat: "pub", src: "/showcase/pub-video.svg", label: "Publicité vidéo" },
+    { cat: "clone", src: "/showcase/clonage.svg", label: "Clonage vidéo" },
+    { cat: "avatar", src: "/showcase/avatar.svg", label: "Avatar vidéo" },
+    { cat: "scene", src: "/showcase/mise-en-scene.svg", label: "Mise en scène" },
+  ];
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
+  const shown = filter === "all" ? ITEMS : ITEMS.filter((i) => i.cat === filter);
+  return (
+    <>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`rounded-full border px-4 py-2 text-sm ${filter === f.id ? "border-foreground bg-foreground text-background" : "border-border bg-card/50"}`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {shown.map((i) => (
+          <img key={i.src} src={i.src} alt={i.label} className="aspect-[4/5] w-full rounded-2xl object-cover" />
+        ))}
+      </div>
+    </>
   );
 }
