@@ -23,6 +23,8 @@ import { Route as ApiPublicWebhooksChariowRouteImport } from './routes/api/publi
 import { Route as ApiPublicWebhooksPaymentFailedRouteImport } from './routes/api/public/webhooks/payment-failed'
 import { Route as ApiPublicWebhooksPaymentSuccessRouteImport } from './routes/api/public/webhooks/payment-success'
 import { Route as ApiPublicWebhooksSwychrRouteImport } from './routes/api/public/webhooks/swychr'
+import { Route as OutilsAiRouteImport } from './routes/outils-ai'
+import { Route as OutilsAiChatRouteImport } from './routes/outils-ai.chat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -99,6 +101,17 @@ const ApiPublicWebhooksSwychrRoute = ApiPublicWebhooksSwychrRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const OutilsAiRoute = OutilsAiRouteImport.update({
+  id: '/outils-ai',
+  path: '/outils-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutilsAiChatRoute = OutilsAiChatRouteImport.update({
+  id: '/outils-ai/chat',
+  path: '/outils-ai/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
@@ -114,6 +127,8 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/outils-ai/chat': typeof OutilsAiChatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -130,6 +145,8 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/outils-ai/chat': typeof OutilsAiChatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -147,6 +164,8 @@ export interface FileRoutesById {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/outils-ai/chat': typeof OutilsAiChatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -165,6 +184,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
+    | '/outils-ai'
+    | '/outils-ai/chat'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -181,6 +202,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
+    | '/outils-ai'
+    | '/outils-ai/chat'
   id:
     | '__root__'
     | '/'
@@ -197,6 +220,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
+    | '/outils-ai'
+    | '/outils-ai/chat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -214,6 +239,8 @@ export interface RootRouteChildren {
   ApiPublicWebhooksPaymentFailedRoute: typeof ApiPublicWebhooksPaymentFailedRoute
   ApiPublicWebhooksPaymentSuccessRoute: typeof ApiPublicWebhooksPaymentSuccessRoute
   ApiPublicWebhooksSwychrRoute: typeof ApiPublicWebhooksSwychrRoute
+  OutilsAiRoute: typeof OutilsAiRoute
+  OutilsAiChatRoute: typeof OutilsAiChatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +343,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksSwychrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/outils-ai': {
+      id: '/outils-ai'
+      path: '/outils-ai'
+      fullPath: '/outils-ai'
+      preLoaderRoute: typeof OutilsAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outils-ai/chat': {
+      id: '/outils-ai/chat'
+      path: '/outils-ai/chat'
+      fullPath: '/outils-ai/chat'
+      preLoaderRoute: typeof OutilsAiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -335,6 +376,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksPaymentFailedRoute: ApiPublicWebhooksPaymentFailedRoute,
   ApiPublicWebhooksPaymentSuccessRoute: ApiPublicWebhooksPaymentSuccessRoute,
   ApiPublicWebhooksSwychrRoute: ApiPublicWebhooksSwychrRoute,
+  OutilsAiRoute: OutilsAiRoute,
+  OutilsAiChatRoute: OutilsAiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
