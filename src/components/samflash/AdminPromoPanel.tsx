@@ -44,7 +44,7 @@ export function AdminPromoPanel() {
   const edit = (r: PromoCodeRow) =>
     setForm({
       code: r.code,
-      discount: String(r.discount_eur),
+      discount: String(r.discount_percent ?? ""),
       startsAt: toLocalInput(r.starts_at),
       endsAt: toLocalInput(r.ends_at),
       maxUses: r.max_uses === null ? "" : String(r.max_uses),
@@ -58,7 +58,7 @@ export function AdminPromoPanel() {
       const res = await save({
         data: {
           code: form.code,
-          discountEur: Number(form.discount),
+          discountPercent: Number(form.discount),
           startsAt: new Date(form.startsAt).toISOString(),
           endsAt: new Date(form.endsAt).toISOString(),
           maxUses: form.maxUses.trim() === "" ? null : Number(form.maxUses),
@@ -92,7 +92,7 @@ export function AdminPromoPanel() {
     <section className="pt-5">
       <h2 className="text-[22px] font-semibold tracking-tight">Codes promo</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Réduction en montant fixe (en euros, appliqué puis converti dans la devise du client). Un client ne peut
+        Réduction en pourcentage, appliquée sur le total avant conversion dans la devise du client. Un client ne peut
         utiliser un code qu'une fois.
       </p>
 
@@ -110,12 +110,13 @@ export function AdminPromoPanel() {
             />
           </label>
           <label className="text-[11px] text-muted-foreground">
-            Réduction (€)
+            Réduction (%)
             <input
               className={field}
               type="number"
-              min={0}
-              step="0.01"
+              min={1}
+              max={100}
+              step="0.5"
               value={form.discount}
               onChange={(e) => setForm({ ...form, discount: e.target.value })}
             />
@@ -161,7 +162,8 @@ export function AdminPromoPanel() {
               <div className="min-w-0">
                 <p className="truncate text-[17px] font-medium">{r.code}</p>
                 <p className="text-xs text-muted-foreground">
-                  −{r.discount_eur.toFixed(2)} € · utilisé {r.used_count} fois
+                  −{r.discount_percent ?? r.discount_eur}
+                  {r.discount_percent !== null ? " %" : " €"} · utilisé {r.used_count} fois
                   {r.max_uses !== null ? ` / ${r.max_uses}` : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">
