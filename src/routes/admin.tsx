@@ -110,6 +110,7 @@ import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
 import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
+import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { formatSeconds } from "@/lib/quota";
 
 export const Route = createFileRoute("/admin")({
@@ -424,6 +425,9 @@ function AdminPage() {
           amountEur: row.amount_eur,
           amountEurYearly: row.amount_eur_yearly,
           active: row.active,
+          creditsRate: row.credits_rate,
+          creditsBonus: row.credits_bonus,
+          creditsFixed: row.credits_fixed,
         },
       });
       setPriceNotice(res.ok ? `Prix de « ${row.label} » enregistré.` : res.message);
@@ -636,6 +640,7 @@ function AdminPage() {
     { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
     { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
     { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
+    { id: "promos", label: "Codes promo", icon: Tag, show: isAdmin },
     { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
     { id: "team", label: "Équipe", icon: Users, show: isAdmin },
     { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
@@ -756,19 +761,19 @@ function AdminPage() {
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
                     <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
                     <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
-                      {(financialMetrics?.mrr ?? 0).toFixed(2)} FCFA
+                      {(financialMetrics?.mrr ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} FCFA
+                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} FCFA
+                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
                     </span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
@@ -1580,6 +1585,66 @@ function AdminPage() {
                           />
                         </label>
                       </div>
+                      <div className="mt-3 grid grid-cols-3 gap-3">
+                        <label className="text-[11px] text-muted-foreground">
+                          Crédits par € (taux)
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            aria-label={`Taux de crédits pour ${p.label}`}
+                            value={p.credits_rate ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_rate: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Bonus (crédits)
+                          <input
+                            type="number"
+                            min={0}
+                            aria-label={`Bonus de crédits pour ${p.label}`}
+                            value={p.credits_bonus ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_bonus: e.target.value === "" ? 0 : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Crédits fixes (vide = calcul)
+                          <input
+                            type="number"
+                            min={0}
+                            aria-label={`Crédits fixes pour ${p.label}`}
+                            value={p.credits_fixed ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_fixed: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -1719,6 +1784,7 @@ function AdminPage() {
 
             {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
             {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
+            {active === "promos" && isAdmin && <AdminPromoPanel />}
 
             {active === "subscriptions" && isAdmin && (
               <section className="pt-5">
