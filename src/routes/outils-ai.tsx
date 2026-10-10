@@ -79,19 +79,16 @@ function ToolsPage() {
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TOOLS.map((tool) => {
             // Test réservé à l'administrateur : les autres utilisateurs voient « Bientôt ».
-            const href =
-              enabled && tool.id === "claude"
-                ? "/outils-ai/chat?p=claude"
-                : enabled && tool.id === "chatgpt"
-                  ? "/outils-ai/chat?p=gpt"
-                  : null;
+            const provider: "claude" | "gpt" | null =
+              enabled && tool.id === "claude" ? "claude" : enabled && tool.id === "chatgpt" ? "gpt" : null;
+            const href = provider ? "/chat-ia" : null;
             return (
             <article
               key={tool.id}
               className="flex flex-col overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm"
             >
               {href ? (
-                <Link to={href} className="flex flex-1 flex-col" aria-label={`Ouvrir ${tool.name}`}>
+                <Link to="/chat-ia" search={{ p: provider ?? "claude" }} className="flex flex-1 flex-col" aria-label={`Ouvrir ${tool.name}`}>
                   <div className="flex h-36 items-center justify-center bg-zinc-100">
                     <ToolLogo src={tool.logo} name={tool.name} className="h-20 w-20" />
                   </div>
@@ -113,7 +110,8 @@ function ToolsPage() {
                   <span className="text-xs font-medium text-zinc-500">{tool.price}</span>
                   {href ? (
                     <Link
-                      to={href}
+                      to="/chat-ia"
+                      search={{ p: provider ?? "claude" }}
                       className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
                     >
                       Ouvrir <ArrowRight className="h-4 w-4" />
