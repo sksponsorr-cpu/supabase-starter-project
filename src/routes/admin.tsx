@@ -422,8 +422,8 @@ function AdminPage() {
       const res = await savePrice({
         data: {
           id: row.id,
-          amountEur: row.amount_eur,
-          amountEurYearly: row.amount_eur_yearly,
+          amountFcfa: row.amount_fcfa ?? Math.round((row.amount_eur ?? 0) * 655.957),
+          amountFcfaYearly: row.amount_fcfa_yearly ?? (row.amount_eur_yearly == null ? null : Math.round(row.amount_eur_yearly * 655.957)),
           active: row.active,
           creditsRate: row.credits_rate,
           creditsBonus: row.credits_bonus,
@@ -1543,17 +1543,17 @@ function AdminPage() {
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <label className="text-[11px] text-muted-foreground">
-                          Mensuel (€)
+                          Mensuel (FCFA)
                           <input
                             type="number"
                             min={0}
-                            step="0.01"
-                            aria-label={`Prix mensuel en euros pour ${p.label}`}
-                            value={p.amount_eur}
+                            step="1"
+                            aria-label={`Prix mensuel en FCFA pour ${p.label}`}
+                            value={p.amount_fcfa ?? ""}
                             onChange={(e) =>
                               setPrices((prev) =>
                                 prev.map((r) =>
-                                  r.id === p.id ? { ...r, amount_eur: Number(e.target.value) } : r,
+                                  r.id === p.id ? { ...r, amount_fcfa: Number(e.target.value) } : r,
                                 ),
                               )
                             }
@@ -1561,20 +1561,20 @@ function AdminPage() {
                           />
                         </label>
                         <label className="text-[11px] text-muted-foreground">
-                          Annuel (€)
+                          Annuel (FCFA)
                           <input
                             type="number"
                             min={0}
-                            step="0.01"
-                            aria-label={`Prix annuel en euros pour ${p.label}`}
-                            value={p.amount_eur_yearly ?? ""}
+                            step="1"
+                            aria-label={`Prix annuel en FCFA pour ${p.label}`}
+                            value={p.amount_fcfa_yearly ?? ""}
                             onChange={(e) =>
                               setPrices((prev) =>
                                 prev.map((r) =>
                                   r.id === p.id
                                     ? {
                                         ...r,
-                                        amount_eur_yearly:
+                                        amount_fcfa_yearly:
                                           e.target.value === "" ? null : Number(e.target.value),
                                       }
                                     : r,
@@ -2069,7 +2069,7 @@ function AdminPage() {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">
-                          {Number(p.amount_eur).toFixed(2)} €
+                          {Number(p.amount_fcfa ?? 0).toLocaleString("fr-FR")} FCFA
                         </span>
                         <span className="truncate text-muted-foreground">
                           {p.developer_email ?? p.developer_name ?? p.developer_id}

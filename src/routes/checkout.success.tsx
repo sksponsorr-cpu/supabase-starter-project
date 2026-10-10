@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
-import { getOrderStatus } from "@/lib/payments.functions";
+import { getPublicOrderStatus } from "@/lib/payments.functions";
 
 export const Route = createFileRoute("/checkout/success")({
   head: () => ({
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/checkout/success")({
       { property: "og:title", content: "Paiement confirmé — Sam flash 2.0" },
       {
         property: "og:description",
-        content: "Votre abonnement Sam flash 2.0 est activé dès la validation du paiement.",
+        content: "Vos crédits Sam flash 2.0 sont ajoutés dès la validation du paiement.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -45,7 +45,7 @@ function Shell({ title, children, to }: { title: string; children: React.ReactNo
 
 function CheckoutSuccessPage() {
   const navigate = useNavigate();
-  const checkStatus = useServerFn(getOrderStatus);
+  const checkStatus = useServerFn(getPublicOrderStatus);
   const [state, setState] = useState<"loading" | "payee" | "en_attente" | "echouee">("loading");
   const [message, setMessage] = useState<string | null>(null);
   const [confirmedTransactionId, setConfirmedTransactionId] = useState<string | null>(null);

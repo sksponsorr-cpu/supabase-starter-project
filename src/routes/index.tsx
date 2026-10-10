@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mail, Loader2, ChevronLeft } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import logoAsset from "@/assets/sam-flash-logo.png";
@@ -291,6 +291,49 @@ function Login() {
       </section>
 
       <section className="mx-auto mt-12 w-full max-w-md px-5">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#3b4ef8]">Packs de crédits</p>
+        <h2 className="mt-2 text-center text-3xl font-bold text-[#0b1220]">Payez seulement ce que vous créez</h2>
+        <div className="mt-8 space-y-6">
+          {PACKS.map((pk, i) => (
+            <RevealCard key={pk.name} delay={i * 120}>
+              <div
+                className={`relative rounded-3xl border bg-white p-6 shadow-sm ${pk.featured ? "border-[#3b4ef8] shadow-xl shadow-[#3b4ef8]/15" : "border-[#dbe2ff]"}`}
+              >
+                {pk.featured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#3b4ef8] px-4 py-1 text-xs font-semibold text-white">
+                    Le plus populaire
+                  </span>
+                )}
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#4b5563]">{pk.name}</p>
+                <p className="mt-3 text-4xl font-bold text-[#0b1220]">
+                  {pk.price} {pk.price !== "0" && <span className="text-base font-medium text-[#4b5563]">FCFA</span>}
+                </p>
+                <p className="mt-1 text-sm text-[#4b5563]">
+                  <span className="font-semibold text-[#0b1220]">{pk.credits} crédits</span>
+                  {pk.perCredit > 0 ? ` · ${pk.perCredit} F le crédit` : ""}
+                </p>
+                {(pk as { sub?: string }).sub && <p className="mt-1 text-xs text-[#4b5563]">{(pk as { sub?: string }).sub}</p>}
+                <ul className="mt-5 space-y-2.5 border-t border-[#eef2ff] pt-5">
+                  {pk.items.map((it) => (
+                    <li key={it} className="flex items-start gap-2.5 text-[15px] text-[#374151]">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#3b4ef8]/10 text-xs text-[#3b4ef8]">✓</span>
+                      {it}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href="/connexion"
+                  className={`mt-6 flex items-center justify-center rounded-full py-3.5 text-[16px] font-semibold ${pk.featured ? "bg-[#3b4ef8] text-white shadow-lg shadow-[#3b4ef8]/30" : "border border-[#dbe2ff] bg-white text-[#0b1220]"}`}
+                >
+                  {pk.price === "0" ? "Commencer gratuitement" : `Choisir ${pk.name}`}
+                </a>
+              </div>
+            </RevealCard>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto mt-12 w-full max-w-md px-5">
         <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Ce que les créateurs créent avec Sam flash</h2>
         <p className="mt-2 text-center text-sm text-[#4b5563]">Tous les modèles inclus, un seul portefeuille de crédits.</p>
         <ShowcaseGallery />
@@ -384,6 +427,86 @@ function ExampleTile({ label, rounded = "rounded-xl" }: { label: string; rounded
     >
       <span className="text-lg font-semibold text-white">{label}</span>
       <span className="mt-1 text-xs text-white/70">Exemple à remplacer</span>
+    </div>
+  );
+}
+
+const PACKS = [
+  {
+    name: "Gratuit",
+    price: "0",
+    credits: 10,
+    perCredit: 0,
+    featured: false,
+    sub: "Sans carte bancaire",
+    items: ["10 crédits offerts à l'inscription", "Soit 2 vidéos de 5 secondes en 480p", "Un compte gratuit par appareil"],
+  },
+  {
+    name: "Essai",
+    price: "2 000",
+    credits: 40,
+    perCredit: 50,
+    featured: false,
+    sub: "Pack ponctuel",
+    items: ["8 vidéos de 5 secondes en 480p", "Pour tester sans vous engager", "Paiement par Mobile Money"],
+  },
+  {
+    name: "Sam Flash Light",
+    price: "5 000",
+    credits: 110,
+    perCredit: 45,
+    featured: false,
+    sub: "Par mois",
+    items: ["110 crédits par mois", "22 vidéos de 5 secondes en 480p", "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI"],
+  },
+  {
+    name: "Sam Flash Pro",
+    price: "16 500",
+    credits: 450,
+    perCredit: 37,
+    featured: true,
+    sub: "Par mois · ou 165 000 FCFA par an (2 mois offerts)",
+    items: [
+      "400 crédits payés + 50 crédits offerts chaque mois",
+      "Environ 90 vidéos de 5 secondes en 480p",
+      "Vidéo 1080p, générations prioritaires",
+      "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI",
+      "Paiement par Mobile Money ou carte bancaire",
+    ],
+  },
+];
+
+function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: shown ? 1 : 0,
+        transform: shown ? "translateY(0)" : "translateY(28px)",
+        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+      }}
+    >
+      {children}
     </div>
   );
 }
