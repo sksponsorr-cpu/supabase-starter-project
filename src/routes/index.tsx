@@ -187,6 +187,11 @@ function Login() {
 
   return (
     <main className="relative flex min-h-screen flex-col bg-[#eef2ff] text-[#0b1220]">
+      <style>{`
+        @keyframes sfFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes sfBlink { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,78,248,0.7); transform: scale(1); } 50% { box-shadow: 0 0 0 14px rgba(59,78,248,0); transform: scale(1.03); } }
+        @keyframes sfWord { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
       {/* En-tête : logo en haut à gauche, bouton en bleu à droite */}
       <header className="sticky top-0 z-30 flex items-center justify-between bg-[#eef2ff]/90 px-5 py-4 backdrop-blur">
         <div className="flex items-center gap-2.5">
@@ -206,10 +211,20 @@ function Login() {
         <span className="rounded-full border border-[#3b4ef8]/30 bg-white px-4 py-1.5 text-sm font-medium text-[#3b4ef8]">
           Création vidéo IA pour les créateurs
         </span>
-        <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-          Transformez une idée en <span className="rounded-xl bg-[#3b4ef8] px-2 text-white">vidéo</span> prête à publier
+        <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl" style={{ animation: "sfFadeUp 0.8s ease both" }}>
+          {"Transformez une idée en ".split(" ").map((w, i) => (
+            <span key={`a${i}`} style={{ display: "inline-block", animation: `sfWord 0.5s ease both`, animationDelay: `${0.1 + i * 0.08}s` }}>
+              {w}&nbsp;
+            </span>
+          ))}
+          <span className="rounded-xl bg-[#3b4ef8] px-2 text-white" style={{ display: "inline-block", animation: "sfWord 0.5s ease both", animationDelay: "0.6s" }}>vidéo</span>
+          {" prête à publier".split(" ").map((w, i) => (
+            <span key={`b${i}`} style={{ display: "inline-block", animation: `sfWord 0.5s ease both`, animationDelay: `${0.75 + i * 0.08}s` }}>
+              &nbsp;{w}
+            </span>
+          ))}
         </h1>
-        <p className="mt-5 text-base leading-relaxed text-[#4b5563] md:text-lg">
+        <p className="mt-5 text-base leading-relaxed text-[#4b5563] md:text-lg" style={{ animation: "sfFadeUp 0.8s ease 1s both" }}>
           Partagez sur TikTok, YouTube et Facebook, et monétisez vos contenus.
         </p>
 
@@ -217,6 +232,7 @@ function Login() {
           <a
             href="/connexion"
             className="flex items-center justify-center rounded-full bg-[#3b4ef8] py-4 text-[17px] font-semibold text-white shadow-xl shadow-[#3b4ef8]/30"
+            style={{ animation: "sfFadeUp 0.8s ease 1.2s both, sfBlink 1.6s ease-in-out 2s infinite" }}
           >
             Créer mon compte gratuitement →
           </a>
