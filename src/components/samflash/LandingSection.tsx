@@ -227,35 +227,21 @@ function Orbs() {
 
 const PLAN_CARDS: { name: string; seconds: number; label?: string; items: string[] }[] = [
   {
-    name: "Découverte",
+    name: "Essai",
     seconds: PLAN_VIDEO_SECONDS.free,
-    label: "Offre d'essai",
-    items: ["1 vidéo offerte (8 secondes maximum)", "2 images offertes", "Un compte gratuit par appareil"],
+    label: "2 000 FCFA · 40 crédits",
+    items: ["Soit 8 vidéos de 5 secondes en 480p", "Mobile Money, sans carte bancaire", "Un compte gratuit par appareil"],
   },
   {
     name: "Super grok",
     seconds: PLAN_VIDEO_SECONDS.super_grok_monthly,
     items: [
-      "Images et vidéos IA époustouflantes",
-      "Vidéos HD 720p de 6 secondes",
-      "Import de plus de fichiers",
-      "Des réponses fulgurantes",
-    ],
-  },
-  {
-    name: "Super grok plus",
-    seconds: PLAN_VIDEO_SECONDS.super_grok_plus,
-    items: ["Tout dans Super grok", "Vidéo 1080p en création", "Générations prioritaires", "Crédits mensuels étendus"],
-  },
-  {
-    name: "Super grok heavy",
-    seconds: PLAN_VIDEO_SECONDS.superhearly_monthly,
-    items: [
-      "Tout dans Super grok plus",
-      "Vidéo native 1080p en création",
-      "Utilisation la plus élevée, vitesse maximale",
-      "Résolution des problèmes les plus complexes",
-      "Accès anticipé aux nouveaux modèles",
+      "Images et vidéos IA",
+      "ChatGPT (GPT 6 Astra)",
+      "Claude AI",
+      "Clonage vidéo",
+      "Avatar AI",
+      "Paiement par Mobile Money",
     ],
   },
 ];
@@ -271,11 +257,11 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Combien de vidéo puis-je créer par jour ?",
-    a: `Avec un abonnement, cela dépend de ta formule, sur 24 h glissantes : Super grok ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)}, Super grok plus ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_plus)}, Super grok heavy ${formatDuration(PLAN_VIDEO_SECONDS.superhearly_monthly)}.`,
+    a: `Avec Super grok, tu disposes de ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)} de vidéo sur 24 h glissantes. Les crédits achetés restent valables 10 jours.`,
   },
   {
     q: "Quelle qualité de vidéo ?",
-    a: "Super grok crée des vidéos HD 720p de 6 secondes. Super grok plus et heavy passent à la vidéo 1080p.",
+    a: "Super grok crée des vidéos HD 720p de 6 secondes. ",
   },
   {
     q: "Puis-je annuler mon abonnement ?",
