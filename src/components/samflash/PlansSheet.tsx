@@ -28,41 +28,16 @@ const PLANS: Plan[] = [
   {
     id: "base",
     label: "Super grok",
-    tagline: <>Créez sans limite avec Super grok</>,
+    tagline: <>Tous les outils IA dans un seul abonnement</>,
     features: [
-      { icon: Sparkles, title: "Créez des images et des vidéos IA époustouflantes", sub: "Avec des vidéos HD 720p de 6 secondes" },
-      { icon: FolderPlus, title: "Importez plus de fichiers pour des réponses plus pertinentes" },
-      { icon: Zap, title: "Des réponses fulgurantes" },
+      { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p de 6 secondes" },
+      { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Discussion et programmation" },
+      { icon: Brain, title: "Claude AI", sub: "Discussion et programmation" },
+      { icon: MonitorPlay, title: "Clonage vidéo", sub: "Reproduisez les mouvements d'une vidéo" },
+      { icon: Sparkles, title: "Avatar AI", sub: "Un avatar qui parle à partir d'une photo" },
+      { icon: Zap, title: "Paiement par Mobile Money", sub: "Sans carte bancaire" },
     ],
     cta: "Passer à Super grok",
-    footnote: "Facturation mensuelle, annulez à tout moment",
-  },
-  {
-    id: "plus",
-    label: "Super grok plus",
-    tagline: <>Plus de créations, plus de puissance</>,
-    features: [
-      { icon: Check, title: "Tout dans Super grok" },
-      { icon: MonitorPlay, title: "Vidéo 1080p en création" },
-      { icon: Rocket, title: "Générations prioritaires" },
-      { icon: InfinityIcon, title: "Crédits mensuels étendus" },
-    ],
-    cta: "Passer à Super grok plus",
-    footnote: "Facturation mensuelle, annulez à tout moment",
-  },
-  {
-    id: "heavy",
-    label: "Super grok heavy",
-    badge: "Heavy",
-    tagline: <>La version la plus puissante de Sam flash</>,
-    features: [
-      { icon: Check, title: "Tout dans Super grok plus" },
-      { icon: MonitorPlay, title: "Vidéo native 1080p en création" },
-      { icon: Rocket, title: "Utilisation la plus élevée à la vitesse la plus rapide" },
-      { icon: Brain, title: "Résolution des problèmes les plus complexes" },
-      { icon: Sparkles, title: "Accès anticipé aux nouveaux modèles" },
-    ],
-    cta: "Passer à Super grok heavy",
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
 ];
@@ -119,6 +94,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     amountLocal: number;
     currency: string;
     discountEur: number;
+    discountPercent: number | null;
     credits: number;
   } | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
@@ -137,7 +113,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const fetchDetected = useServerFn(detectCountry);
   const activatePromo = useServerFn(activatePromoOffer);
 
-  const plan = PLANS.find((p) => p.id === active)!;
+  const plan = PLANS[0];
   // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
   const price = prices.find((p) => p.id === active && p.tier !== "credits");
   const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
@@ -233,6 +209,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               amountLocal: q.amountLocal,
               currency: q.currency,
               discountEur: q.discountEur,
+              discountPercent: q.discountPercent,
               credits: q.credits,
             });
           } else {
@@ -466,7 +443,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           {promoApplied && quote && quote.discountEur > 0 && (
-            <p className="text-sm text-primary">Code {promoApplied} appliqué : −{quote.discountEur.toFixed(2)} €</p>
+            <p className="text-sm text-primary">Code {promoApplied} appliqué : −{quote.discountPercent ?? 0} %</p>
           )}
           {promoError && <p className="text-sm text-destructive">{promoError}</p>}
         </div>

@@ -312,8 +312,8 @@ export function LandingSection() {
       <Orbs />
 
       <div aria-hidden className="flex justify-center">
-        <span className="flex h-10 w-6 items-start justify-center rounded-full border border-white/30 pt-2">
-          <span className="h-2 w-1 animate-bounce rounded-full bg-white/70" />
+        <span className="flex h-10 w-6 items-start justify-center rounded-full border border-[#0b1220]/30 bg-white/70 pt-2">
+          <span className="h-2 w-1 animate-bounce rounded-full bg-[#0b1220]/60" />
         </span>
       </div>
 
@@ -321,10 +321,10 @@ export function LandingSection() {
         <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
           Sam flash 2.0
         </span>
-        <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-foreground">
+        <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-[#0b1220]">
           {title}
         </h2>
-        <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">{text}</p>
+        <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-[#4b5563]">{text}</p>
       </Reveal>
 
       {c.introVideo && (
@@ -344,7 +344,7 @@ export function LandingSection() {
             <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               Fait avec Sam flash 2.0
             </span>
-            <h3 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-foreground">
+            <h3 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-[#0b1220]">
               Voici ce que tu peux créer en quelques secondes
             </h3>
             <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
