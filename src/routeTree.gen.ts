@@ -27,6 +27,7 @@ import { Route as OutilsAiRouteImport } from './routes/outils-ai'
 import { Route as ChatIaRouteImport } from './routes/chat-ia'
 import { Route as AvatarAiRouteImport } from './routes/avatar-ai'
 import { Route as ClonageVideoRouteImport } from './routes/clonage-video'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -125,6 +126,12 @@ const ClonageVideoRoute = ClonageVideoRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/chat-ia': typeof ChatIaRoute
   '/avatar-ai': typeof AvatarAiRoute
   '/clonage-video': typeof ClonageVideoRoute
+  '/connexion': typeof ConnexionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesByTo {
   '/chat-ia': typeof ChatIaRoute
   '/avatar-ai': typeof AvatarAiRoute
   '/clonage-video': typeof ClonageVideoRoute
+  '/connexion': typeof ConnexionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/chat-ia': typeof ChatIaRoute
   '/avatar-ai': typeof AvatarAiRoute
   '/clonage-video': typeof ClonageVideoRoute
+  '/connexion': typeof ConnexionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/chat-ia'
     | '/avatar-ai'
     | '/clonage-video'
+    | '/connexion'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/chat-ia'
     | '/avatar-ai'
     | '/clonage-video'
+    | '/connexion'
   id:
     | '__root__'
     | '/'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/chat-ia'
     | '/avatar-ai'
     | '/clonage-video'
+    | '/connexion'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -268,6 +281,7 @@ export interface RootRouteChildren {
   ChatIaRoute: typeof ChatIaRoute
   AvatarAiRoute: typeof AvatarAiRoute
   ClonageVideoRoute: typeof ClonageVideoRoute
+  ConnexionRoute: typeof ConnexionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -398,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClonageVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -421,6 +442,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatIaRoute: ChatIaRoute,
   AvatarAiRoute: AvatarAiRoute,
   ClonageVideoRoute: ClonageVideoRoute,
+  ConnexionRoute: ConnexionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
