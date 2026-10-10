@@ -129,14 +129,14 @@ function priceForCredits(p: OfferRow, period: "monthly" | "yearly", requested?: 
   return { amountEur, monthlyCredits, baseCredits, yearly, unitEur: Math.round(unit * 10000) / 10000 };
 }
 
-/** Vérifie un code promo (montant fixe) pour cet utilisateur. */
+/** Vérifie un code promo (pourcentage du montant) pour cet utilisateur. */
 async function applyPromo(code: string | null | undefined, userId: string, amountEur: number) {
   if (!code || !code.trim()) return { ok: true as const, code: null, discountEur: 0, finalEur: amountEur };
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const normalized = code.trim().toUpperCase();
   const { data: promo } = await supabaseAdmin
     .from("promo_codes")
-    .select("code, discount_eur, starts_at, ends_at, max_uses, used_count, active")
+    .select("code, discount_percent, starts_at, ends_at, max_uses, used_count, active")
     .eq("code", normalized)
     .maybeSingle();
   if (!promo || !promo.active) return { ok: false as const, message: "Code promo invalide." };
@@ -155,7 +155,9 @@ async function applyPromo(code: string | null | undefined, userId: string, amoun
     .maybeSingle();
   if (used) return { ok: false as const, message: "Vous avez déjà utilisé ce code." };
 
-  const discountEur = Math.min(Number(promo.discount_eur), amountEur);
+  const percent = Math.min(Math.max(Number(promo.discount_percent), 0), 100);
+  // Montant en centimes : amountEur * percent / 100 euros, arrondi au centime.
+  const discountEur = Math.min(Math.round(amountEur * percent) / 100, amountEur);
   const finalEur = Math.round((amountEur - discountEur) * 100) / 100;
   if (finalEur < 0.5) return { ok: false as const, message: "Ce code ne peut pas réduire le montant à zéro." };
   return { ok: true as const, code: normalized, discountEur, finalEur };
