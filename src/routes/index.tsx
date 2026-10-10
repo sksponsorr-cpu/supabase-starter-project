@@ -6,6 +6,7 @@ import logoAsset from "@/assets/sam-flash-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
+import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { LandingSection } from "@/components/samflash/LandingSection";
@@ -251,7 +252,7 @@ function Login() {
               <>
                 <p className="font-semibold text-[#0b1220]">{f.t}</p>
                 <p className="mt-1 text-xs text-[#4b5563]">{f.d}</p>
-                {f.img && <img src={f.img} alt={`Exemple ${f.t}`} className="mt-3 aspect-[4/5] w-full rounded-xl object-cover" />}
+                {f.img && <ExampleTile label={f.t} />}
               </>
             );
             return (
@@ -297,14 +298,24 @@ function ShowcaseGallery() {
     { id: "avatar", label: "Avatar vidéo" },
     { id: "scene", label: "Mise en scène" },
   ] as const;
-  const ITEMS = [
-    { cat: "pub", src: "/showcase/pub-video.svg", label: "Publicité vidéo" },
-    { cat: "clone", src: "/showcase/clonage.svg", label: "Clonage vidéo" },
-    { cat: "avatar", src: "/showcase/avatar.svg", label: "Avatar vidéo" },
-    { cat: "scene", src: "/showcase/mise-en-scene.svg", label: "Mise en scène" },
+  const PLACEHOLDERS = [
+    { cat: "pub", label: "Publicité vidéo" },
+    { cat: "clone", label: "Clonage vidéo" },
+    { cat: "avatar", label: "Avatar vidéo" },
+    { cat: "scene", label: "Mise en scène" },
   ];
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
-  const shown = filter === "all" ? ITEMS : ITEMS.filter((i) => i.cat === filter);
+  const [items, setItems] = useState<LandingContent["showcase"]>([]);
+  const load = useServerFn(getLanding);
+  useEffect(() => {
+    load()
+      .then((c) => setItems(c.showcase ?? []))
+      .catch(() => setItems([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const shownReal = items.filter((i) => filter === "all" || i.cat === filter);
+  const shownPlaceholders = PLACEHOLDERS.filter((i) => filter === "all" || i.cat === filter);
   return (
     <>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -320,10 +331,42 @@ function ShowcaseGallery() {
         ))}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        {shown.map((i) => (
-          <img key={i.src} src={i.src} alt={i.label} className="aspect-[4/5] w-full rounded-2xl object-cover" />
-        ))}
+        {shownReal.length > 0
+          ? shownReal.map((i, idx) =>
+              /\.(mp4|mov|webm)(\?|$)/i.test(i.url) ? (
+                <video
+                  key={`${i.url}-${idx}`}
+                  src={i.url}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="aspect-[4/5] w-full rounded-2xl object-cover"
+                  aria-label={i.caption || i.cat}
+                />
+              ) : (
+                <img
+                  key={`${i.url}-${idx}`}
+                  src={i.url}
+                  alt={i.caption || i.cat}
+                  className="aspect-[4/5] w-full rounded-2xl object-cover"
+                />
+              ),
+            )
+          : shownPlaceholders.map((i) => <ExampleTile key={i.label} label={i.label} rounded="rounded-2xl" />)}
       </div>
     </>
+  );
+}
+
+function ExampleTile({ label, rounded = "rounded-xl" }: { label: string; rounded?: string }) {
+  return (
+    <div
+      className={`mt-3 flex aspect-[4/5] w-full flex-col items-center justify-center ${rounded} p-4 text-center`}
+      style={{ background: "linear-gradient(160deg, #1e2a5a 0%, #3b4ef8 100%)" }}
+    >
+      <span className="text-lg font-semibold text-white">{label}</span>
+      <span className="mt-1 text-xs text-white/70">Exemple à remplacer</span>
+    </div>
   );
 }
