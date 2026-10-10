@@ -24,7 +24,7 @@ import { Route as ApiPublicWebhooksPaymentFailedRouteImport } from './routes/api
 import { Route as ApiPublicWebhooksPaymentSuccessRouteImport } from './routes/api/public/webhooks/payment-success'
 import { Route as ApiPublicWebhooksSwychrRouteImport } from './routes/api/public/webhooks/swychr'
 import { Route as OutilsAiRouteImport } from './routes/outils-ai'
-import { Route as OutilsAiChatRouteImport } from './routes/outils-ai.chat'
+import { Route as ChatIaRouteImport } from './routes/chat-ia'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -106,9 +106,9 @@ const OutilsAiRoute = OutilsAiRouteImport.update({
   path: '/outils-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OutilsAiChatRoute = OutilsAiChatRouteImport.update({
-  id: '/outils-ai/chat',
-  path: '/outils-ai/chat',
+const ChatIaRoute = ChatIaRouteImport.update({
+  id: '/chat-ia',
+  path: '/chat-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -128,7 +128,7 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
-  '/outils-ai/chat': typeof OutilsAiChatRoute
+  '/chat-ia': typeof ChatIaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -146,7 +146,7 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
-  '/outils-ai/chat': typeof OutilsAiChatRoute
+  '/chat-ia': typeof ChatIaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -165,7 +165,7 @@ export interface FileRoutesById {
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
-  '/outils-ai/chat': typeof OutilsAiChatRoute
+  '/chat-ia': typeof ChatIaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -185,7 +185,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
-    | '/outils-ai/chat'
+    | '/chat-ia'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -203,7 +203,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
-    | '/outils-ai/chat'
+    | '/chat-ia'
   id:
     | '__root__'
     | '/'
@@ -221,7 +221,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
-    | '/outils-ai/chat'
+    | '/chat-ia'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -240,7 +240,7 @@ export interface RootRouteChildren {
   ApiPublicWebhooksPaymentSuccessRoute: typeof ApiPublicWebhooksPaymentSuccessRoute
   ApiPublicWebhooksSwychrRoute: typeof ApiPublicWebhooksSwychrRoute
   OutilsAiRoute: typeof OutilsAiRoute
-  OutilsAiChatRoute: typeof OutilsAiChatRoute
+  ChatIaRoute: typeof ChatIaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -350,11 +350,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OutilsAiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/outils-ai/chat': {
-      id: '/outils-ai/chat'
-      path: '/outils-ai/chat'
-      fullPath: '/outils-ai/chat'
-      preLoaderRoute: typeof OutilsAiChatRouteImport
+    '/chat-ia': {
+      id: '/chat-ia'
+      path: '/chat-ia'
+      fullPath: '/chat-ia'
+      preLoaderRoute: typeof ChatIaRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -377,7 +377,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksPaymentSuccessRoute: ApiPublicWebhooksPaymentSuccessRoute,
   ApiPublicWebhooksSwychrRoute: ApiPublicWebhooksSwychrRoute,
   OutilsAiRoute: OutilsAiRoute,
-  OutilsAiChatRoute: OutilsAiChatRoute,
+  ChatIaRoute: ChatIaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
