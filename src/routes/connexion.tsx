@@ -196,7 +196,7 @@ function Login() {
               type="button"
               disabled={busy}
               onClick={google}
-              className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-secondary/50 py-4 text-[17px] font-medium backdrop-blur-2xl transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-white py-4 text-[17px] font-medium  transition-transform active:scale-[0.98] disabled:opacity-60"
               style={{ boxShadow: "var(--shadow-glow)" }}
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="text-xl font-semibold">G</span>}
@@ -206,7 +206,7 @@ function Login() {
             <button
               type="button"
               onClick={() => setMode("email")}
-              className="flex w-full items-center justify-center gap-3 rounded-full border border-primary/60 bg-secondary/50 py-4 text-[17px] font-medium backdrop-blur-2xl transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-primary/60 bg-white py-4 text-[17px] font-medium  transition-transform active:scale-[0.98]"
               style={{ boxShadow: "var(--shadow-glow)" }}
             >
               <Mail className="h-5 w-5" />
@@ -218,11 +218,11 @@ function Login() {
             <button
               type="button"
               onClick={() => setMode("providers")}
-              className="flex items-center gap-1 text-sm text-muted-foreground"
+              className="flex items-center gap-1 text-sm text-[#4b5563]"
             >
               <ChevronLeft className="h-4 w-4" /> Retour
             </button>
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="text-xl font-semibold text-[#0b1220]">
               {signUp ? "Créer un nouveau compte" : "Se connecter"}
             </h2>
             {signUp && (
@@ -230,7 +230,7 @@ function Login() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Nom complet"
-                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+                className="w-full rounded-2xl border border-border bg-white px-4 py-4 text-[17px] outline-none  placeholder:text-[#4b5563]"
               />
             )}
             <input
@@ -239,7 +239,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-mail"
-              className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+              className="w-full rounded-2xl border border-border bg-white px-4 py-4 text-[17px] outline-none  placeholder:text-[#4b5563]"
             />
             <input
               type="password"
@@ -248,10 +248,10 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mot de passe"
-              className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-[17px] outline-none backdrop-blur-2xl placeholder:text-muted-foreground"
+              className="w-full rounded-2xl border border-border bg-white px-4 py-4 text-[17px] outline-none  placeholder:text-[#4b5563]"
             />
             {signUp && (
-              <p className="px-1 text-xs text-muted-foreground">
+              <p className="px-1 text-xs text-[#4b5563]">
                 Au moins 8 caractères. Mélangez lettres et chiffres pour un compte plus sûr.
               </p>
             )}
@@ -260,7 +260,7 @@ function Login() {
               <button
                 type="button"
                 onClick={() => setCaptchaReset((n) => n + 1)}
-                className="w-full text-center text-xs text-muted-foreground underline"
+                className="w-full text-center text-xs text-[#4b5563] underline"
               >
                 La vérification ne s'affiche pas ? Réessayer
               </button>
@@ -280,7 +280,7 @@ function Login() {
                 setSignUp((v) => !v);
                 setMessage(null);
               }}
-              className="flex w-full items-center justify-center rounded-full border border-primary/60 py-3.5 text-[16px] font-medium text-foreground transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center rounded-full border border-primary/60 py-3.5 text-[16px] font-medium text-[#0b1220] transition-transform active:scale-[0.98]"
             >
               {signUp ? "J'ai déjà un compte" : "Créer un nouveau compte"}
             </button>
@@ -288,7 +288,7 @@ function Login() {
         )}
 
         {inApp && mode === "providers" && (
-          <div className="rounded-xl bg-secondary/60 p-3 text-center text-xs text-muted-foreground">
+          <div className="rounded-xl bg-secondary/60 p-3 text-center text-xs text-[#4b5563]">
             Pour utiliser Google, ouvrez ce lien dans Chrome.
             <button type="button" onClick={copyLink} className="mt-1 block w-full font-medium text-primary">
               {copied ? "Lien copié ✓" : "Copier le lien"}
