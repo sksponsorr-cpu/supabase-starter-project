@@ -97,9 +97,11 @@ function HistoryPage() {
                       )
                     ) : (
                       <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted-foreground bg-secondary/20">
-                        {g.status === "processing"
+                        {g.status === "processing" || g.status === "pending"
                           ? t("processing")
-                          : (g.error_message ?? g.prompt)}
+                          : g.status === "error"
+                            ? (g.error_message ?? g.prompt)
+                            : g.prompt}
                       </div>
                     )}
                   </button>
