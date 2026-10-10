@@ -376,3 +376,166 @@ const r2 = await import("@/lib/services/r2.server");
     return { ok: false, reason: "error", message: sanitized, id };
   }
 }
+
+
+/* ------------------------------------------------------------------ */
+/* Finalisation des générations asynchrones (Fal.ai)                    */
+/* ------------------------------------------------------------------ */
+
+/** Au-delà de ce délai, une tâche encore "pending" est considérée comme perdue. */
+const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
+
+type PendingRowInput = {
+  id: string;
+  user_id?: string;
+  prompt: string;
+  media_type: string;
+  resolution?: string | null;
+  duration: string | null;
+  aspect_ratio: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+};
+
+export type PendingFinalizeResult =
+  | { ok: true; status: "ready"; mediaUrl: string | null }
+  | { ok: true; status: "pending" }
+  | { ok: true; status: "error"; error: string }
+  | { ok: false; error: string };
+
+async function refundPendingRow(row: PendingRowInput, userId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (row.media_type === "video") {
+    const seconds = secondsFor({ mediaType: "video", duration: row.duration ?? "5" } as GenerationInput);
+    await supabaseAdmin.rpc("refund_video_seconds", { _user_id: userId, _seconds: seconds });
+  } else {
+    await supabaseAdmin.rpc("refund_media_quota", { _user_id: userId, _media_type: row.media_type });
+  }
+}
+
+/** Passe la ligne en "error" puis rembourse une seule fois (garde-fou contre les doublons). */
+async function failPendingRow(
+  row: PendingRowInput,
+  userId: string,
+  message: string,
+): Promise<PendingFinalizeResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: claimed } = await supabaseAdmin
+    .from("generations")
+    .update({ status: "error", error_message: message })
+    .eq("id", row.id)
+    .eq("status", "pending")
+    .select("id");
+  if (claimed?.length) await refundPendingRow(row, userId);
+  return { ok: true, status: "error", error: message };
+}
+
+async function storeFinalMedia(
+  userId: string,
+  bytes: Uint8Array,
+  contentType: string,
+): Promise<{ mediaUrl: string | null; storagePath: string | null }> {
+  const path = `${userId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const r2 = await import("@/lib/services/r2.server");
+  if (r2.isR2Configured()) {
+    const url = await r2.uploadToR2(path, bytes, contentType);
+    return { mediaUrl: url, storagePath: null };
+  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error: upErr } = await supabaseAdmin.storage.from("generations").upload(path, bytes, { contentType });
+  if (upErr) throw new Error(upErr.message);
+  const { data: signed } = await supabaseAdmin.storage
+    .from("generations")
+    .createSignedUrl(path, SIGNED_URL_TTL);
+  return { mediaUrl: signed?.signedUrl ?? null, storagePath: path };
+}
+
+/**
+ * Interroge Fal.ai pour une ligne "pending" (error_message = "fal:{...}").
+ * - terminée : média stocké, ligne passée en "ready", ajoutée à la galerie
+ * - en échec : ligne en "error", crédit remboursé
+ * - en cours : "pending" (sauf si trop ancienne : traitée comme perdue et remboursée)
+ */
+export async function finalizePendingRow(
+  row: PendingRowInput,
+  userId: string,
+): Promise<PendingFinalizeResult> {
+  if (row.status !== "pending") {
+    return row.status === "ready"
+      ? { ok: true, status: "ready", mediaUrl: null }
+      : { ok: true, status: "error", error: row.error_message ?? "Génération indisponible" };
+  }
+
+  const genericError =
+    "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.";
+  const raw = row.error_message ?? "";
+  if (!raw.startsWith("fal:")) return { ok: false, error: "Pas de tâche asynchrone associée" };
+
+  let payload: { status_url?: string; response_url?: string };
+  try {
+    payload = JSON.parse(raw.slice(4));
+  } catch {
+    return failPendingRow(row, userId, genericError);
+  }
+  if (!payload.status_url || !payload.response_url) {
+    return failPendingRow(row, userId, genericError);
+  }
+
+  const { checkModelStatus, sanitizeGenerationError } = await import("@/lib/services/fal.server");
+  const kind = row.media_type === "video" ? "video" : "image";
+  const result = await checkModelStatus(payload.status_url, payload.response_url, kind);
+
+  if (result.status === "pending") {
+    const age = Date.now() - new Date(row.created_at).getTime();
+    if (age < PENDING_TIMEOUT_MS) return { ok: true, status: "pending" };
+    return failPendingRow(
+      row,
+      userId,
+      "La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.",
+    );
+  }
+
+  if (result.status === "error") {
+    return failPendingRow(row, userId, sanitizeGenerationError(result.error));
+  }
+
+  // status === "completed"
+  const stored = result.bytes
+    ? await storeFinalMedia(userId, result.bytes, result.contentType)
+    : { mediaUrl: result.mediaUrl, storagePath: null as string | null };
+  if (!stored.mediaUrl) {
+    return failPendingRow(row, userId, "Média généré mais inaccessible. Vos secondes ne sont pas décomptées.");
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: claimed } = await supabaseAdmin
+    .from("generations")
+    .update({
+      status: "ready",
+      media_url: stored.mediaUrl,
+      storage_path: stored.storagePath,
+      error_message: null,
+      duration_seconds:
+        row.media_type === "video"
+          ? secondsFor({ mediaType: "video", duration: row.duration ?? "5" } as GenerationInput)
+          : 0,
+    })
+    .eq("id", row.id)
+    .eq("status", "pending")
+    .select("id");
+
+  if (claimed?.length) {
+    await supabaseAdmin.from("community_gallery").insert({
+      generation_id: row.id,
+      user_id: userId,
+      prompt: row.prompt,
+      media_type: row.media_type,
+      media_url: stored.mediaUrl,
+      storage_path: stored.storagePath,
+      status: "en_attente",
+    });
+  }
+
+  return { ok: true, status: "ready", mediaUrl: stored.mediaUrl };
+}
