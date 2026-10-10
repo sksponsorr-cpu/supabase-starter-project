@@ -67,6 +67,7 @@ export function Sidebar({
     { href: "/app", icon: Wand2, label: "Créer" },
     { href: "/galerie", icon: Image, label: "Galerie" },
     { href: "/history", icon: Clock, label: "Historique" },
+    { href: "/outils-ai", icon: LayoutDashboard, label: "Plus outils AI" },
   ];
 
   return (
