@@ -184,48 +184,54 @@ function Login() {
   };
 
   return (
-    <main
-      className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-background px-4 py-8 md:px-6 md:py-12"
-      style={{
-        backgroundImage: `linear-gradient(to bottom, oklch(0.16 0.06 265 / 0.75), oklch(0.12 0.05 265 / 0.95)), url(${nightSky})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <div className="flex flex-1 flex-col items-center justify-center text-center w-full max-w-md mx-auto">
-        <div className="animate-float flex flex-col items-center">
-          <img
-            src={logoAsset}
-            alt="Logo Sam flash 2.0"
-            className="mx-auto mb-5 h-24 w-24 md:h-28 md:w-28 rounded-full object-cover shadow-2xl"
-          />
-          <h1 className="max-w-xs text-3xl md:text-4xl font-semibold leading-tight tracking-tight text-foreground">
-            Sam flash 2.0
-          </h1>
-          <p className="mt-3 max-w-sm px-4 text-center text-base md:text-lg font-medium text-foreground/90">
-            Transformez une idée en vidéo prête à partager sur TikTok, YouTube et Facebook, et à monétiser avec AdSense.
-          </p>
-          <div className="mt-5 flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-center">
-            <p className="text-sm font-semibold text-foreground">Essai : 2 000 FCFA · 40 crédits</p>
-            <p className="text-xs text-muted-foreground">Soit 8 vidéos de 5 secondes en 480p</p>
-          </div>
-          <div className="mt-6 flex w-full max-w-sm flex-col gap-3 px-4">
-            <a
-              href="#inscription"
-              className="flex items-center justify-center rounded-full bg-primary py-4 text-[17px] font-semibold text-primary-foreground"
-            >
-              Créer mon compte gratuitement
-            </a>
-            <a
-              href="#presentation"
-              className="flex items-center justify-center rounded-full border border-border bg-secondary/50 py-4 text-[16px] font-medium"
-            >
-              Voir la vidéo de présentation
-            </a>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">Mobile Money, sans carte bancaire</p>
+    <main className="relative flex min-h-screen flex-col bg-[#eef2ff] text-[#0b1220]">
+      {/* En-tête : logo en haut à gauche, bouton en bleu à droite */}
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-[#eef2ff]/90 px-5 py-4 backdrop-blur">
+        <div className="flex items-center gap-2.5">
+          <img src={logoAsset} alt="Logo Sam flash 2.0" className="h-9 w-9 rounded-full object-cover" />
+          <span className="text-lg font-semibold tracking-tight">Sam flash 2.0</span>
         </div>
-      </div>
+        <a
+          href="#inscription"
+          className="rounded-full bg-[#3b4ef8] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#3b4ef8]/30"
+        >
+          Commencer
+        </a>
+      </header>
+
+      {/* Hero clair et bleu */}
+      <section className="relative mx-auto flex w-full max-w-md flex-col items-center px-5 pb-10 pt-6 text-center">
+        <span className="rounded-full border border-[#3b4ef8]/30 bg-white px-4 py-1.5 text-sm font-medium text-[#3b4ef8]">
+          Création vidéo IA pour les créateurs
+        </span>
+        <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          Transformez une idée en <span className="rounded-xl bg-[#3b4ef8] px-2 text-white">vidéo</span> prête à publier
+        </h1>
+        <p className="mt-5 text-base leading-relaxed text-[#4b5563] md:text-lg">
+          Partagez sur TikTok, YouTube et Facebook, et monétisez vos contenus.
+        </p>
+
+        <div className="mt-8 flex w-full flex-col gap-3">
+          <a
+            href="#inscription"
+            className="flex items-center justify-center rounded-full bg-[#3b4ef8] py-4 text-[17px] font-semibold text-white shadow-xl shadow-[#3b4ef8]/30"
+          >
+            Créer mon compte gratuitement →
+          </a>
+          <a
+            href="#presentation"
+            className="flex items-center justify-center rounded-full bg-white py-4 text-[16px] font-semibold text-[#0b1220] shadow"
+          >
+            ▶ Voir la vidéo de présentation
+          </a>
+        </div>
+
+        <div className="mt-5 rounded-2xl bg-white px-5 py-3 shadow">
+          <p className="text-sm font-semibold">Essai : 2 000 FCFA · 40 crédits</p>
+          <p className="text-xs text-[#4b5563]">Soit 8 vidéos de 5 secondes en 480p</p>
+        </div>
+        <p className="mt-3 text-xs text-[#4b5563]">Mobile Money, sans carte bancaire</p>
+      </section>
 
       <div id="presentation" />
       <LandingSection />
