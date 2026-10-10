@@ -6,6 +6,7 @@ import logoAsset from "@/assets/sam-flash-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
+import { useServerFn } from "@tanstack/react-start";
 import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
