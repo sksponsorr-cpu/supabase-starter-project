@@ -5,7 +5,8 @@ import { OWNER_EMAILS } from "@/lib/owners";
 
 export type PromoCodeRow = {
   code: string;
-  discount_percent: number;
+  discount_percent: number | null;
+  discount_eur: number;
   starts_at: string;
   ends_at: string;
   max_uses: number | null;
@@ -29,11 +30,12 @@ export const listPromoCodes = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
       .from("promo_codes")
-      .select("code, discount_percent, starts_at, ends_at, max_uses, used_count, active")
+      .select("code, discount_eur, discount_percent, starts_at, ends_at, max_uses, used_count, active")
       .order("created_at", { ascending: false });
     return (data ?? []).map((r) => ({
       ...r,
-      discount_percent: Number(r.discount_percent),
+      discount_eur: Number(r.discount_eur),
+      discount_percent: r.discount_percent === null ? null : Number(r.discount_percent),
     })) as PromoCodeRow[];
   });
 
@@ -43,7 +45,7 @@ export const savePromoCode = createServerFn({ method: "POST" })
     z
       .object({
         code: z.string().trim().min(3).max(30).regex(/^[A-Za-z0-9_-]+$/, "Lettres, chiffres, - et _ uniquement"),
-        discountPercent: z.number().positive().max(100),
+        discountPercent: z.number().gt(0).max(100),
         startsAt: z.string().min(1),
         endsAt: z.string().min(1),
         maxUses: z.number().int().positive().nullable(),
@@ -65,6 +67,7 @@ export const savePromoCode = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const row = {
       code,
+      discount_eur: 0,
       discount_percent: Math.round(data.discountPercent * 100) / 100,
       starts_at: start.toISOString(),
       ends_at: end.toISOString(),
