@@ -252,6 +252,9 @@ export type AdminPrice = {
   amount_eur_yearly: number | null;
   active: boolean;
   sort_order: number;
+  credits_rate: number | null;
+  credits_bonus: number | null;
+  credits_fixed: number | null;
 };
 
 /** Liste des offres et de leur prix EUR (admin ou finance). */
@@ -260,12 +263,15 @@ export const listAdminPrices = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AdminPrice[]> => {
     const { data } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, active, sort_order")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed")
       .order("sort_order", { ascending: true });
     return (data ?? []).map((row) => ({
       ...row,
       amount_eur: Number(row.amount_eur),
       amount_eur_yearly: row.amount_eur_yearly === null ? null : Number(row.amount_eur_yearly),
+      credits_rate: row.credits_rate === null ? null : Number(row.credits_rate),
+      credits_bonus: row.credits_bonus === null ? null : Number(row.credits_bonus),
+      credits_fixed: row.credits_fixed === null ? null : Number(row.credits_fixed),
     }));
   });
 
@@ -277,6 +283,9 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
     amountEur: number;
     amountEurYearly: number | null;
     active: boolean;
+    creditsRate?: number | null;
+    creditsBonus?: number | null;
+    creditsFixed?: number | null;
   }) => {
     if (typeof input?.id !== "string" || input.id.length === 0) throw new Error("Offre invalide");
     const amount = Number(input.amountEur);
@@ -287,11 +296,26 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
       if (!Number.isFinite(y) || y < 0 || y > 1000000) throw new Error("Montant annuel invalide");
       yearly = Math.round(y * 100) / 100;
     }
+    const rate = input.creditsRate ?? null;
+    if (rate !== null && (!Number.isFinite(Number(rate)) || Number(rate) < 0 || Number(rate) > 1000)) {
+      throw new Error("Taux de crédits invalide");
+    }
+    const bonus = input.creditsBonus ?? null;
+    if (bonus !== null && (!Number.isFinite(Number(bonus)) || Number(bonus) < 0 || Number(bonus) > 1000000)) {
+      throw new Error("Bonus de crédits invalide");
+    }
+    const fixed = input.creditsFixed ?? null;
+    if (fixed !== null && (!Number.isFinite(Number(fixed)) || Number(fixed) < 0 || Number(fixed) > 1000000)) {
+      throw new Error("Crédits fixes invalides");
+    }
     return {
       id: input.id,
       amountEur: Math.round(amount * 100) / 100,
       amountEurYearly: yearly,
       active: Boolean(input.active),
+      creditsRate: rate === null ? null : Number(rate),
+      creditsBonus: bonus === null ? null : Math.round(Number(bonus)),
+      creditsFixed: fixed === null ? null : Math.round(Number(fixed)),
     };
   })
   .handler(async ({ data, context }) => {
@@ -301,6 +325,9 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
         amount_eur: data.amountEur,
         amount_eur_yearly: data.amountEurYearly,
         active: data.active,
+        credits_rate: data.creditsRate,
+        credits_bonus: data.creditsBonus ?? 0,
+        credits_fixed: data.creditsFixed,
       })
       .eq("id", data.id);
     if (error) return { ok: false as const, message: "Mise à jour impossible." };
