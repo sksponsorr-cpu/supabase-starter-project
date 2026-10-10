@@ -162,8 +162,7 @@ export function AdminPromoPanel() {
               <div className="min-w-0">
                 <p className="truncate text-[17px] font-medium">{r.code}</p>
                 <p className="text-xs text-muted-foreground">
-                  −{r.discount_percent ?? r.discount_eur}
-                  {r.discount_percent !== null ? " %" : " €"} · utilisé {r.used_count} fois
+                  −{r.discount_percent} % · utilisé {r.used_count} fois
                   {r.max_uses !== null ? ` / ${r.max_uses}` : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">

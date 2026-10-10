@@ -206,7 +206,7 @@ export function MediaViewer({ item, onClose, onChanged }: Props) {
           )
         ) : (
           <p className="px-6 text-center text-sm text-muted-foreground">
-            {item.error_message ?? t("processing")}
+            {item.status === "error" ? (item.error_message ?? t("processing")) : t("processing")}
           </p>
         )}
       </div>
