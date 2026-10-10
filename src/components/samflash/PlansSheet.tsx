@@ -9,7 +9,7 @@ import { formatLocalAmount } from "@/lib/payments/countries";
 import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
-import { creditCostFor, OFFER_END_ISO } from "@/lib/credits";
+import { creditCostFor } from "@/lib/credits";
 import { detectCountry } from "@/lib/country.functions";
 
 type PlanId = "base" | "plus" | "heavy";
@@ -74,40 +74,32 @@ function includedCredits(p: PriceRow, yearly: boolean): number {
   return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
 }
 
+/** Fuseaux horaires et régions des pays pris en charge (détection sur l'appareil). */
+const TIMEZONE_COUNTRY: Record<string, string> = {
+  "Africa/Kinshasa": "CD", "Africa/Lubumbashi": "CD", "Africa/Porto-Novo": "BJ", "Africa/Ouagadougou": "BF",
+  "Africa/Douala": "CM", "Africa/Bangui": "CF", "Africa/Ndjamena": "TD", "Africa/Brazzaville": "CG",
+  "Africa/Abidjan": "CI", "Africa/Libreville": "GA", "Africa/Accra": "GH", "Africa/Conakry": "GN",
+  "Africa/Nairobi": "KE", "Africa/Bamako": "ML", "Africa/Niamey": "NE", "Africa/Lagos": "NG",
+  "Africa/Kigali": "RW", "Africa/Dakar": "SN", "Africa/Lome": "TG",
+};
+
+/** Pays déduit de l'appareil : fuseau horaire, puis région de la langue (ex. fr-CD). */
+function countryFromDevice(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && TIMEZONE_COUNTRY[tz]) return TIMEZONE_COUNTRY[tz];
+  } catch {
+    // ignoré : on passe à la langue
+  }
+  const region = (navigator.language || "").split("-")[1];
+  return region ? region.toUpperCase() : null;
+}
+
 /** Pays choisi manuellement par l'utilisateur (prioritaire sur la détection). */
 function manualCountry(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("sf_country_manual");
-}
-
-function OfferCountdown() {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const diff = new Date(OFFER_END_ISO).getTime() - now;
-  if (diff <= 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-card/60 p-3 text-center">
-        <p className="text-sm font-medium">L'offre de lancement est terminée.</p>
-      </div>
-    );
-  }
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const days = Math.floor(diff / 86_400_000);
-  const hours = Math.floor(diff / 3_600_000) % 24;
-  const minutes = Math.floor(diff / 60_000) % 60;
-  const seconds = Math.floor(diff / 1000) % 60;
-  return (
-    <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3 text-center">
-      <p className="text-xs text-muted-foreground">Offre de lancement : fin dans</p>
-      <p className="mt-1 font-mono text-lg font-semibold">
-        {days}j {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
-      </p>
-    </div>
-  );
 }
 
 export function PlansSheet({ onClose }: { onClose: () => void }) {
@@ -115,11 +107,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [pricesLoaded, setPricesLoaded] = useState(false);
-  const [countries, setCountries] = useState<{ code: string; name: string; currency: string }[]>([]);
+  const [countries, setCountries] = useState<{ code: string; name: string; currency: string; zeroDecimal: boolean }[]>([]);
   const [countryCode, setCountryCode] = useState<string>(manualCountry() ?? "CD");
   const [detected, setDetected] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [promoInput, setPromoInput] = useState("");
+  const [showFeatures, setShowFeatures] = useState(false);
   const [promoApplied, setPromoApplied] = useState<string | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
@@ -181,11 +174,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     fetchCountries({})
-      .then((list) => setCountries(list as { code: string; name: string; currency: string }[]))
+      .then((list) => setCountries(list as { code: string; name: string; currency: string; zeroDecimal: boolean }[]))
       .catch(() => setCountries([]));
   }, [fetchCountries]);
 
-  // Détection automatique : appliquée seulement si l'utilisateur n'a pas choisi lui-même.
+  // Détection automatique : appareil d'abord, puis adresse IP. Le choix manuel reste prioritaire.
+  const [deviceCountry] = useState<string | null>(() => countryFromDevice());
   useEffect(() => {
     let cancelled = false;
     fetchDetected({})
@@ -199,9 +193,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   }, [fetchDetected]);
 
   useEffect(() => {
-    if (manualCountry()) return;
-    if (detected && countries.some((c) => c.code === detected)) setCountryCode(detected);
-  }, [detected, countries]);
+    if (manualCountry() || countries.length === 0) return;
+    const supported = (code: string | null) => !!code && countries.some((c) => c.code === code);
+    if (supported(deviceCountry)) setCountryCode(deviceCountry!);
+    else if (supported(detected)) setCountryCode(detected!);
+  }, [deviceCountry, detected, countries]);
 
   useEffect(() => {
     fetchPromo({})
@@ -299,8 +295,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   }, [sliderValue]);
 
   const selectedCountry = countries.find((c) => c.code === countryCode);
+  const rawUnit = quote && sliderValue > 0 ? quote.amountLocal / sliderValue : null;
   const unitLocal =
-    quote && sliderValue > 0 ? quote.amountLocal / sliderValue : null;
+    rawUnit !== null && selectedCountry
+      ? selectedCountry.zeroDecimal
+        ? Math.round(rawUnit)
+        : Math.round(rawUnit * 100) / 100
+      : null;
   const yearlyNote = yearly ? " · payé une fois pour 12 mois" : "";
 
   return (
@@ -371,8 +372,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="mt-4 space-y-4 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
-          <OfferCountdown />
-
           {/* Pays : détecté au premier passage, modifiable */}
           {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
             <p className="text-xs text-muted-foreground">
@@ -431,14 +430,22 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {plan.features.map((f) => (
-            <div key={f.title} className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                <f.icon className="h-4 w-4 text-foreground" />
-              </span>
-              <span className="text-[15px] font-medium leading-snug">{f.title}</span>
-            </div>
-          ))}
+          <button
+            type="button"
+            onClick={() => setShowFeatures((v) => !v)}
+            className="w-full text-left text-sm font-medium text-primary"
+          >
+            {showFeatures ? "Masquer ce qui est inclus" : "Voir ce qui est inclus"}
+          </button>
+          {showFeatures &&
+            plan.features.map((f) => (
+              <div key={f.title} className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+                  <f.icon className="h-4 w-4 text-foreground" />
+                </span>
+                <span className="text-[15px] font-medium leading-snug">{f.title}</span>
+              </div>
+            ))}
         </div>
 
         {/* Code promo */}
