@@ -25,6 +25,8 @@ import { Route as ApiPublicWebhooksPaymentSuccessRouteImport } from './routes/ap
 import { Route as ApiPublicWebhooksSwychrRouteImport } from './routes/api/public/webhooks/swychr'
 import { Route as OutilsAiRouteImport } from './routes/outils-ai'
 import { Route as ChatIaRouteImport } from './routes/chat-ia'
+import { Route as AvatarAiRouteImport } from './routes/avatar-ai'
+import { Route as ClonageVideoRouteImport } from './routes/clonage-video'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +114,17 @@ const ChatIaRoute = ChatIaRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const AvatarAiRoute = AvatarAiRouteImport.update({
+  id: '/avatar-ai',
+  path: '/avatar-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClonageVideoRoute = ClonageVideoRouteImport.update({
+  id: '/clonage-video',
+  path: '/clonage-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
@@ -129,6 +142,8 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
   '/chat-ia': typeof ChatIaRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/clonage-video': typeof ClonageVideoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,6 +162,8 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
   '/chat-ia': typeof ChatIaRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/clonage-video': typeof ClonageVideoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,6 +183,8 @@ export interface FileRoutesById {
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
   '/outils-ai': typeof OutilsAiRoute
   '/chat-ia': typeof ChatIaRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/clonage-video': typeof ClonageVideoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -186,6 +205,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
     | '/chat-ia'
+    | '/avatar-ai'
+    | '/clonage-video'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -204,6 +225,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
     | '/chat-ia'
+    | '/avatar-ai'
+    | '/clonage-video'
   id:
     | '__root__'
     | '/'
@@ -222,6 +245,8 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/swychr'
     | '/outils-ai'
     | '/chat-ia'
+    | '/avatar-ai'
+    | '/clonage-video'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,6 +266,8 @@ export interface RootRouteChildren {
   ApiPublicWebhooksSwychrRoute: typeof ApiPublicWebhooksSwychrRoute
   OutilsAiRoute: typeof OutilsAiRoute
   ChatIaRoute: typeof ChatIaRoute
+  AvatarAiRoute: typeof AvatarAiRoute
+  ClonageVideoRoute: typeof ClonageVideoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -357,6 +384,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/avatar-ai': {
+      id: '/avatar-ai'
+      path: '/avatar-ai'
+      fullPath: '/avatar-ai'
+      preLoaderRoute: typeof AvatarAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clonage-video': {
+      id: '/clonage-video'
+      path: '/clonage-video'
+      fullPath: '/clonage-video'
+      preLoaderRoute: typeof ClonageVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -378,6 +419,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksSwychrRoute: ApiPublicWebhooksSwychrRoute,
   OutilsAiRoute: OutilsAiRoute,
   ChatIaRoute: ChatIaRoute,
+  AvatarAiRoute: AvatarAiRoute,
+  ClonageVideoRoute: ClonageVideoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
