@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, Code2, Copy, Menu, MessageSquare, Paperclip, Plus, Send, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Code2, Copy, Menu, MessageSquare, Paperclip, Plus, Send, Trash2, Video, X } from "lucide-react";
 import { sendChat, aiAccess, CHAT_MODELS } from "@/lib/chat.functions";
 import { toast } from "@/lib/toast";
 
 type Provider = "claude" | "gpt";
-type Mode = "chat" | "code";
+type Mode = "chat" | "code" | "video";
 
 export const Route = createFileRoute("/chat-ia")({
   validateSearch: (search: Record<string, unknown>): { p: Provider } => ({
@@ -453,6 +453,26 @@ function ChatPage() {
                 </span>
               </span>
             </button>
+
+            {(provider === "claude" || provider === "gpt") && (
+              <button
+                type="button"
+                onClick={() => setCurrent({ ...current, mode: current.mode === "video" ? "chat" : "video" })}
+                className={`mt-3 flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-300 active:scale-[0.98] ${
+                  current.mode === "video" ? "border-primary bg-primary/10" : "border-border"
+                }`}
+              >
+                <Video className="h-5 w-5" />
+                <span className="flex-1">
+                  <span className="block text-sm font-medium">Mode Vidéo</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {current.mode === "video"
+                      ? "Activé : génération de segments Omni"
+                      : "Créer une vidéo motion design à partir de votre script"}
+                  </span>
+                </span>
+              </button>
+            )}
 
             <p className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Récents</p>
             <ul className="mt-2 flex-1 space-y-1 overflow-y-auto">
