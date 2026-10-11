@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listCountries, listPrices, quotePrice, CREDIT_MIN, CREDIT_MAX, type PriceRow } from "@/lib/payments.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,40 @@ import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor } from "@/lib/credits";
 import { detectCountry } from "@/lib/country.functions";
+
+/** Affiche un nombre qui glisse en douceur vers sa nouvelle valeur (ease-out cubique). */
+function AnimatedNumber({ value, format }: { value: number; format: (n: number) => string }) {
+  const [display, setDisplay] = useState(value);
+  const shown = useRef(value);
+  useEffect(() => {
+    const from = shown.current;
+    const start = performance.now();
+    const duration = 600;
+    let frame = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = Math.round(from + (value - from) * eased);
+      shown.current = next;
+      setDisplay(next);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <span className="tabular-nums">{format(display)}</span>;
+}
+
+/** Désactive les animations pour les personnes qui le demandent dans leurs réglages. */
+function PlansStyles() {
+  return (
+    <style>{`
+      @media (prefers-reduced-motion: reduce) {
+        [class*="animate-in"], [class*="transition"] { animation: none !important; transition: none !important; }
+      }
+    `}</style>
+  );
+}
 
 type PlanId = "light" | "pro" | "custom";
 
@@ -338,7 +372,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <X className="h-6 w-6" />
         </button>
 
-        <div className="mt-2 text-center">
+        <PlansStyles />
+        <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
             Sam flash
             {plan.badge && (
@@ -355,8 +390,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               key={p.id}
               type="button"
               onClick={() => setActive(p.id)}
-              className={`flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-colors ${
-                active === p.id ? "bg-secondary text-foreground shadow-[var(--shadow-glow)]" : "text-muted-foreground"
+              className={`flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-all duration-300 ease-out active:scale-95 ${
+                active === p.id ? "bg-secondary text-foreground shadow-[var(--shadow-glow)] scale-[1.02]" : "text-muted-foreground"
               }`}
             >
               {p.label}
@@ -472,8 +507,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
           )}
           {(showFeatures || plan.id !== "custom") &&
-            plan.features.map((f) => (
-              <div key={f.title} className="flex items-center gap-3">
+            plan.features.map((f, i) => (
+              <div
+                key={f.title}
+                style={{ animationDelay: `${i * 80}ms` }}
+                className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500"
+              >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
                   <f.icon className="h-4 w-4 text-foreground" />
                 </span>
@@ -514,7 +553,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             {quoteBusy && !quote
               ? "…"
               : quote
-                ? formatLocalAmount(quote.amountLocal, quote.currency)
+                ? <AnimatedNumber value={quote.amountLocal} format={(n) => formatLocalAmount(n, quote.currency)} />
                 : pricesLoaded
                   ? "Indisponible"
                   : "…"}
