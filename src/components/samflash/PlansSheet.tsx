@@ -12,10 +12,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor } from "@/lib/credits";
 import { detectCountry } from "@/lib/country.functions";
 
-type PlanId = "light" | "pro" | "base";
+type PlanId = "light" | "pro" | "custom";
 
 type Plan = {
   id: PlanId;
+  /** Identifiant de la ligne dans la table product_prices. */
+  dbId: string;
+  /** Masqué tant que le prix sur mesure n'est pas géré côté serveur. */
+  hidden?: boolean;
   label: string;
   badge?: string;
   tagline: React.ReactNode;
@@ -27,6 +31,7 @@ type Plan = {
 const PLANS: Plan[] = [
   {
     id: "light",
+    dbId: "base",
     label: "Sam Flash Light",
     tagline: <>Tous les outils IA dans un seul abonnement</>,
     features: [
@@ -39,6 +44,7 @@ const PLANS: Plan[] = [
   },
   {
     id: "pro",
+    dbId: "plus",
     label: "Sam Flash Pro",
     tagline: <>Le plus de crédits, sans limite de qualité</>,
     features: [
@@ -52,7 +58,8 @@ const PLANS: Plan[] = [
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
   {
-    id: "base",
+    id: "custom",
+    dbId: "custom",
     label: "Sur mesure",
     tagline: <>Choisissez vous-même votre nombre de crédits</>,
     features: [
@@ -70,6 +77,7 @@ const PLANS: Plan[] = [
 
 /** Crédits inclus par mois (même calcul que le serveur). */
 function includedCredits(p: PriceRow, yearly: boolean): number {
+  if (p.id === "custom") return 110;
   if (p.credits_fixed !== null) return Math.round(p.credits_fixed);
   const base = yearly && p.amount_eur_yearly !== null ? p.amount_eur_yearly / 12 : p.amount_eur;
   return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
@@ -142,7 +150,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
   const plan = PLANS.find((p) => p.id === active) ?? PLANS[0];
   // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
-  const price = prices.find((p) => p.id === active && p.tier !== "credits");
+  const price = prices.find((p) => p.id === plan.dbId && p.tier !== "credits");
   const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
   const yearly = period === "yearly" && yearlyAvailable;
   const baseCredits = price ? includedCredits(price, yearly) : 0;
@@ -274,7 +282,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     window.localStorage.setItem("sf_country_manual", code);
   };
 
-  const promoAmount = promo.enabled ? (promo.prices[active] ?? null) : null;
+  const promoAmount = promo.enabled ? (promo.prices[plan.dbId] ?? null) : null;
   const promoFree = promo.enabled && promoAmount === 0;
 
   const claimPromo = async () => {
@@ -401,7 +409,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Forfait fixe : crédits imposés */}
-          {price && price.credits_fixed !== null && (
+          {price && plan.id !== "custom" && (
             <div className="space-y-1">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">Crédits inclus par mois</span>
@@ -414,7 +422,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Curseur de crédits (plan sur mesure uniquement) */}
-          {price && price.credits_fixed === null && (
+          {price && plan.id === "custom" && (
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">Crédits par mois</span>
@@ -442,7 +450,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                   Prix : {formatLocalAmount(unitLocal, selectedCountry.currency)} par crédit
                 </p>
               )}
-              {quote && selectedCountry && price.credits_fixed === null && (
+              {quote && selectedCountry && plan.id === "custom" && (
                 <p className="text-sm">
                   Total : <span className="font-semibold">{formatLocalAmount(quote.amountLocal, selectedCountry.currency)}</span>
                   {yearly ? " pour 12 mois" : " par mois"}
@@ -454,7 +462,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {plan.id === "base" && (
+          {plan.id === "custom" && (
           <button
             type="button"
             onClick={() => setShowFeatures((v) => !v)}
@@ -463,7 +471,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             {showFeatures ? "Masquer ce qui est inclus" : "Voir ce qui est inclus"}
           </button>
           )}
-          {(showFeatures || plan.id !== "base") &&
+          {(showFeatures || plan.id !== "custom") &&
             plan.features.map((f) => (
               <div key={f.title} className="flex items-center gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
