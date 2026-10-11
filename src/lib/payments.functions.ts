@@ -46,6 +46,10 @@ export type PriceRow = {
 export type BillingPeriod = "monthly" | "yearly";
 
 /** Liste publique des offres et de leur prix en euros. */
+/** Bornes du curseur de crédits (abonnements uniquement). */
+export const CREDIT_MIN = 50;
+export const CREDIT_MAX = 5000;
+
 /** Taux officiel fixe : 655,957 FCFA = 1 €. Les prix sont saisis en FCFA. */
 const FCFA_PER_EUR = 655.957;
 
