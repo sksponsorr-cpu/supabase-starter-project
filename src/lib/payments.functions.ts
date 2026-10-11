@@ -53,6 +53,13 @@ export const CREDIT_MAX = 5000;
 /** Taux officiel fixe : 655,957 FCFA = 1 €. Les prix sont saisis en FCFA. */
 const FCFA_PER_EUR = 655.957;
 
+/** Sur mesure : montant en euros = nombre de crédits × prix d'un crédit (amount_fcfa de la ligne « custom »). */
+function customAmountEur(price: { amount_fcfa?: unknown }, credits?: number): number | null {
+  const unit = Number(price.amount_fcfa ?? 0);
+  if (!credits || credits < CREDIT_MIN || credits > CREDIT_MAX || unit <= 0) return null;
+  return Math.round((credits * unit * 100) / FCFA_PER_EUR) / 100;
+}
+
 /** Convertit un prix en FCFA (base) en prix en euros pour le calcul et la conversion locale. */
 function toEurOffer<T extends { amount_fcfa?: unknown; amount_fcfa_yearly?: unknown; amount_eur?: unknown; amount_eur_yearly?: unknown }>(row: T) {
   const fcfa = row.amount_fcfa === null || row.amount_fcfa === undefined ? null : Number(row.amount_fcfa);
@@ -112,12 +119,13 @@ export const listPaymentMethods = createServerFn({ method: "POST" })
 /** Devis : conversion du prix EUR vers la devise locale du pays choisi. */
 export const quotePrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string; countryCode: string; period?: string }) =>
+  .inputValidator((input: { productId: string; countryCode: string; period?: string; credits?: number }) =>
     z
       .object({
         productId: z.string().min(1),
         countryCode: z.string().length(2),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
       })
       .parse(input),
   )
@@ -134,10 +142,13 @@ export const quotePrice = createServerFn({ method: "POST" })
     const price = priceRaw ? toEurOffer(priceRaw) : null;
     if (!price) return { ok: false as const, message: "Offre introuvable." };
 
+    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
+    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
     const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
+      customEur ??
+      (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+        : Number(price.amount_eur));
 
     const { convertFromEur } = await import("@/lib/services/fx.server");
     const conv = await convertFromEur(amountEur, country.currency, country.zeroDecimal);
@@ -173,6 +184,7 @@ export const startPayment = createServerFn({ method: "POST" })
         mobile: z.string().min(6).max(20),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
       })
       .parse(input),
   )
@@ -193,10 +205,13 @@ export const startPayment = createServerFn({ method: "POST" })
     const price = priceRaw ? toEurOffer(priceRaw) : null;
     if (!price) return { ok: false as const, message: "Offre introuvable." };
 
+    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
+    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
     const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
+      customEur ??
+      (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+        : Number(price.amount_eur));
 
     const { local: mobileLocal, international: mobile } = normalizeMobile(data.mobile, country);
     if (mobileLocal.length < 8) return { ok: false as const, message: "Numéro de téléphone invalide." };
@@ -256,6 +271,7 @@ export const startPayment = createServerFn({ method: "POST" })
       mobile,
       customer_name: data.fullName,
       customer_email: email,
+      credits: price.id === "custom" ? (data.credits ?? null) : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
@@ -323,6 +339,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
         productId: z.string().min(1).max(40),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
+        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
       })
       .parse(input),
   )
@@ -339,10 +356,13 @@ export const startCardPayment = createServerFn({ method: "POST" })
     const price = priceRaw ? toEurOffer(priceRaw) : null;
     if (!price) return { ok: false as const, message: "Offre introuvable." };
 
+    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
+    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
     const amountEur =
-      data.period === "yearly" && price.amount_eur_yearly !== null
+      customEur ??
+      (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur);
+        : Number(price.amount_eur));
 
     const { planTypeFor } = await import("@/lib/plans");
     const planType = planTypeFor(price.id, data.period);
@@ -367,6 +387,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
       mobile: "-",
       customer_name: data.fullName,
       customer_email: email,
+      credits: price.id === "custom" ? (data.credits ?? null) : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
@@ -479,9 +500,9 @@ export const getPublicOrderStatus = createServerFn({ method: "POST" })
     if (!order) return { ok: false as const, message: "Commande introuvable." };
 
     const planLabel =
-      order.product_id === "pro" || order.tier === "super_grok_plus"
+      order.product_id === "plus" || order.product_id === "pro" || order.tier === "super_grok_plus"
         ? "Sam Flash Pro"
-        : order.product_id === "light" || order.tier === "super_grok_monthly"
+        : order.product_id === "base" || order.product_id === "light" || order.tier === "super_grok_monthly"
           ? "Sam Flash Light"
           : "Sam Flash";
 
