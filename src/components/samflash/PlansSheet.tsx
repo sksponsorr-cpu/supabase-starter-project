@@ -342,7 +342,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   };
 
   const promoAmount = promo.enabled ? (promo.prices[plan.dbId] ?? null) : null;
-  const promoFree = promo.enabled && promoAmount === 0;
+  const promoFree = false;
 
   const claimPromo = async () => {
     setActivating(true);
@@ -403,14 +403,14 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
           <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
         </div>
-        {promo.enabled && (
+        {(
           <button
             type="button"
             onClick={() => setTrialOpen(true)}
             className="sf-bob relative mx-auto mt-1 inline-flex items-center gap-2 self-center overflow-hidden rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95 disabled:opacity-60"
           >
             <Gift className="h-4 w-4" />
-            Offre d'essai · {PROMO_DAYS} jours offerts
+            Offre d'essai Grok
             <span className="sf-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
           </button>
         )}
