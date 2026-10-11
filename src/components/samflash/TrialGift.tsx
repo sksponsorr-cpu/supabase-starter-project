@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Gift, X } from "lucide-react";
+import { Check, Gift, MousePointerClick, X } from "lucide-react";
+import { detectCountry } from "@/lib/country.functions";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
 
@@ -10,6 +11,15 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
   const [trialRow, setTrialRow] = useState<PriceRow | null>(null);
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
+  const detect = useServerFn(detectCountry);
+  const [countryCode, setCountryCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    detect({})
+      .then((r) => setCountryCode(r.code))
+      .catch(() => undefined);
+  }, [detect, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -27,16 +37,36 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
 
   return (
     <>
-      <div className="relative mx-auto mt-2 flex justify-center">
+      <style>{`
+        @keyframes sf-halo { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+        @keyframes sf-lid { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-5px) rotate(-12deg); } }
+        @keyframes sf-point { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-4px,4px); } }
+        @keyframes sf-spark { 0%,100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1); } }
+        .sf-halo { animation: sf-halo 2.4s ease-out infinite; }
+        .sf-halo-2 { animation: sf-halo 2.4s ease-out 1.2s infinite; }
+        .sf-lid { animation: sf-lid 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+        .sf-point { animation: sf-point 1.2s ease-in-out infinite; }
+        .sf-spark { animation: sf-spark 2s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .sf-halo, .sf-halo-2, .sf-lid, .sf-point, .sf-spark { animation: none !important; } }
+      `}</style>
+      <div className="relative mx-auto mt-2 flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="sf-bob relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95"
+          className="group relative inline-flex items-center gap-3 overflow-visible rounded-full border border-primary/40 bg-primary/15 py-2 pl-2 pr-5 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95"
         >
-          <Gift className="h-4 w-4" />
-          Offre d'essai Grok
+          <span className="relative flex h-10 w-10 items-center justify-center">
+            <span className="sf-halo absolute inset-0 rounded-full bg-primary/40" />
+            <span className="sf-halo-2 absolute inset-0 rounded-full bg-fuchsia-500/30" />
+            <span className="sf-lid relative flex h-9 w-9 items-center justify-center rounded-full bg-primary/25">
+              <Gift className="h-5 w-5" />
+            </span>
+            <span className="sf-spark absolute -right-1 -top-1 text-[10px]">✦</span>
+          </span>
+          <span className="whitespace-nowrap">Offre d'essai Grok</span>
           <span className="sf-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
         </button>
+        <MousePointerClick className="sf-point h-5 w-5 text-primary" aria-hidden />
       </div>
 
       {open && (
@@ -97,6 +127,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
           productLabel="Offre d'essai Grok"
           period="monthly"
           credits={credits}
+          countryCode={countryCode ?? undefined}
           onClose={() => setCheckout(false)}
         />
       )}
