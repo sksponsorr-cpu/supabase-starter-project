@@ -506,7 +506,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             {quoteBusy && !quote
               ? "…"
               : quote
-                ? `${Number(quote.amountFcfa ?? 0).toLocaleString("fr-FR")} FCFA`
+                ? formatLocalAmount(quote.amountLocal, quote.currency)
                 : pricesLoaded
                   ? "Indisponible"
                   : "…"}
