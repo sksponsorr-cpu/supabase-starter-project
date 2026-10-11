@@ -6,7 +6,7 @@ import { activatePromoOffer, getPromoSettings, PROMO_DAYS } from "@/lib/promo.fu
 import { toast } from "@/lib/toast";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
 import { formatLocalAmount } from "@/lib/payments/countries";
-import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check } from "lucide-react";
+import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check, Gift } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor } from "@/lib/credits";
@@ -39,8 +39,15 @@ function AnimatedNumber({ value, format }: { value: number; format: (n: number) 
 function PlansStyles() {
   return (
     <style>{`
+      @keyframes sf-float { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(18px,-26px,0) scale(1.08); } }
+      @keyframes sf-bob { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
+      @keyframes sf-shine { 0% { transform: translateX(-120%); } 60%,100% { transform: translateX(120%); } }
+      .sf-blob { animation: sf-float 14s ease-in-out infinite; }
+      .sf-blob-2 { animation: sf-float 18s ease-in-out infinite reverse; }
+      .sf-bob { animation: sf-bob 3.2s ease-in-out infinite; }
+      .sf-shine { animation: sf-shine 3.5s ease-in-out infinite; }
       @media (prefers-reduced-motion: reduce) {
-        [class*="animate-in"], [class*="transition"] { animation: none !important; transition: none !important; }
+        [class*="animate-in"], [class*="transition"], .sf-blob, .sf-blob-2, .sf-bob, .sf-shine { animation: none !important; transition: none !important; }
       }
     `}</style>
   );
@@ -373,6 +380,23 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </button>
 
         <PlansStyles />
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
+          <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
+          <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+        </div>
+        {promo.enabled && (
+          <button
+            type="button"
+            onClick={() => setCheckoutOpen(true)}
+            disabled={!price || !quote}
+            className="sf-bob relative mx-auto mt-1 inline-flex items-center gap-2 self-center overflow-hidden rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95 disabled:opacity-60"
+          >
+            <Gift className="h-4 w-4" />
+            Offre d'essai · {PROMO_DAYS} jours offerts
+            <span className="sf-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          </button>
+        )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
             Sam flash
@@ -384,14 +408,23 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="mt-2 text-xl font-medium text-foreground/90">{plan.tagline}</p>
         </div>
 
-        <div className="mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
+        <div className="relative mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
+          {/* Indicateur glissant : se déplace jusqu'à l'onglet choisi */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1 top-1 bottom-1 rounded-full bg-secondary shadow-[var(--shadow-glow)] transition-transform duration-500 ease-out sm:rounded-full"
+            style={{
+              width: `calc((100% - 0.5rem) / ${PLANS.length})`,
+              transform: `translateX(${Math.max(0, PLANS.findIndex((p) => p.id === active)) * 100}%)`,
+            }}
+          />
           {PLANS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setActive(p.id)}
-              className={`flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-all duration-300 ease-out active:scale-95 ${
-                active === p.id ? "bg-secondary text-foreground shadow-[var(--shadow-glow)] scale-[1.02]" : "text-muted-foreground"
+              className={`relative z-10 flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-colors duration-300 active:scale-95 ${
+                active === p.id ? "text-foreground" : "text-muted-foreground"
               }`}
             >
               {p.label}
