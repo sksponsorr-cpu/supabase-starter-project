@@ -53,6 +53,29 @@ export const CREDIT_MAX = 5000;
 /** Taux officiel fixe : 655,957 FCFA = 1 €. Les prix sont saisis en FCFA. */
 const FCFA_PER_EUR = 655.957;
 
+/** Vérifie un code promo et renvoie le montant après réduction (en euros). */
+async function applyPromoCode(
+  code: string | undefined,
+  baseEur: number,
+): Promise<{ ok: true; amountEur: number; percent: number; discountEur: number } | { ok: false; message: string }> {
+  if (!code || !code.trim()) return { ok: true, amountEur: baseEur, percent: 0, discountEur: 0 };
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await (supabaseAdmin as unknown as AnyClient)
+    .from("promo_codes")
+    .select("percent_off, active, expires_at, max_uses, uses")
+    .eq("code", code.trim().toUpperCase())
+    .maybeSingle();
+  const valid =
+    data &&
+    data.active === true &&
+    (!data.expires_at || new Date(data.expires_at) > new Date()) &&
+    (data.max_uses == null || Number(data.uses ?? 0) < Number(data.max_uses));
+  if (!valid) return { ok: false, message: "Code promo invalide ou expiré." };
+  const percent = Number(data.percent_off);
+  const discountEur = Math.round((baseEur * percent)) / 100;
+  return { ok: true, amountEur: Math.round((baseEur - discountEur) * 100) / 100, percent, discountEur };
+}
+
 /** Sur mesure : montant en euros = nombre de crédits × prix d'un crédit (amount_fcfa de la ligne « custom »). */
 function customAmountEur(price: { amount_fcfa?: unknown }, credits?: number): number | null {
   const unit = Number(price.amount_fcfa ?? 0);
@@ -119,13 +142,14 @@ export const listPaymentMethods = createServerFn({ method: "POST" })
 /** Devis : conversion du prix EUR vers la devise locale du pays choisi. */
 export const quotePrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string; countryCode: string; period?: string; credits?: number }) =>
+  .inputValidator((input: { productId: string; countryCode: string; period?: string; credits?: number; promoCode?: string }) =>
     z
       .object({
         productId: z.string().min(1),
         countryCode: z.string().length(2),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
         credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -144,11 +168,14 @@ export const quotePrice = createServerFn({ method: "POST" })
 
     const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
     if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const amountEur =
+    const baseEur =
       customEur ??
       (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
         : Number(price.amount_eur));
+    const promo = await applyPromoCode(data.promoCode, baseEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
+    const amountEur = promo.amountEur;
 
     const { convertFromEur } = await import("@/lib/services/fx.server");
     const conv = await convertFromEur(amountEur, country.currency, country.zeroDecimal);
@@ -165,6 +192,8 @@ export const quotePrice = createServerFn({ method: "POST" })
       amountEur,
       amountFcfa: Math.round(amountEur * FCFA_PER_EUR),
       amountLocal: fees.total,
+      discountPercent: promo.percent,
+      discountEur: promo.discountEur,
       baseAmountLocal: fees.base,
       feeLocal: fees.fee,
       currency: country.currency,
@@ -185,6 +214,7 @@ export const startPayment = createServerFn({ method: "POST" })
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
         credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -207,11 +237,14 @@ export const startPayment = createServerFn({ method: "POST" })
 
     const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
     if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const amountEur =
+    const baseEur =
       customEur ??
       (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
         : Number(price.amount_eur));
+    const promo = await applyPromoCode(data.promoCode, baseEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
+    const amountEur = promo.amountEur;
 
     const { local: mobileLocal, international: mobile } = normalizeMobile(data.mobile, country);
     if (mobileLocal.length < 8) return { ok: false as const, message: "Numéro de téléphone invalide." };
@@ -340,6 +373,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
         credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        promoCode: z.string().max(40).optional(),
       })
       .parse(input),
   )
@@ -358,11 +392,14 @@ export const startCardPayment = createServerFn({ method: "POST" })
 
     const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
     if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const amountEur =
+    const baseEur =
       customEur ??
       (data.period === "yearly" && price.amount_eur_yearly !== null
         ? Number(price.amount_eur_yearly)
         : Number(price.amount_eur));
+    const promo = await applyPromoCode(data.promoCode, baseEur);
+    if (!promo.ok) return { ok: false as const, message: promo.message };
+    const amountEur = promo.amountEur;
 
     const { planTypeFor } = await import("@/lib/plans");
     const planType = planTypeFor(price.id, data.period);

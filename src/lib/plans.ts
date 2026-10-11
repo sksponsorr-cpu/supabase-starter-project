@@ -8,7 +8,11 @@ export type PlanType =
   | "super_grok_monthly"
   | "superhearly_monthly"
   | "super_grok_annuel"
-  | "super_grok_plus";
+  | "super_grok_plus"
+  | "sam_flash_light"
+  | "sam_flash_pro"
+  | "sam_flash_pro_annuel"
+  | "sam_flash_custom";
 
 /** Limite quotidienne (période glissante de 24 h) en secondes de vidéo. */
 export const PLAN_VIDEO_SECONDS: Record<PlanType, number> = {
@@ -17,6 +21,10 @@ export const PLAN_VIDEO_SECONDS: Record<PlanType, number> = {
   superhearly_monthly: 1200, // 20 min
   super_grok_annuel: 200, // 3 min 20 s
   super_grok_plus: 400, // 6 min 40 s
+  sam_flash_light: 200,
+  sam_flash_pro: 400,
+  sam_flash_pro_annuel: 400,
+  sam_flash_custom: 200,
 };
 
 /** Durée de l'abonnement en mois. */
@@ -26,6 +34,10 @@ export const PLAN_MONTHS: Record<PlanType, number> = {
   superhearly_monthly: 1,
   super_grok_annuel: 12,
   super_grok_plus: 1,
+  sam_flash_light: 1,
+  sam_flash_pro: 1,
+  sam_flash_pro_annuel: 12,
+  sam_flash_custom: 1,
 };
 
 export const PLAN_LABEL: Record<PlanType, string> = {
@@ -34,10 +46,17 @@ export const PLAN_LABEL: Record<PlanType, string> = {
   superhearly_monthly: "Super Grok Heavy",
   super_grok_annuel: "Super Grok Annuel",
   super_grok_plus: "Super Grok Plus",
+  sam_flash_light: "Sam Flash Light",
+  sam_flash_pro: "Sam Flash Pro",
+  sam_flash_pro_annuel: "Sam Flash Pro (annuel)",
+  sam_flash_custom: "Sam Flash Sur mesure",
 };
 
 /** Déduit la formule à partir de l'offre choisie et de la périodicité. */
 export function planTypeFor(productId: string, period: "monthly" | "yearly"): PlanType {
+  if (productId === "base") return "sam_flash_light";
+  if (productId === "plus") return period === "yearly" ? "sam_flash_pro_annuel" : "sam_flash_pro";
+  if (productId === "custom") return "sam_flash_custom";
   if (productId === "plus") return "super_grok_plus";
   if (productId === "heavy") return "superhearly_monthly";
   return period === "yearly" ? "super_grok_annuel" : "super_grok_monthly";
