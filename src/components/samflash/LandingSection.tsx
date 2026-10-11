@@ -225,26 +225,7 @@ function Orbs() {
   );
 }
 
-const PLAN_CARDS: { name: string; seconds: number; label?: string; items: string[] }[] = [
-  {
-    name: "Essai",
-    seconds: PLAN_VIDEO_SECONDS.free,
-    label: "2 000 FCFA · 40 crédits",
-    items: ["Soit 8 vidéos de 5 secondes en 480p", "Mobile Money, sans carte bancaire", "Un compte gratuit par appareil"],
-  },
-  {
-    name: "Super grok",
-    seconds: PLAN_VIDEO_SECONDS.super_grok_monthly,
-    items: [
-      "Images et vidéos IA",
-      "ChatGPT (GPT 6 Astra)",
-      "Claude AI",
-      "Clonage vidéo",
-      "Avatar AI",
-      "Paiement par Mobile Money",
-    ],
-  },
-];
+
 
 const DEFAULT_FAQ = [
   {
@@ -348,42 +329,6 @@ export function LandingSection() {
         </div>
       )}
 
-      <div className="space-y-4">
-        <Reveal className="text-center">
-          <h3 className="text-2xl font-semibold tracking-tight">Ce que tu reçois selon ton abonnement</h3>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-            Choisis la formule qui te convient. Tu peux changer ou annuler à tout moment.
-          </p>
-        </Reveal>
-        {PLAN_CARDS.map((p, i) => (
-          <Reveal key={p.name} delay={i * 80}>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-              <div className="flex items-baseline justify-between">
-                <p className="text-base font-semibold">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{p.label ?? `${formatDuration(p.seconds)} de vidéo / jour`}</p>
-              </div>
-              <ul className="mt-3 space-y-2">
-                {p.items.map((it) => (
-                  <li key={it} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    {it}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-        ))}
-        <Reveal>
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="w-full rounded-full bg-primary py-4 text-[16px] font-semibold text-primary-foreground"
-            style={{ boxShadow: "var(--shadow-glow)" }}
-          >
-            Commencer
-          </button>
-        </Reveal>
-      </div>
 
       <div className="space-y-3">
         <Reveal className="text-center">
