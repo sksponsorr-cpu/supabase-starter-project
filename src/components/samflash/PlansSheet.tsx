@@ -124,6 +124,21 @@ function includedCredits(p: PriceRow, yearly: boolean): number {
   return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
 }
 
+/** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
+function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"] {
+  if (plan.id === "custom") return plan.features;
+  const paid = bonus > 0 ? total - bonus : total;
+  const credits = {
+    icon: Check,
+    title: bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${total} crédits par mois`,
+  };
+  const videos = {
+    icon: Check,
+    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / 5)} vidéos de 5 secondes en 480p`,
+  };
+  return [credits, videos, ...plan.features.slice(2)];
+}
+
 /** Fuseaux horaires et régions des pays pris en charge (détection sur l'appareil). */
 const TIMEZONE_COUNTRY: Record<string, string> = {
   "Africa/Kinshasa": "CD", "Africa/Lubumbashi": "CD", "Africa/Porto-Novo": "BJ", "Africa/Ouagadougou": "BF",
@@ -175,6 +190,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   } | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [trialOpen, setTrialOpen] = useState(false);
+  const [trialCheckout, setTrialCheckout] = useState(false);
   const [activating, setActivating] = useState(false);
   const [promo, setPromo] = useState<{ enabled: boolean; prices: Record<string, number | null> }>({
     enabled: false,
@@ -190,6 +207,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const activatePromo = useServerFn(activatePromoOffer);
 
   const plan = PLANS.find((p) => p.id === active) ?? PLANS[0];
+  const trialRow = prices.find((p) => p.id === "pack_essai");
   // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
   const price = prices.find((p) => p.id === plan.dbId && p.tier !== "credits");
   const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
@@ -388,8 +406,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         {promo.enabled && (
           <button
             type="button"
-            onClick={() => setCheckoutOpen(true)}
-            disabled={!price || !quote}
+            onClick={() => setTrialOpen(true)}
             className="sf-bob relative mx-auto mt-1 inline-flex items-center gap-2 self-center overflow-hidden rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95 disabled:opacity-60"
           >
             <Gift className="h-4 w-4" />
@@ -540,7 +557,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
           )}
           {(showFeatures || plan.id !== "custom") &&
-            plan.features.map((f, i) => (
+            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0)).map((f, i) => (
               <div
                 key={f.title}
                 style={{ animationDelay: `${i * 80}ms` }}
@@ -601,6 +618,72 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         >
           {activating ? "Activation…" : promoFree ? "Activer l'offre de lancement (offerte)" : plan.cta}
         </button>
+
+        {trialOpen && (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 p-4 backdrop-blur-md sm:items-center animate-in fade-in duration-300">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-primary/40 bg-card p-6 shadow-[var(--shadow-glow)] animate-in zoom-in-95 slide-in-from-bottom-4 duration-500">
+              <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/30 blur-3xl" />
+              <button
+                type="button"
+                onClick={() => setTrialOpen(false)}
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <span className="sf-bob inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+                <Gift className="h-7 w-7" />
+              </span>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Offre d'essai</p>
+              <p className="mt-1 text-4xl font-semibold tabular-nums">
+                {trialRow ? (((trialRow as { amount_fcfa?: number | null }).amount_fcfa ?? Math.round(trialRow.amount_eur * 655.957))).toLocaleString("fr-FR") : "2 000"}
+                <span className="ml-2 text-base font-medium text-muted-foreground">FCFA</span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {Number(trialRow?.credits_fixed ?? 40)} crédits · pack ponctuel, sans abonnement
+              </p>
+              <ul className="mt-5 space-y-3">
+                {[
+                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / 5)} vidéos de 5 secondes en 480p`,
+                  "Pour tester sans vous engager",
+                  "Paiement par Mobile Money",
+                ].map((t, i) => (
+                  <li
+                    key={t}
+                    style={{ animationDelay: `${150 + i * 90}ms` }}
+                    className="flex items-center gap-3 text-[15px] font-medium animate-in fade-in slide-in-from-left-4 fill-mode-both duration-500"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
+                      <Check className="h-4 w-4" />
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => {
+                  setTrialOpen(false);
+                  setTrialCheckout(true);
+                }}
+                className="mt-6 w-full rounded-full bg-foreground py-4 text-[17px] font-semibold text-background transition-transform active:scale-[0.98]"
+              >
+                Continuer vers le paiement
+              </button>
+            </div>
+          </div>
+        )}
+
+        {trialCheckout && (
+          <CheckoutSheet
+            productId="pack_essai"
+            productLabel="Offre d'essai"
+            period="monthly"
+            countryCode={countryCode}
+            credits={Number(trialRow?.credits_fixed ?? 40)}
+            onClose={() => setTrialCheckout(false)}
+          />
+        )}
 
         {checkoutOpen && price && (
           <CheckoutSheet
