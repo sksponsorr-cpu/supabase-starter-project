@@ -82,3 +82,104 @@ export const setMaintenance = createServerFn({ method: "POST" })
     }
     return { ok: true as const };
   });
+
+export type GenerationSwitches = { image: boolean; video: boolean };
+
+/** État public des interrupteurs de génération (lu par l'application). En cas d'erreur : ouvert. */
+export const getGenerationSwitches = createServerFn({ method: "GET" }).handler(
+  async (): Promise<GenerationSwitches> => {
+    try {
+      const { data, error } = await publicClient()
+        .from("app_settings")
+        .select("image_generation_enabled, video_generation_enabled")
+        .eq("id", "global")
+        .maybeSingle();
+      if (error || !data) return { image: true, video: true };
+      return {
+        image: data.image_generation_enabled !== false,
+        video: data.video_generation_enabled !== false,
+      };
+    } catch {
+      return { image: true, video: true };
+    }
+  },
+);
+
+/** Active / suspend la génération d'images et de vidéos (administrateur uniquement). */
+export const setGenerationSwitches = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { image: boolean; video: boolean }) =>
+    z.object({ image: z.boolean(), video: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const claims = context.claims as { email?: unknown } | null;
+    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+    if (!(email && OWNER_EMAILS.includes(email))) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      if (isAdmin !== true) throw new Error("Accès refusé");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as unknown as AnyClient)
+      .from("app_settings")
+      .update({ image_generation_enabled: data.image, video_generation_enabled: data.video })
+      .eq("id", "global");
+    if (error) {
+      return {
+        ok: false as const,
+        message: "Enregistrement impossible. Le script SQL a-t-il été exécuté dans Supabase ?",
+      };
+    }
+    return { ok: true as const };
+  });
+
+export type GenerationProvider = "fal" | "kie";
+
+/** Moteur vidéo actif (lu par le serveur de génération et l'administration). Par défaut : Fal. */
+export const getGenerationProvider = createServerFn({ method: "GET" }).handler(
+  async (): Promise<GenerationProvider> => {
+    try {
+      const { data, error } = await publicClient()
+        .from("app_settings")
+        .select("generation_provider")
+        .eq("id", "global")
+        .maybeSingle();
+      if (error || !data) return "fal";
+      return data.generation_provider === "kie" ? "kie" : "fal";
+    } catch {
+      return "fal";
+    }
+  },
+);
+
+/** Bascule le moteur vidéo vers KIE (true) ou Fal (false). Administrateur uniquement. */
+export const setGenerationProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { provider: GenerationProvider }) =>
+    z.object({ provider: z.enum(["fal", "kie"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const claims = context.claims as { email?: unknown } | null;
+    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+    if (!(email && OWNER_EMAILS.includes(email))) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      if (isAdmin !== true) throw new Error("Accès refusé");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as unknown as AnyClient)
+      .from("app_settings")
+      .update({ generation_provider: data.provider })
+      .eq("id", "global");
+    if (error) {
+      return {
+        ok: false as const,
+        message: "Enregistrement impossible. Le script SQL a-t-il été exécuté dans Supabase ?",
+      };
+    }
+    return { ok: true as const };
+  });
