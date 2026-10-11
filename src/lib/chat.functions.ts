@@ -3,6 +3,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OWNER_EMAILS } from "@/lib/owners";
 import { kieCreditsToSamCredits } from "@/lib/ai-pricing";
+import { VIDEO_ASSISTANT_INSTRUCTIONS } from "@/lib/assistant/claude-instructions";
+import { createOmniTask, getOmniTask } from "@/lib/services/omni.server";
+import { omniSegmentCredits } from "@/lib/omni-pricing";
 
 /** Identifiants confirmés dans la documentation Kie.ai (valeur de l'enum "model"). */
 export const CHAT_MODELS = {
@@ -47,6 +50,244 @@ export const aiAccess = createServerFn({ method: "GET" })
     return { enabled: await isAdminUser(context) };
   });
 
+/** Outils que Claude peut appeler en mode vidéo (génération Omni via KIE). */
+const OMNI_TOOLS = [
+  {
+    name: "generer_segment_omni",
+    description:
+      "Génère un segment vidéo de 4, 6, 8 ou 10 secondes avec Omni. Débite les crédits du segment. Renvoie le lien du segment ou un identifiant de tâche si la génération prend du temps.",
+    input_schema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "Prompt détaillé du segment, sans voix off ni musique." },
+        duree: { type: "integer", enum: [4, 6, 8, 10] },
+        resolution: { type: "string", enum: ["360p", "720p"] },
+        format: { type: "string", enum: ["16:9", "9:16"] },
+      },
+      required: ["prompt", "duree", "resolution", "format"],
+    },
+  },
+  {
+    name: "verifier_segment_omni",
+    description: "Vérifie l'avancement d'un segment lancé avec generer_segment_omni, à partir de son identifiant.",
+    input_schema: {
+      type: "object",
+      properties: { taskId: { type: "string" } },
+      required: ["taskId"],
+    },
+  },
+];
+
+type ToolOutcome = { content: string; isError: boolean };
+
+/** Exécute un outil demandé par Claude. Les vérifications de solde sont faites ici, côté serveur. */
+async function runOmniTool(
+  name: string,
+  input: Record<string, unknown>,
+  ctx: { db: any; userId: string },
+): Promise<ToolOutcome> {
+  if (name === "verifier_segment_omni") {
+    const taskId = typeof input.taskId === "string" ? input.taskId.slice(0, 100) : "";
+    if (!taskId) return { content: "Identifiant de tâche manquant.", isError: true };
+    const st = await getOmniTask(taskId);
+    if (st.state === "success") return { content: `Segment prêt : ${st.resultUrl}`, isError: false };
+    if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}`, isError: false };
+    if (st.state === "waiting") return { content: `Segment encore en cours (${taskId}). Revérifiez plus tard.`, isError: false };
+    return { content: st.message, isError: true };
+  }
+
+  if (name !== "generer_segment_omni") return { content: "Outil inconnu.", isError: true };
+
+  const duree = Number(input.duree);
+  let cost: number;
+  try {
+    cost = omniSegmentCredits(duree);
+  } catch {
+    return { content: "Durée invalide : 4, 6, 8 ou 10 secondes.", isError: true };
+  }
+
+  // Règle d'arrêt : on ne lance jamais un segment que le solde ne couvre pas.
+  const { data: profile } = await ctx.db
+    .from("profiles")
+    .select("credits_balance")
+    .eq("id", ctx.userId)
+    .maybeSingle();
+  const balance = Number(profile?.credits_balance ?? 0);
+  if (balance < cost) {
+    return {
+      content: `Solde insuffisant : ce segment coûte ${cost} crédits et le compte en a ${balance}. Arrêtez la génération, envoyez les segments déjà terminés et indiquez le nombre de crédits manquants.`,
+      isError: true,
+    };
+  }
+
+  const created = await createOmniTask({
+    prompt: String(input.prompt ?? ""),
+    durationSec: duree as 4 | 6 | 8 | 10,
+    resolution: (input.resolution === "720p" ? "720p" : "360p") as "360p" | "720p",
+    aspectRatio: (input.format === "9:16" ? "9:16" : "16:9") as "16:9" | "9:16",
+  });
+  if (!created.ok) return { content: created.message, isError: true };
+
+  const { data: debited } = await ctx.db.rpc("debit_ai_credits", {
+    p_user: ctx.userId,
+    p_cost: cost,
+    p_ref: `omni-${created.taskId}`,
+  });
+  if (debited !== true) {
+    return { content: "Crédits insuffisants pour lancer ce segment.", isError: true };
+  }
+
+  // Attente bornée : au-delà, Claude reçoit l'identifiant et peut vérifier plus tard.
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 6000));
+    const st = await getOmniTask(created.taskId);
+    if (st.state === "success") return { content: `Segment prêt (${cost} crédits) : ${st.resultUrl}`, isError: false };
+    if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}. Les ${cost} crédits de ce segment ont été débités.`, isError: false };
+    if (st.state === "error") return { content: st.message, isError: true };
+  }
+  return {
+    content: `Segment en cours (taskId ${created.taskId}, ${cost} crédits débités). Appelez verifier_segment_omni pour obtenir le résultat.`,
+    isError: false,
+  };
+}
+
+/** Appels Claude via KIE, avec outils en mode vidéo. Renvoie le texte final et le coût KIE cumulé. */
+async function runClaude(args: {
+  url: string;
+  headers: Record<string, string>;
+  model: string;
+  messages: Msg[];
+  videoMode: boolean;
+  ctx: { db: any; userId: string };
+}): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
+  const convo: unknown[] = args.messages.map((m) =>
+    m.images && m.images.length > 0
+      ? {
+          role: m.role,
+          content: [
+            ...m.images.map((img) => ({
+              type: "image",
+              source: { type: "base64", media_type: img.mediaType, data: img.data },
+            })),
+            { type: "text", text: m.content },
+          ],
+        }
+      : { role: m.role, content: m.content },
+  );
+
+  let text = "";
+  let kieCredits = 0;
+  const maxTurns = args.videoMode ? 4 : 1;
+
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const body: Record<string, unknown> = {
+      model: args.model,
+      stream: false,
+      max_tokens: 4096,
+      messages: convo,
+    };
+    if (args.videoMode) {
+      body.system = VIDEO_ASSISTANT_INSTRUCTIONS;
+      body.tools = OMNI_TOOLS;
+    }
+    const res = await fetch(args.url, { method: "POST", headers: args.headers, body: JSON.stringify(body) });
+    const json = await res.json();
+    if (!res.ok || (json.code && json.code !== 200)) {
+      console.error("[chat-ia] Kie Claude", res.status, JSON.stringify(json).slice(0, 500));
+      return { ok: false, message: GENERIC_ERROR };
+    }
+    kieCredits += Number(json.credits_consumed ?? 0);
+    const blocks: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[] =
+      json.content ?? [];
+    text += blocks.filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+
+    if (json.stop_reason !== "tool_use") return { ok: true, text, kieCredits };
+
+    convo.push({ role: "assistant", content: blocks });
+    const results = [];
+    for (const b of blocks.filter((b) => b.type === "tool_use")) {
+      const outcome = await runOmniTool(b.name ?? "", b.input ?? {}, args.ctx);
+      results.push({ type: "tool_result", tool_use_id: b.id, content: outcome.content, is_error: outcome.isError });
+    }
+    convo.push({ role: "user", content: results });
+  }
+  return { ok: true, text, kieCredits };
+}
+
+/** Même outils, au format « function » de l'API Responses (utilisée par GPT 6 Astra). */
+const OMNI_FUNCTION_TOOLS = OMNI_TOOLS.map((t) => ({
+  type: "function",
+  name: t.name,
+  description: t.description,
+  parameters: t.input_schema,
+}));
+
+/** Appels GPT 6 Astra via KIE (format Responses), avec outils Omni en mode vidéo. */
+async function runGpt(args: {
+  url: string;
+  headers: Record<string, string>;
+  model: string;
+  messages: Msg[];
+  videoMode: boolean;
+  ctx: { db: any; userId: string };
+}): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
+  const convo: unknown[] = args.messages.map((m) => ({
+    role: m.role,
+    content: [
+      ...(m.images ?? []).map((img) => ({
+        type: "input_image",
+        image_url: `data:${img.mediaType};base64,${img.data}`,
+      })),
+      { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
+    ],
+  }));
+
+  let text = "";
+  let kieCredits = 0;
+  const maxTurns = args.videoMode ? 4 : 1;
+
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const body: Record<string, unknown> = { model: args.model, stream: false, input: convo };
+    if (args.videoMode) {
+      body.instructions = VIDEO_ASSISTANT_INSTRUCTIONS;
+      body.tools = OMNI_FUNCTION_TOOLS;
+    }
+    const res = await fetch(args.url, { method: "POST", headers: args.headers, body: JSON.stringify(body) });
+    const json = await res.json();
+    if (!res.ok || (json.code && json.code !== 200)) {
+      console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
+      return { ok: false, message: GENERIC_ERROR };
+    }
+    kieCredits += Number(json.credits_consumed ?? 0);
+    const output: { type: string; content?: { type: string; text: string }[]; name?: string; arguments?: string; call_id?: string }[] =
+      json.output ?? [];
+    text += output
+      .filter((o) => o.type === "message")
+      .flatMap((o) => o.content ?? [])
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text)
+      .join("");
+
+    const calls = output.filter((o) => o.type === "function_call");
+    if (!args.videoMode || calls.length === 0) return { ok: true, text, kieCredits };
+
+    // Reprend les éléments de sortie tels quels, puis ajoute le résultat de chaque outil.
+    convo.push(...output);
+    for (const c of calls) {
+      let input: Record<string, unknown> = {};
+      try {
+        input = JSON.parse(c.arguments || "{}");
+      } catch {
+        input = {};
+      }
+      const outcome = await runOmniTool(c.name ?? "", input, args.ctx);
+      convo.push({ type: "function_call_output", call_id: c.call_id, output: outcome.content });
+    }
+  }
+  return { ok: true, text, kieCredits };
+}
+
 export const sendChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -54,7 +295,7 @@ export const sendChat = createServerFn({ method: "POST" })
       .object({
         provider: z.enum(["claude", "gpt"]),
         model: z.string().min(1).max(60),
-        mode: z.enum(["chat", "code"]).default("chat"),
+        mode: z.enum(["chat", "code", "video"]).default("chat"),
         messages: z
           .array(
             z.object({
@@ -84,6 +325,7 @@ export const sendChat = createServerFn({ method: "POST" })
 
     const allowed = CHAT_MODELS[data.provider].some((m) => m.id === data.model);
     if (!allowed) return { ok: false as const, message: "Modèle non disponible." };
+
 
     if (!KIE_KEY()) {
       console.error("[chat-ia] KIE_API_KEY manquante côté serveur");
@@ -115,70 +357,29 @@ export const sendChat = createServerFn({ method: "POST" })
 
     try {
       if (data.provider === "gpt") {
-        const res = await fetch("https://api.kie.ai/codex/v1/responses", {
-          method: "POST",
+        const gpt = await runGpt({
+          url: "https://api.kie.ai/codex/v1/responses",
           headers,
-          body: JSON.stringify({
-            model: data.model,
-            stream: false,
-            input: messages.map((m) => ({
-              role: m.role,
-              content: [
-                ...(m.images ?? []).map((img) => ({
-                  type: "input_image",
-                  image_url: `data:${img.mediaType};base64,${img.data}`,
-                })),
-                { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
-              ],
-            })),
-          }),
+          model: data.model,
+          messages,
+          videoMode: data.mode === "video",
+          ctx: { db: supabaseAdmin, userId: context.userId },
         });
-        const json = await res.json();
-        if (!res.ok || (json.code && json.code !== 200)) {
-          console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
-          return { ok: false as const, message: GENERIC_ERROR };
-        }
-        text = (json.output ?? [])
-          .filter((o: { type: string }) => o.type === "message")
-          .flatMap((o: { content: { type: string; text: string }[] }) => o.content)
-          .filter((c: { type: string }) => c.type === "output_text")
-          .map((c: { text: string }) => c.text)
-          .join("");
-        kieCredits = Number(json.credits_consumed ?? 0);
+        if (!gpt.ok) return { ok: false as const, message: gpt.message };
+        text = gpt.text;
+        kieCredits = gpt.kieCredits;
       } else {
-        const res = await fetch("https://api.kie.ai/claude/v1/messages", {
-          method: "POST",
+        const claude = await runClaude({
+          url: "https://api.kie.ai/claude/v1/messages",
           headers,
-          body: JSON.stringify({
-            model: data.model,
-            stream: false,
-            max_tokens: 4096,
-            messages: messages.map((m) =>
-              m.images && m.images.length > 0
-                ? {
-                    role: m.role,
-                    content: [
-                      ...m.images.map((img) => ({
-                        type: "image",
-                        source: { type: "base64", media_type: img.mediaType, data: img.data },
-                      })),
-                      { type: "text", text: m.content },
-                    ],
-                  }
-                : { role: m.role, content: m.content },
-            ),
-          }),
+          model: data.model,
+          messages,
+          videoMode: data.mode === "video",
+          ctx: { db: supabaseAdmin, userId: context.userId },
         });
-        const json = await res.json();
-        if (!res.ok || (json.code && json.code !== 200)) {
-          console.error("[chat-ia] Kie Claude", res.status, JSON.stringify(json).slice(0, 500));
-          return { ok: false as const, message: GENERIC_ERROR };
-        }
-        text = (json.content ?? [])
-          .filter((c: { type: string }) => c.type === "text")
-          .map((c: { text: string }) => c.text)
-          .join("");
-        kieCredits = Number(json.credits_consumed ?? 0);
+        if (!claude.ok) return { ok: false as const, message: claude.message };
+        text = claude.text;
+        kieCredits = claude.kieCredits;
       }
     } catch (error) {
       console.error("[chat-ia] appel Kie impossible", error);
