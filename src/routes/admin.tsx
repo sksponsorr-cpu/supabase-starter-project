@@ -94,7 +94,7 @@ import {
   deleteGalleryItem,
   type ModerationItem,
 } from "@/lib/community.functions";
-import { getPromoSettings, setPromoSettings } from "@/lib/promo.functions";
+import { getPromoSettings, setPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
 import {
   listPayoutRequests,
   decidePayout,
@@ -1488,28 +1488,6 @@ function AdminPage() {
                   Montants en euros, convertis automatiquement à l'achat.
                 </p>
 
-                {isAdmin && (
-                  <div className="mt-4 flex items-center gap-3 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
-                    <div className="min-w-0">
-                      <p className="text-[17px] font-medium">Offre de lancement</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Super grok offert 30 jours, activation immédiate sans paiement.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={promoSaving}
-                      onClick={() => void togglePromo(!promoEnabled)}
-                      className={`ml-auto shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                        promoEnabled
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-foreground"
-                      }`}
-                    >
-                      {promoEnabled ? "Activée" : "Désactivée"}
-                    </button>
-                  </div>
-                )}
                 <ul className="mt-4 space-y-3">
                   {prices.map((p) => (
                     <li

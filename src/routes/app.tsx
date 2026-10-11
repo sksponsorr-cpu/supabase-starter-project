@@ -22,7 +22,7 @@ import { PromptBar } from "@/components/samflash/PromptBar";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
 import { PendingCard } from "@/components/samflash/PendingCard";
-import { PromoBanner } from "@/components/samflash/PromoBanner";
+import { TrialGift } from "@/components/samflash/TrialGift";
 import { OnboardingSurvey } from "@/components/samflash/OnboardingSurvey";
 import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs";
 import { takePrefill } from "@/lib/prefill";
@@ -198,7 +198,7 @@ function AppFeed() {
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} onOpenPlans={() => setPlansOpen(true)} />
 
       <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
-        <PromoBanner enabled={!!session && notifOn(prefs, "offers")} />
+        <TrialGift visible={!!session} />
 
         {welcomeMessage && (
           <div className="mx-auto mt-4 max-w-2xl px-4 w-full animate-fade-in">
