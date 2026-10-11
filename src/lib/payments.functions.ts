@@ -152,6 +152,7 @@ export const quotePrice = createServerFn({ method: "POST" })
       label: price.label,
       period: data.period,
       amountEur,
+      amountFcfa: Math.round(amountEur * FCFA_PER_EUR),
       amountLocal: fees.total,
       baseAmountLocal: fees.base,
       feeLocal: fees.fee,
