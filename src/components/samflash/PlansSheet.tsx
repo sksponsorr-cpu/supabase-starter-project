@@ -91,6 +91,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [promoApplied, setPromoApplied] = useState<string | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
+    amountFcfa: number;
     amountLocal: number;
     currency: string;
     discountEur: number;
@@ -206,6 +207,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           if (q.ok) {
             setPromoError(null);
             setQuote({
+              amountFcfa: q.amountFcfa,
               amountLocal: q.amountLocal,
               currency: q.currency,
               discountEur: q.discountEur,
@@ -456,8 +458,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="mt-1 text-3xl font-semibold">
             {quoteBusy && !quote
               ? "…"
-              : quote && selectedCountry
-                ? formatLocalAmount(quote.amountLocal, quote.currency)
+              : quote
+                ? `${quote.amountFcfa.toLocaleString("fr-FR")} FCFA`
                 : pricesLoaded
                   ? "Indisponible"
                   : "…"}
