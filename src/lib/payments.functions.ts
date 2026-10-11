@@ -53,7 +53,7 @@ export const CREDIT_MAX = 5000;
 /** Taux officiel fixe : 655,957 FCFA = 1 €. Les prix sont saisis en FCFA. */
 const FCFA_PER_EUR = 655.957;
 
-/** Vérifie un code promo et renvoie le montant après réduction (en euros). */
+/** Vérifie un code promo (table promo_codes gérée depuis l'administration) et renvoie le montant après réduction. */
 async function applyPromoCode(
   code: string | undefined,
   baseEur: number,
@@ -62,18 +62,28 @@ async function applyPromoCode(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await (supabaseAdmin as unknown as AnyClient)
     .from("promo_codes")
-    .select("percent_off, active, expires_at, max_uses, uses")
+    .select("discount_percent, discount_eur, starts_at, ends_at, max_uses, used_count, active")
     .eq("code", code.trim().toUpperCase())
     .maybeSingle();
+  const now = Date.now();
   const valid =
     data &&
     data.active === true &&
-    (!data.expires_at || new Date(data.expires_at) > new Date()) &&
-    (data.max_uses == null || Number(data.uses ?? 0) < Number(data.max_uses));
+    (!data.starts_at || new Date(data.starts_at).getTime() <= now) &&
+    (!data.ends_at || new Date(data.ends_at).getTime() > now) &&
+    (data.max_uses == null || Number(data.used_count ?? 0) < Number(data.max_uses));
   if (!valid) return { ok: false, message: "Code promo invalide ou expiré." };
-  const percent = Number(data.percent_off);
-  const discountEur = Math.round((baseEur * percent)) / 100;
-  return { ok: true, amountEur: Math.round((baseEur - discountEur) * 100) / 100, percent, discountEur };
+  const percent = Number(data.discount_percent ?? 0);
+  const fixed = Number(data.discount_eur ?? 0);
+  const discountEur =
+    percent > 0 ? Math.round(baseEur * percent) / 100 : Math.min(Math.max(fixed, 0), baseEur);
+  if (discountEur <= 0) return { ok: false, message: "Code promo invalide ou expiré." };
+  return {
+    ok: true,
+    amountEur: Math.round((baseEur - discountEur) * 100) / 100,
+    percent,
+    discountEur: Math.round(discountEur * 100) / 100,
+  };
 }
 
 /** Sur mesure : montant en euros = nombre de crédits × prix d'un crédit (amount_fcfa de la ligne « custom »). */
