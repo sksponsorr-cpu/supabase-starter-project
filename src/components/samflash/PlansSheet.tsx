@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor } from "@/lib/credits";
 import { detectCountry } from "@/lib/country.functions";
 
-type PlanId = "base" | "plus" | "heavy";
+type PlanId = "light" | "pro" | "base";
 
 type Plan = {
   id: PlanId;
@@ -26,9 +26,35 @@ type Plan = {
 
 const PLANS: Plan[] = [
   {
-    id: "base",
-    label: "Super grok",
+    id: "light",
+    label: "Sam Flash Light",
     tagline: <>Tous les outils IA dans un seul abonnement</>,
+    features: [
+      { icon: Check, title: "110 crédits par mois" },
+      { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI" },
+    ],
+    cta: "Choisir Sam Flash Light",
+    footnote: "Facturation mensuelle, annulez à tout moment",
+  },
+  {
+    id: "pro",
+    label: "Sam Flash Pro",
+    tagline: <>Le plus de crédits, sans limite de qualité</>,
+    features: [
+      { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
+      { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
+      { icon: Check, title: "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI" },
+      { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
+    ],
+    cta: "Choisir Sam Flash Pro",
+    footnote: "Facturation mensuelle, annulez à tout moment",
+  },
+  {
+    id: "base",
+    label: "Sur mesure",
+    tagline: <>Choisissez vous-même votre nombre de crédits</>,
     features: [
       { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p de 6 secondes" },
       { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Discussion et programmation" },
@@ -37,7 +63,7 @@ const PLANS: Plan[] = [
       { icon: Sparkles, title: "Avatar AI", sub: "Un avatar qui parle à partir d'une photo" },
       { icon: Zap, title: "Paiement par Mobile Money", sub: "Sans carte bancaire" },
     ],
-    cta: "Passer à Super grok",
+    cta: "Passer à Sur mesure",
     footnote: "Facturation mensuelle, annulez à tout moment",
   },
 ];
@@ -78,7 +104,7 @@ function manualCountry(): string | null {
 }
 
 export function PlansSheet({ onClose }: { onClose: () => void }) {
-  const [active, setActive] = useState<PlanId>("base");
+  const [active, setActive] = useState<PlanId>("light");
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [pricesLoaded, setPricesLoaded] = useState(false);
@@ -114,7 +140,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const fetchDetected = useServerFn(detectCountry);
   const activatePromo = useServerFn(activatePromoOffer);
 
-  const plan = PLANS[0];
+  const plan = PLANS.find((p) => p.id === active) ?? PLANS[0];
   // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
   const price = prices.find((p) => p.id === active && p.tier !== "credits");
   const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
@@ -256,7 +282,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     try {
       const result = await activatePromo({});
       if (result.ok) {
-        toast.success(`Offre de lancement activée : Super grok vous est offert ${PROMO_DAYS} jours.`);
+        toast.success(`Offre de lancement activée : Sam Flash vous est offert ${PROMO_DAYS} jours.`);
         onClose();
       } else {
         toast.error(result.message);
@@ -294,7 +320,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         }}
       />
 
-      <div className="relative flex flex-1 flex-col px-5 pb-10 pt-4">
+      <div className="relative flex flex-1 flex-col px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-4">
         <button
           type="button"
           aria-label="Fermer"
@@ -374,8 +400,21 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             </label>
           )}
 
-          {/* Curseur de crédits */}
-          {price && (
+          {/* Forfait fixe : crédits imposés */}
+          {price && price.credits_fixed !== null && (
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Crédits inclus par mois</span>
+                <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
+              </div>
+              <p className="text-sm">
+                ≈ <span className="font-semibold">{videosPossible}</span> vidéos de 5 s en 480p par mois
+              </p>
+            </div>
+          )}
+
+          {/* Curseur de crédits (plan sur mesure uniquement) */}
+          {price && price.credits_fixed === null && (
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">Crédits par mois</span>
@@ -400,7 +439,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </p>
               {unitLocal !== null && selectedCountry && (
                 <p className="text-xs text-muted-foreground">
-                  Soit {formatLocalAmount(unitLocal, selectedCountry.currency)} par crédit
+                  Prix : {formatLocalAmount(unitLocal, selectedCountry.currency)} par crédit
+                </p>
+              )}
+              {quote && selectedCountry && price.credits_fixed === null && (
+                <p className="text-sm">
+                  Total : <span className="font-semibold">{formatLocalAmount(quote.amountLocal, selectedCountry.currency)}</span>
+                  {yearly ? " pour 12 mois" : " par mois"}
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
@@ -409,6 +454,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
+          {plan.id === "base" && (
           <button
             type="button"
             onClick={() => setShowFeatures((v) => !v)}
@@ -416,7 +462,8 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           >
             {showFeatures ? "Masquer ce qui est inclus" : "Voir ce qui est inclus"}
           </button>
-          {showFeatures &&
+          )}
+          {(showFeatures || plan.id !== "base") &&
             plan.features.map((f) => (
               <div key={f.title} className="flex items-center gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
