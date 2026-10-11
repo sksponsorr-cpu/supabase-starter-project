@@ -125,8 +125,9 @@ async function generateImage(input: GenerationInput): Promise<MediaOutcome> {
   };
 }
 
-/** Génération vidéo : Fal.ai (text-to-video, image-to-video ou montage). */
+/** Génération vidéo : Fal.ai (text-to-video, image-to-video ou montage), ou KIE si le moteur KIE est actif. */
 async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
+  if ((await currentVideoProvider()) === "kie") return generateVideoWithKie(input);
   const { isFalConfigured, generateVideoWithFal } = await import("@/lib/services/fal.server");
   if (!isFalConfigured()) {
     return { ok: false, error: "Le moteur de génération vidéo n'est pas disponible." };
@@ -149,6 +150,69 @@ async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
     statusUrl: result.statusUrl,
     responseUrl: result.responseUrl,
   };
+}
+
+/** Moteur vidéo choisi dans le bureau d'administration. En cas d'erreur de lecture : Fal. */
+async function currentVideoProvider(): Promise<"fal" | "kie"> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("app_settings")
+      .select("generation_provider")
+      .eq("id", "global")
+      .maybeSingle();
+    return data?.generation_provider === "kie" ? "kie" : "fal";
+  } catch {
+    return "fal";
+  }
+}
+
+/** Vidéo via KIE (Grok Imagine). La tâche est suivie ensuite par finalizePendingRow (préfixe « kie: »). */
+async function generateVideoWithKie(input: GenerationInput): Promise<MediaOutcome> {
+  if (input.videoUrl) {
+    return { ok: false, error: "Le montage vidéo n'est pas disponible avec le moteur KIE." };
+  }
+  const { createGrokVideoTask } = await import("@/lib/services/kie-video.server");
+  const resolutions = ["480p", "720p", "1080p"] as const;
+  const aspects = ["auto", "1:1", "16:9", "9:16", "3:2", "2:3"] as const;
+  const resolution = (resolutions as readonly string[]).includes(input.resolution)
+    ? (input.resolution as (typeof resolutions)[number])
+    : "480p";
+  const aspectRatio = (aspects as readonly string[]).includes(input.aspectRatio)
+    ? (input.aspectRatio as (typeof aspects)[number])
+    : "auto";
+
+  const result = await createGrokVideoTask({
+    prompt: input.prompt,
+    imageUrls: input.imageUrl ? [input.imageUrl] : [],
+    aspectRatio,
+    resolution,
+    duration: secondsFor(input),
+  });
+  if (!result.ok) return { ok: false, error: result.message };
+  return {
+    ok: true,
+    isImmediate: false,
+    requestId: result.taskId,
+    statusUrl: `kie:${result.taskId}`,
+    responseUrl: `kie:${result.taskId}`,
+  };
+}
+
+/** Interroge KIE pour une tâche vidéo et la ramène au même format que Fal. */
+async function checkKieStatus(
+  taskId: string,
+): Promise<
+  | { status: "pending" }
+  | { status: "error"; error: string }
+  | { status: "completed"; bytes: null; contentType: string; mediaUrl: string | null }
+> {
+  const { getGrokVideoTask } = await import("@/lib/services/kie-video.server");
+  const r = await getGrokVideoTask(taskId);
+  if (!r.ok || r.state === "waiting") return { status: "pending" };
+  if (r.state === "fail") return { status: "error", error: r.failMsg ?? "Génération refusée" };
+  if (!r.resultUrl) return { status: "error", error: "Résultat introuvable" };
+  return { status: "completed", bytes: null, contentType: "video/mp4", mediaUrl: r.resultUrl };
 }
 
 export function secondsFor(input: GenerationInput): number {
@@ -484,7 +548,9 @@ export async function finalizePendingRow(
 
   const { checkModelStatus, sanitizeGenerationError } = await import("@/lib/services/fal.server");
   const kind = row.media_type === "video" ? "video" : "image";
-  const result = await checkModelStatus(payload.status_url, payload.response_url, kind);
+  const result = payload.status_url.startsWith("kie:")
+    ? await checkKieStatus(payload.status_url.slice(4))
+    : await checkModelStatus(payload.status_url, payload.response_url, kind);
 
   if (result.status === "pending") {
     const age = Date.now() - new Date(row.created_at).getTime();
