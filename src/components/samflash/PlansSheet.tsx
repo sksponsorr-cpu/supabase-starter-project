@@ -207,7 +207,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           if (q.ok) {
             setPromoError(null);
             setQuote({
-              amountFcfa: q.amountFcfa,
+              amountFcfa: Number(q.amountFcfa ?? 0),
               amountLocal: q.amountLocal,
               currency: q.currency,
               discountEur: q.discountEur,
@@ -459,7 +459,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             {quoteBusy && !quote
               ? "…"
               : quote
-                ? `${quote.amountFcfa.toLocaleString("fr-FR")} FCFA`
+                ? `${Number(quote.amountFcfa ?? 0).toLocaleString("fr-FR")} FCFA`
                 : pricesLoaded
                   ? "Indisponible"
                   : "…"}
