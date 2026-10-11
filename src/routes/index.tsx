@@ -491,7 +491,7 @@ const FCFA_PER_EUR = 655.957;
 function packsFromPrices(rows: PriceRow[] | null) {
   const fmt = (n: number) => n.toLocaleString("fr-FR");
   return PACKS.map((pk) => {
-    const id = pk.name === "Sam Flash Light" ? "light" : pk.name === "Sam Flash Pro" ? "pro" : null;
+    const id = pk.name === "Sam Flash Light" ? "base" : pk.name === "Sam Flash Pro" ? "plus" : null;
     const row = id && rows ? rows.find((r) => r.id === id) : undefined;
     if (!row) return pk;
     const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
