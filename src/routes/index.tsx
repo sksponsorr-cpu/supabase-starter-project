@@ -8,6 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { useServerFn } from "@tanstack/react-start";
 import { getLanding, type LandingContent } from "@/lib/landing.functions";
+import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { z } from "zod";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { LandingSection } from "@/components/samflash/LandingSection";
@@ -43,6 +44,15 @@ export const Route = createFileRoute("/")({
 });
 
 function Login() {
+  const fetchListPrices = useServerFn(listPrices);
+  const [dbPrices, setDbPrices] = useState<PriceRow[] | null>(null);
+  useEffect(() => {
+    fetchListPrices({})
+      .then((rows) => setDbPrices(rows as PriceRow[]))
+      .catch(() => undefined);
+  }, [fetchListPrices]);
+  const packsView = packsFromPrices(dbPrices);
+
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const { session, loading } = useAuth();
@@ -294,7 +304,7 @@ function Login() {
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#3b4ef8]">Packs de crédits</p>
         <h2 className="mt-2 text-center text-3xl font-bold text-[#0b1220]">Payez seulement ce que vous créez</h2>
         <div className="mt-8 space-y-6">
-          {PACKS.map((pk, i) => (
+          {packsView.map((pk, i) => (
             <RevealCard key={pk.name} delay={i * 120}>
               <div
                 className={`relative rounded-3xl border bg-white p-6 shadow-sm ${pk.featured ? "border-[#3b4ef8] shadow-xl shadow-[#3b4ef8]/15" : "border-[#dbe2ff]"}`}
@@ -475,6 +485,37 @@ const PACKS = [
     ],
   },
 ];
+
+/** Remplace les prix des forfaits Light et Pro par ceux de la base (modifiables dans l'administration). */
+const FCFA_PER_EUR = 655.957;
+function packsFromPrices(rows: PriceRow[] | null) {
+  const fmt = (n: number) => n.toLocaleString("fr-FR");
+  return PACKS.map((pk) => {
+    const id = pk.name === "Sam Flash Light" ? "light" : pk.name === "Sam Flash Pro" ? "pro" : null;
+    const row = id && rows ? rows.find((r) => r.id === id) : undefined;
+    if (!row) return pk;
+    const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
+    const bonus = Math.round(row.credits_bonus ?? 0);
+    const paid = row.credits_fixed !== null ? row.credits_fixed - bonus : Math.round(row.amount_eur * (row.credits_rate ?? 0));
+    const credits = row.credits_fixed ?? paid + bonus;
+    const yearly = row.amount_eur_yearly !== null ? Math.round(row.amount_eur_yearly * FCFA_PER_EUR) : null;
+    const freeMonths = yearly !== null ? Math.round(12 - yearly / fcfa) : 0;
+    const items = [...pk.items];
+    items[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
+    items[1] = `${id === "pro" ? "Environ " : ""}${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
+    return {
+      ...pk,
+      price: fmt(fcfa),
+      credits,
+      perCredit: Math.round(fcfa / credits),
+      sub:
+        yearly !== null
+          ? `Par mois · ou ${fmt(yearly)} FCFA par an${freeMonths > 0 ? ` (${freeMonths} mois offerts)` : ""}`
+          : "Par mois",
+      items,
+    };
+  });
+}
 
 function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
