@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, Code2, Copy, Menu, MessageSquare, Paperclip, Plus, Send, Trash2, Video, X } from "lucide-react";
-import { sendChat, aiAccess, CHAT_MODELS } from "@/lib/chat.functions";
+import { sendChat, uploadChatVideo, aiAccess, CHAT_MODELS } from "@/lib/chat.functions";
 import { toast } from "@/lib/toast";
 
 type Provider = "claude" | "gpt";
@@ -25,8 +25,8 @@ type Attachment =
 
 const STORAGE_KEY = "sf_ai_chats_v1";
 
-/** Échantillonne une vidéo en images fixes dans le navigateur. GPT 6 Astra et Claude reçoivent ces images, pas le fichier vidéo brut. */
-async function extractVideoFrames(file: File, count = 4): Promise<Attachment[]> {
+/** Extrait des images fixes d'une vidéo, directement dans le navigateur (aucun envoi du fichier vidéo). */
+async function extractVideoFrames(file: File, count = 6): Promise<Attachment[]> {
   const url = URL.createObjectURL(file);
   try {
     const video = document.createElement("video");
@@ -160,6 +160,7 @@ function ChatPage() {
   const title = provider === "gpt" ? "ChatGPT" : "Claude AI";
 
   const send = useServerFn(sendChat);
+  const uploadVideo = useServerFn(uploadChatVideo);
   const checkAccess = useServerFn(aiAccess);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [allChats, setAllChats] = useState<Chat[]>([]);
@@ -254,30 +255,33 @@ function ChatPage() {
     const text = input.trim();
     if ((!text && attachments.length === 0) || busy) return;
 
-    const images = attachments.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image");
+    let images = attachments.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image");
     const videos = attachments.filter((a): a is Extract<Attachment, { kind: "video" }> => a.kind === "video");
-    // On transmet le fichier vidéo lui-même (base64), sans le remplacer par des captures.
-    // Limite de sécurité pour éviter des requêtes trop volumineuses.
-    if (videos.some((v) => v.file.size > 15 * 1024 * 1024)) {
-      toast.error("La vidéo dépasse 15 Mo. Choisissez une vidéo plus légère pour ce test.");
-      return;
-    }
-    let videoPayload: { name: string; mediaType: string; data: string }[] = [];
+    let videoUrl: string | undefined;
     if (videos.length > 0) {
       setBusy(true);
       try {
-        videoPayload = await Promise.all(videos.map(async (v) => {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result ?? ""));
-            reader.onerror = () => reject(new Error("video-read"));
-            reader.readAsDataURL(v.file);
-          });
-          return { name: v.name, mediaType: v.file.type || "video/mp4", data: dataUrl.split(",")[1] ?? "" };
-        }));
+        const file = videos[0].file;
+        if (file.size > 3_000_000) {
+          setBusy(false);
+          toast.error("Vidéo trop lourde : 3 Mo maximum. Choisissez une vidéo plus courte.");
+          return;
+        }
+        const buf = new Uint8Array(await file.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        const up = await uploadVideo({
+          data: { mimeType: (file.type as "video/mp4") || "video/mp4", data: btoa(bin) },
+        });
+        if (up.ok) videoUrl = up.url;
+        const extracted = await extractVideoFrames(videos[0].file, 6);
+        images = [
+          ...images,
+          ...extracted.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image"),
+        ].slice(0, 8);
       } catch {
         setBusy(false);
-        toast.error("Impossible de lire le fichier vidéo. Essayez un MP4.");
+        toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
         return;
       }
     }
@@ -285,10 +289,9 @@ function ChatPage() {
 
     let apiContent = text;
     for (const f of textFiles) apiContent += `\n\n[Fichier : ${f.name}]\n\`\`\`\n${f.text}\n\`\`\``;
-    if (videos.length > 0) apiContent += "\n\n[Une vidéo est jointe en fichier original. Analyse son contenu si cette API et ce modèle prennent en charge la vidéo ; sinon indique clairement que le format n'est pas pris en charge.]";
+    if (videos.length > 0) apiContent += "\n\n[Les images jointes sont des extraits successifs de la vidéo de référence de l'utilisateur.]";
     if (!apiContent.trim()) apiContent = "Voici une image.";
     if (apiContent.length > MAX_TOTAL_CHARS) {
-      setBusy(false);
       toast.error("Message trop long. Réduisez le texte ou les fichiers joints.");
       return;
     }
@@ -318,6 +321,7 @@ function ChatPage() {
           provider,
           model: next.model,
           mode: next.mode,
+          videoUrl,
           messages: next.messages.map((m, i) => ({
             role: m.role,
             content: m.apiContent ?? m.content,
@@ -325,7 +329,6 @@ function ChatPage() {
               i === next.messages.length - 1 && images.length > 0
                 ? images.map((img) => ({ mediaType: img.mediaType, data: img.data }))
                 : undefined,
-            videos: i === next.messages.length - 1 && videoPayload.length > 0 ? videoPayload : undefined,
           })),
         },
       });
@@ -339,8 +342,10 @@ function ChatPage() {
         setInput(text);
         setAttachments(sentAttachments);
       }
-    } catch {
-      toast.error("Envoi impossible. Vérifiez votre connexion et réessayez.");
+    } catch (err) {
+      console.error("[chat-ia] envoi", err);
+      const detail = err instanceof Error ? err.message : String(err);
+      toast.error(`Envoi impossible : ${detail.slice(0, 160)}`);
       setCurrent(current);
       setInput(text);
       setAttachments(sentAttachments);
