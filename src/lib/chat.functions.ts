@@ -50,6 +50,25 @@ export const aiAccess = createServerFn({ method: "GET" })
     return { enabled: await isAdminUser(context) };
   });
 
+/** Copie un résultat KIE (supprimé après 14 jours) vers notre stockage, pour qu'il reste accessible. */
+async function persistVideo(userId: string, kieUrl: string, taskId: string): Promise<string> {
+  try {
+    const res = await fetch(kieUrl, { signal: AbortSignal.timeout(60000) });
+    if (!res.ok) return kieUrl;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const path = `chat-videos/${userId}/${taskId}.mp4`;
+    const r2 = await import("@/lib/services/r2.server");
+    if (r2.isR2Configured()) return await r2.uploadToR2(path, bytes, "video/mp4");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.storage.from("generations").upload(path, bytes, { contentType: "video/mp4" });
+    if (error) return kieUrl;
+    const { data } = supabaseAdmin.storage.from("generations").getPublicUrl(path);
+    return data.publicUrl || kieUrl;
+  } catch {
+    return kieUrl;
+  }
+}
+
 /** Outils que Claude peut appeler en mode vidéo (génération Omni via KIE). */
 const OMNI_TOOLS = [
   {
@@ -90,7 +109,10 @@ async function runOmniTool(
     const taskId = typeof input.taskId === "string" ? input.taskId.slice(0, 100) : "";
     if (!taskId) return { content: "Identifiant de tâche manquant.", isError: true };
     const st = await getOmniTask(taskId);
-    if (st.state === "success") return { content: `Segment prêt : ${st.resultUrl}`, isError: false };
+    if (st.state === "success") {
+      const url = await persistVideo(ctx.userId, st.resultUrl, taskId);
+      return { content: `Segment prêt : ${url}`, isError: false };
+    }
     if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}`, isError: false };
     if (st.state === "waiting") return { content: `Segment encore en cours (${taskId}). Revérifiez plus tard.`, isError: false };
     return { content: st.message, isError: true };
@@ -142,7 +164,10 @@ async function runOmniTool(
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 6000));
     const st = await getOmniTask(created.taskId);
-    if (st.state === "success") return { content: `Segment prêt (${cost} crédits) : ${st.resultUrl}`, isError: false };
+    if (st.state === "success") {
+      const url = await persistVideo(ctx.userId, st.resultUrl, created.taskId);
+      return { content: `Segment prêt (${cost} crédits) : ${url}`, isError: false };
+    }
     if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}. Les ${cost} crédits de ce segment ont été débités.`, isError: false };
     if (st.state === "error") return { content: st.message, isError: true };
   }
