@@ -20,7 +20,8 @@ type Msg = { role: "user" | "assistant"; content: string; apiContent?: string; n
 type Chat = { id: string; provider: Provider; title: string; model: string; mode: Mode; messages: Msg[]; updatedAt: number };
 type Attachment =
   | { kind: "image"; name: string; mediaType: "image/jpeg"; data: string; preview: string }
-  | { kind: "text"; name: string; text: string };
+  | { kind: "text"; name: string; text: string }
+  | { kind: "video"; name: string; file: File; preview: string };
 
 const STORAGE_KEY = "sf_ai_chats_v1";
 
@@ -217,9 +218,13 @@ function ChatPage() {
     for (const file of Array.from(files)) {
       if (file.type.startsWith("video/")) {
         try {
-          const frames = await extractVideoFrames(file, 6);
-          setAttachments((prev) => [...prev, ...frames].slice(0, 8));
-          toast.success("Vidéo de référence prise en compte : 6 images extraites pour l'analyse.");
+          if (attachments.some((a) => a.kind === "video")) {
+            toast.error("Une seule vidéo par message.");
+            continue;
+          }
+          const [thumb] = await extractVideoFrames(file, 1);
+          const preview = thumb && thumb.kind === "image" ? thumb.preview : "";
+          setAttachments((prev) => [...prev, { kind: "video", name: file.name, file, preview }]);
         } catch {
           toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
         }
@@ -249,11 +254,27 @@ function ChatPage() {
     const text = input.trim();
     if ((!text && attachments.length === 0) || busy) return;
 
-    const images = attachments.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image");
+    let images = attachments.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image");
+    const videos = attachments.filter((a): a is Extract<Attachment, { kind: "video" }> => a.kind === "video");
+    if (videos.length > 0) {
+      setBusy(true);
+      try {
+        const extracted = await extractVideoFrames(videos[0].file, 6);
+        images = [
+          ...images,
+          ...extracted.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image"),
+        ].slice(0, 8);
+      } catch {
+        setBusy(false);
+        toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
+        return;
+      }
+    }
     const textFiles = attachments.filter((a): a is Extract<Attachment, { kind: "text" }> => a.kind === "text");
 
     let apiContent = text;
     for (const f of textFiles) apiContent += `\n\n[Fichier : ${f.name}]\n\`\`\`\n${f.text}\n\`\`\``;
+    if (videos.length > 0) apiContent += "\n\n[Les images jointes sont des extraits successifs de la vidéo de référence de l'utilisateur.]";
     if (!apiContent.trim()) apiContent = "Voici une image.";
     if (apiContent.length > MAX_TOTAL_CHARS) {
       toast.error("Message trop long. Réduisez le texte ou les fichiers joints.");
@@ -261,13 +282,13 @@ function ChatPage() {
     }
 
     const note = [
-      images.length ? `${images.length} image${images.length > 1 ? "s" : ""}` : "",
+      videos.length ? "1 vidéo" : images.length ? `${images.length} image${images.length > 1 ? "s" : ""}` : "",
       ...textFiles.map((f) => f.name),
     ]
       .filter(Boolean)
       .join(" · ");
 
-    const userMsg: Msg = { role: "user", content: text || "Voici une image.", apiContent, note: note || undefined };
+    const userMsg: Msg = { role: "user", content: text || (videos.length ? "Voici une vidéo de référence." : "Voici une image."), apiContent, note: note || undefined };
     const next: Chat = {
       ...current,
       title: current.messages.length === 0 ? (text || note || "Conversation").slice(0, 40) : current.title,
@@ -418,6 +439,13 @@ function ChatPage() {
               <div key={i} className="relative flex items-center gap-2 rounded-xl border border-border bg-card/60 p-1.5 pr-8">
                 {a.kind === "image" ? (
                   <img src={a.preview} alt={a.name} className="h-10 w-10 rounded-lg object-cover" />
+                ) : a.kind === "video" ? (
+                  <span className="relative block h-10 w-10 overflow-hidden rounded-lg bg-secondary">
+                    {a.preview ? <img src={a.preview} alt={a.name} className="h-full w-full object-cover" /> : null}
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35">
+                      <Video className="h-4 w-4 text-white" />
+                    </span>
+                  </span>
                 ) : (
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-xs">TXT</span>
                 )}
