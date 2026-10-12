@@ -61,3 +61,44 @@ export async function uploadToR2(key: string, bytes: Uint8Array, contentType: st
 
   return `${env("CLOUDFLARE_R2_PUBLIC_URL").replace(/\/+$/, "")}/${encodedKey}`;
                      }
+
+/** Adresse publique d'un fichier déjà stocké (CLOUDFLARE_R2_PUBLIC_URL + clé). */
+export function publicUrlFor(key: string) {
+  return `${env("CLOUDFLARE_R2_PUBLIC_URL").replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** URL signée (SigV4, query string) pour envoyer un fichier directement depuis le navigateur vers R2. */
+export async function presignPutUrl(key: string, expiresSec = 900) {
+  const bucket = env("CLOUDFLARE_R2_BUCKET");
+  const origin = new URL(env("CLOUDFLARE_R2_ENDPOINT")).origin;
+  const host = new URL(origin).host;
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+  const uri = `/${bucket}/${encodedKey}`;
+
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const scope = `${dateStamp}/auto/s3/aws4_request`;
+  const credential = `${env("CLOUDFLARE_R2_ACCESS_KEY_ID")}/${scope}`;
+
+  const params: [string, string][] = [
+    ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+    ["X-Amz-Credential", credential],
+    ["X-Amz-Date", amzDate],
+    ["X-Amz-Expires", String(expiresSec)],
+    ["X-Amz-SignedHeaders", "host"],
+  ];
+  const query = params
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+
+  const canonical = `PUT\n${uri}\n${query}\nhost:${host}\n\nhost\nUNSIGNED-PAYLOAD`;
+  const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256Hex(canonical)}`;
+
+  let k = await hmac(enc.encode("AWS4" + env("CLOUDFLARE_R2_SECRET_ACCESS_KEY")), dateStamp);
+  k = await hmac(k, "auto");
+  k = await hmac(k, "s3");
+  k = await hmac(k, "aws4_request");
+  const signature = toHex(await hmac(k, toSign));
+
+  return `${origin}${uri}?${query}&X-Amz-Signature=${signature}`;
+}
