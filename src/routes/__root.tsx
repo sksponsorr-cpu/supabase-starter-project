@@ -18,6 +18,7 @@ import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 import { ReferralCapture } from "../components/samflash/ReferralCapture";
 import { MaintenanceGate } from "../components/samflash/MaintenanceGate";
+import { initPostHog } from "../lib/posthog";
 
 function ErrorLayout({
   icon,
@@ -158,6 +159,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Démarre PostHog une seule fois, dans le navigateur uniquement.
+  useEffect(() => {
+    initPostHog();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
