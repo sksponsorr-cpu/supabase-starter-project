@@ -21,6 +21,9 @@ export const CHAT_MODELS = {
 
 const KIE_KEY = () => process.env.KIE_API_KEY ?? "";
 
+// Les deux fournisseurs reçoivent au maximum quatre images échantillonnées par message.
+const MAX_IMAGES_PER_MESSAGE = 4;
+
 /** Message affiché à l'utilisateur : jamais de détail technique. */
 const GENERIC_ERROR = "Le service est momentanément indisponible. Réessayez dans un instant.";
 
@@ -28,7 +31,32 @@ const CODE_PREFIX =
   "Tu es un assistant de programmation expert. Réponds en français, donne du code complet et fonctionnel dans des blocs de code, puis explique brièvement les changements.\n\n";
 
 type ImagePart = { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string };
-type Msg = { role: "user" | "assistant"; content: string; images?: ImagePart[] };
+type VideoPart = { name: string; mediaType: string; data?: string; url?: string };
+type Msg = { role: "user" | "assistant"; content: string; images?: ImagePart[]; videos?: VideoPart[] };
+
+/** Envoie le fichier vidéo original au stockage temporaire KIE pour transmettre une URL au modèle. */
+async function uploadKieVideo(video: VideoPart): Promise<string> {
+  if (!video.data) throw new Error("Vidéo sans données");
+  const binary = atob(video.data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const form = new FormData();
+  form.append("file", new Blob([bytes], { type: video.mediaType || "video/mp4" }), video.name || "video.mp4");
+  form.append("uploadPath", "sam-flash-chat-videos");
+  form.append("fileName", video.name || "video.mp4");
+  const res = await fetch("https://kieai.redpandaai.co/api/file-stream-upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${KIE_KEY()}` },
+    body: form,
+  });
+  const json = await res.json();
+  const url = json?.data?.downloadUrl ?? json?.downloadUrl ?? json?.data?.url;
+  if (!res.ok || typeof url !== "string" || !url.startsWith("http")) {
+    console.error("[chat-ia] KIE vidéo upload échoué", res.status, JSON.stringify(json).slice(0, 500));
+    throw new Error("KIE n'a pas accepté le fichier vidéo");
+  }
+  return url;
+}
 
 /** Vérifie si l'utilisateur est propriétaire ou administrateur. */
 async function isAdminUser(context: {
@@ -49,25 +77,6 @@ export const aiAccess = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     return { enabled: await isAdminUser(context) };
   });
-
-/** Copie un résultat KIE (supprimé après 14 jours) vers notre stockage, pour qu'il reste accessible. */
-async function persistVideo(userId: string, kieUrl: string, taskId: string): Promise<string> {
-  try {
-    const res = await fetch(kieUrl, { signal: AbortSignal.timeout(60000) });
-    if (!res.ok) return kieUrl;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const path = `chat-videos/${userId}/${taskId}.mp4`;
-    const r2 = await import("@/lib/services/r2.server");
-    if (r2.isR2Configured()) return await r2.uploadToR2(path, bytes, "video/mp4");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.storage.from("generations").upload(path, bytes, { contentType: "video/mp4" });
-    if (error) return kieUrl;
-    const { data } = supabaseAdmin.storage.from("generations").getPublicUrl(path);
-    return data.publicUrl || kieUrl;
-  } catch {
-    return kieUrl;
-  }
-}
 
 /** Outils que Claude peut appeler en mode vidéo (génération Omni via KIE). */
 const OMNI_TOOLS = [
@@ -109,10 +118,7 @@ async function runOmniTool(
     const taskId = typeof input.taskId === "string" ? input.taskId.slice(0, 100) : "";
     if (!taskId) return { content: "Identifiant de tâche manquant.", isError: true };
     const st = await getOmniTask(taskId);
-    if (st.state === "success") {
-      const url = await persistVideo(ctx.userId, st.resultUrl, taskId);
-      return { content: `Segment prêt : ${url}`, isError: false };
-    }
+    if (st.state === "success") return { content: `Segment prêt : ${st.resultUrl}`, isError: false };
     if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}`, isError: false };
     if (st.state === "waiting") return { content: `Segment encore en cours (${taskId}). Revérifiez plus tard.`, isError: false };
     return { content: st.message, isError: true };
@@ -164,10 +170,7 @@ async function runOmniTool(
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 6000));
     const st = await getOmniTask(created.taskId);
-    if (st.state === "success") {
-      const url = await persistVideo(ctx.userId, st.resultUrl, created.taskId);
-      return { content: `Segment prêt (${cost} crédits) : ${url}`, isError: false };
-    }
+    if (st.state === "success") return { content: `Segment prêt (${cost} crédits) : ${st.resultUrl}`, isError: false };
     if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}. Les ${cost} crédits de ce segment ont été débités.`, isError: false };
     if (st.state === "error") return { content: st.message, isError: true };
   }
@@ -186,20 +189,22 @@ async function runClaude(args: {
   videoMode: boolean;
   ctx: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  const convo: unknown[] = args.messages.map((m) =>
-    m.images && m.images.length > 0
-      ? {
-          role: m.role,
-          content: [
-            ...m.images.map((img) => ({
-              type: "image",
-              source: { type: "base64", media_type: img.mediaType, data: img.data },
-            })),
-            { type: "text", text: m.content },
-          ],
-        }
-      : { role: m.role, content: m.content },
-  );
+  const convo: unknown[] = args.messages.map((m) => {
+    const content: unknown[] = [
+      ...(m.images ?? []).map((img) => ({
+        type: "image",
+        source: { type: "base64", media_type: img.mediaType, data: img.data },
+      })),
+      ...(m.videos ?? []).filter((v) => v.url).map((v) => ({
+        // Tentative directe : si le modèle/KIE ne prend pas ce bloc en charge,
+        // l'API renverra explicitement une erreur au lieu de substituer des images.
+        type: "video",
+        source: { type: "url", url: v.url },
+      })),
+      { type: "text", text: m.content },
+    ];
+    return (m.images?.length || m.videos?.length) ? { role: m.role, content } : { role: m.role, content: m.content };
+  });
 
   let text = "";
   let kieCredits = 0;
@@ -263,6 +268,12 @@ async function runGpt(args: {
       ...(m.images ?? []).map((img) => ({
         type: "input_image",
         image_url: `data:${img.mediaType};base64,${img.data}`,
+      })),
+      ...(m.videos ?? []).filter((v) => v.url).map((v) => ({
+        // Envoi du fichier original à l'API Responses pour tester la prise en charge du fichier vidéo.
+        type: "input_file",
+        file_url: v.url,
+        filename: v.name,
       })),
       { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
     ],
@@ -333,8 +344,13 @@ export const sendChat = createServerFn({ method: "POST" })
                     data: z.string().max(2_500_000),
                   }),
                 )
-                .max(4)
+                .max(MAX_IMAGES_PER_MESSAGE)
                 .optional(),
+              videos: z.array(z.object({
+                name: z.string().min(1).max(255),
+                mediaType: z.enum(["video/mp4", "video/webm", "video/quicktime", "video/mpeg", "video/3gpp", "video/x-matroska", "application/octet-stream"]),
+                data: z.string().min(1).max(21_000_000),
+              })).max(1).optional(),
             }),
           )
           .min(1)
@@ -369,9 +385,23 @@ export const sendChat = createServerFn({ method: "POST" })
     }
 
     // Mode Code : consigne ajoutée au premier message, sans toucher à l'affichage côté client.
-    const messages: Msg[] = data.messages.map((m, i) =>
+    let messages: Msg[] = data.messages.map((m, i) =>
       data.mode === "code" && i === 0 && m.role === "user" ? { ...m, content: CODE_PREFIX + m.content } : m,
     );
+    try {
+      messages = await Promise.all(messages.map(async (m) => {
+        if (!m.videos?.length) return m;
+        const videos = await Promise.all(m.videos.map(async (video) => ({
+          name: video.name,
+          mediaType: video.mediaType,
+          url: await uploadKieVideo(video),
+        })));
+        return { ...m, videos };
+      }));
+    } catch (error) {
+      console.error("[chat-ia] envoi vidéo KIE impossible", error);
+      return { ok: false as const, message: "Le service n’a pas accepté le fichier vidéo. Essayez un MP4 de moins de 15 Mo ou vérifiez la prise en charge du modèle." };
+    }
 
     const headers = {
       Authorization: `Bearer ${KIE_KEY()}`,
