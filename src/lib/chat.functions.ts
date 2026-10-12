@@ -7,7 +7,7 @@ import { analyzeVideoUrl } from "@/lib/services/gemini.server";
 import { VIDEO_SYSTEM } from "@/lib/assistant/claude-instructions";
 import { createOmniTask, getOmniTask } from "@/lib/services/omni.server";
 import { omniSegmentCredits } from "@/lib/omni-pricing";
-import { isR2Configured, uploadToR2 } from "@/lib/services/r2.server";
+import { isR2Configured, presignPutUrl, publicUrlFor, uploadToR2 } from "@/lib/services/r2.server";
 
 /** Identifiants confirmés dans la documentation Kie.ai (valeur de l'enum "model"). */
 export const CHAT_MODELS = {
@@ -309,6 +309,38 @@ export const uploadChatVideo = createServerFn({ method: "POST" })
       return { ok: true as const, url };
     } catch {
       return { ok: false as const, message: "Envoi de la vidéo impossible. Réessayez." };
+    }
+  });
+
+/** Prépare l'envoi d'une vidéo (55 Mo max) : renvoie une URL signée pour l'envoyer directement vers R2. */
+export const prepareChatVideoUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        mimeType: z.enum(["video/mp4", "video/webm", "video/quicktime"]),
+        size: z.number().int().positive().max(55 * 1024 * 1024),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const claims = context.claims as { email?: unknown } | null;
+    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+    if (!(email && OWNER_EMAILS.includes(email))) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      if (isAdmin !== true) return { ok: false as const, message: "Accès réservé." };
+    }
+    if (!isR2Configured()) return { ok: false as const, message: "Stockage indisponible pour le moment." };
+    const ext = data.mimeType === "video/webm" ? "webm" : data.mimeType === "video/quicktime" ? "mov" : "mp4";
+    const key = `chat-videos/${context.userId}/${crypto.randomUUID()}.${ext}`;
+    try {
+      const uploadUrl = await presignPutUrl(key, 900);
+      return { ok: true as const, uploadUrl, publicUrl: publicUrlFor(key) };
+    } catch {
+      return { ok: false as const, message: "Préparation de l'envoi impossible. Réessayez." };
     }
   });
 
