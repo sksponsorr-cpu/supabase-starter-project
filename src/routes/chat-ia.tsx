@@ -23,6 +23,52 @@ type Attachment =
   | { kind: "text"; name: string; text: string };
 
 const STORAGE_KEY = "sf_ai_chats_v1";
+
+/** Extrait des images fixes d'une vidéo, directement dans le navigateur (aucun envoi du fichier vidéo). */
+async function extractVideoFrames(file: File, count = 6): Promise<Attachment[]> {
+  const url = URL.createObjectURL(file);
+  try {
+    const video = document.createElement("video");
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error("video"));
+    });
+    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+    if (!duration) throw new Error("duree");
+
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 640 / (video.videoWidth || 640));
+    canvas.width = Math.round((video.videoWidth || 640) * scale);
+    canvas.height = Math.round((video.videoHeight || 360) * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas");
+
+    const frames: Attachment[] = [];
+    for (let i = 0; i < count; i++) {
+      const t = (duration * (i + 0.5)) / count;
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+        video.currentTime = t;
+      });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+      frames.push({
+        kind: "image",
+        name: `${file.name} (image ${i + 1})`,
+        mediaType: "image/jpeg",
+        data: dataUrl.split(",")[1] ?? "",
+        preview: dataUrl,
+      });
+    }
+    return frames;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 const TEXT_EXT = /\.(txt|md|json|csv|js|ts|tsx|jsx|py|html|css|sql|php|java|c|cpp|go|rs|sh|yml|yaml|xml|log)$/i;
 const MAX_TOTAL_CHARS = 55000;
 
@@ -122,6 +168,7 @@ function ChatPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,6 +215,16 @@ function ChatPage() {
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     for (const file of Array.from(files)) {
+      if (file.type.startsWith("video/")) {
+        try {
+          const frames = await extractVideoFrames(file, 6);
+          setAttachments((prev) => [...prev, ...frames].slice(0, 8));
+          toast.success("Vidéo de référence prise en compte : 6 images extraites pour l'analyse.");
+        } catch {
+          toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
+        }
+        continue;
+      }
       try {
         const att = await toAttachment(file);
         if (!att) {
@@ -175,8 +232,8 @@ function ChatPage() {
           continue;
         }
         setAttachments((prev) => {
-          if (att.kind === "image" && prev.filter((a) => a.kind === "image").length >= 4) {
-            toast.error("4 images maximum par message.");
+          if (att.kind === "image" && prev.filter((a) => a.kind === "image").length >= 8) {
+            toast.error("8 images maximum par message.");
             return prev;
           }
           return [...prev, att];
@@ -388,7 +445,16 @@ function ChatPage() {
             ref={fileRef}
             type="file"
             multiple
-            accept="image/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.php,.java,.c,.cpp,.go,.rs,.sh,.yml,.yaml,.xml,.log"
+            accept="image/*,video/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.php,.java,.c,.cpp,.go,.rs,.sh,.yml,.yaml,.xml,.log"
+            className="hidden"
+            onChange={(e) => void addFiles(e.target.files)}
+          />
+          {/* Galerie du téléphone : photos et vidéos uniquement */}
+          <input
+            ref={galleryRef}
+            type="file"
+            multiple
+            accept="image/*,video/*"
             className="hidden"
             onChange={(e) => void addFiles(e.target.files)}
           />
@@ -399,6 +465,16 @@ function ChatPage() {
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary"
           >
             <Paperclip className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            disabled={busy}
+            aria-label="Choisir une vidéo ou une photo dans la galerie"
+            className="flex h-11 shrink-0 items-center gap-2 rounded-full border border-border bg-card/60 px-3 text-sm font-medium transition-transform active:scale-95 disabled:opacity-50"
+          >
+            <Video className="h-5 w-5" />
+            <span className="hidden sm:inline">Galerie</span>
           </button>
           <textarea
             value={input}
