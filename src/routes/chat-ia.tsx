@@ -326,8 +326,10 @@ function ChatPage() {
         setInput(text);
         setAttachments(sentAttachments);
       }
-    } catch {
-      toast.error("Envoi impossible. Vérifiez votre connexion et réessayez.");
+    } catch (err) {
+      console.error("[chat-ia] envoi", err);
+      const detail = err instanceof Error ? err.message : String(err);
+      toast.error(`Envoi impossible : ${detail.slice(0, 160)}`);
       setCurrent(current);
       setInput(text);
       setAttachments(sentAttachments);
