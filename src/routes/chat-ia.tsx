@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, Code2, Copy, Menu, MessageSquare, Paperclip, Plus, Send, Trash2, Video, X } from "lucide-react";
-import { sendChat, uploadChatVideo, aiAccess, CHAT_MODELS } from "@/lib/chat.functions";
+import { sendChat, prepareChatVideoUpload, aiAccess, CHAT_MODELS } from "@/lib/chat.functions";
 import { toast } from "@/lib/toast";
 
 type Provider = "claude" | "gpt";
@@ -160,7 +160,7 @@ function ChatPage() {
   const title = provider === "gpt" ? "ChatGPT" : "Claude AI";
 
   const send = useServerFn(sendChat);
-  const uploadVideo = useServerFn(uploadChatVideo);
+  const prepareUpload = useServerFn(prepareChatVideoUpload);
   const checkAccess = useServerFn(aiAccess);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [allChats, setAllChats] = useState<Chat[]>([]);
@@ -223,11 +223,9 @@ function ChatPage() {
             toast.error("Une seule vidéo par message.");
             continue;
           }
-          const [thumb] = await extractVideoFrames(file, 1);
-          const preview = thumb && thumb.kind === "image" ? thumb.preview : "";
-          setAttachments((prev) => [...prev, { kind: "video", name: file.name, file, preview }]);
+          setAttachments((prev) => [...prev, { kind: "video", name: file.name, file, preview: "" }]);
         } catch {
-          toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
+          toast.error("Impossible d'ajouter cette vidéo. Réessayez.");
         }
         continue;
       }
@@ -262,26 +260,33 @@ function ChatPage() {
       setBusy(true);
       try {
         const file = videos[0].file;
-        if (file.size > 3_000_000) {
+        if (file.size > 55 * 1024 * 1024) {
           setBusy(false);
-          toast.error("Vidéo trop lourde : 3 Mo maximum. Choisissez une vidéo plus courte.");
+          toast.error("Vidéo trop lourde : 55 Mo maximum. Choisissez une vidéo plus courte.");
           return;
         }
-        const buf = new Uint8Array(await file.arrayBuffer());
-        let bin = "";
-        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-        const up = await uploadVideo({
-          data: { mimeType: (file.type as "video/mp4") || "video/mp4", data: btoa(bin) },
+        const prep = await prepareUpload({
+          data: { mimeType: (file.type as "video/mp4") || "video/mp4", size: file.size },
         });
-        if (up.ok) videoUrl = up.url;
-        const extracted = await extractVideoFrames(videos[0].file, 6);
-        images = [
-          ...images,
-          ...extracted.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image"),
-        ].slice(0, 8);
+        if (!prep.ok) {
+          setBusy(false);
+          toast.error(prep.message);
+          return;
+        }
+        const put = await fetch(prep.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type || "video/mp4" },
+          body: file,
+        });
+        if (!put.ok) {
+          setBusy(false);
+          toast.error("Envoi de la vidéo impossible. Réessayez.");
+          return;
+        }
+        videoUrl = prep.publicUrl;
       } catch {
         setBusy(false);
-        toast.error("Impossible de lire cette vidéo. Essayez un autre format (MP4 de préférence).");
+        toast.error("Envoi de la vidéo impossible. Vérifiez votre connexion et réessayez.");
         return;
       }
     }
@@ -289,7 +294,7 @@ function ChatPage() {
 
     let apiContent = text;
     for (const f of textFiles) apiContent += `\n\n[Fichier : ${f.name}]\n\`\`\`\n${f.text}\n\`\`\``;
-    if (videos.length > 0) apiContent += "\n\n[Les images jointes sont des extraits successifs de la vidéo de référence de l'utilisateur.]";
+    if (videoUrl) apiContent += "\n\n[Une vidéo de référence est jointe à ce message. Utilise l'outil analyser_video pour l'analyser.]";
     if (!apiContent.trim()) apiContent = "Voici une image.";
     if (apiContent.length > MAX_TOTAL_CHARS) {
       toast.error("Message trop long. Réduisez le texte ou les fichiers joints.");
@@ -428,9 +433,14 @@ function ChatPage() {
           </div>
         )}
         {current.messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+          <div
+            key={i}
+            className={`animate-in fade-in duration-500 ease-out fill-mode-both ${
+              m.role === "user" ? "flex justify-end slide-in-from-right-4" : "flex justify-start slide-in-from-left-4"
+            }`}
+          >
             <div
-              className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed ${
+              className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed transition-all duration-300 ${
                 m.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-card/60"
               }`}
             >
@@ -440,8 +450,17 @@ function ChatPage() {
           </div>
         ))}
         {busy && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl border border-border bg-card/60 px-4 py-2.5 text-sm text-muted-foreground">
+          <div className="flex justify-start animate-in fade-in slide-in-from-left-4 duration-500">
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/60 px-4 py-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1" aria-hidden>
+                {[0, 1, 2].map((d) => (
+                  <span
+                    key={d}
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary"
+                    style={{ animationDelay: `${d * 150}ms` }}
+                  />
+                ))}
+              </span>
               Réponse en cours…
             </div>
           </div>
@@ -454,7 +473,7 @@ function ChatPage() {
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <div key={i} className="relative flex items-center gap-2 rounded-xl border border-border bg-card/60 p-1.5 pr-8">
+              <div key={i} className="relative flex items-center gap-2 rounded-xl border border-border bg-card/60 p-1.5 pr-8 animate-in zoom-in-95 fade-in duration-300">
                 {a.kind === "image" ? (
                   <img src={a.preview} alt={a.name} className="h-10 w-10 rounded-lg object-cover" />
                 ) : a.kind === "video" ? (
