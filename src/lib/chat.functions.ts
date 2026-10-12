@@ -3,9 +3,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OWNER_EMAILS } from "@/lib/owners";
 import { kieCreditsToSamCredits } from "@/lib/ai-pricing";
-import { VIDEO_ASSISTANT_INSTRUCTIONS } from "@/lib/assistant/claude-instructions";
+import { analyzeVideoUrl } from "@/lib/services/gemini.server";
+import { VIDEO_SYSTEM } from "@/lib/assistant/claude-instructions";
 import { createOmniTask, getOmniTask } from "@/lib/services/omni.server";
 import { omniSegmentCredits } from "@/lib/omni-pricing";
+import { isR2Configured, uploadToR2 } from "@/lib/services/r2.server";
 
 /** Identifiants confirmés dans la documentation Kie.ai (valeur de l'enum "model"). */
 export const CHAT_MODELS = {
@@ -21,9 +23,6 @@ export const CHAT_MODELS = {
 
 const KIE_KEY = () => process.env.KIE_API_KEY ?? "";
 
-// Les deux fournisseurs reçoivent au maximum quatre images échantillonnées par message.
-const MAX_IMAGES_PER_MESSAGE = 4;
-
 /** Message affiché à l'utilisateur : jamais de détail technique. */
 const GENERIC_ERROR = "Le service est momentanément indisponible. Réessayez dans un instant.";
 
@@ -31,32 +30,7 @@ const CODE_PREFIX =
   "Tu es un assistant de programmation expert. Réponds en français, donne du code complet et fonctionnel dans des blocs de code, puis explique brièvement les changements.\n\n";
 
 type ImagePart = { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string };
-type VideoPart = { name: string; mediaType: string; data?: string; url?: string };
-type Msg = { role: "user" | "assistant"; content: string; images?: ImagePart[]; videos?: VideoPart[] };
-
-/** Envoie le fichier vidéo original au stockage temporaire KIE pour transmettre une URL au modèle. */
-async function uploadKieVideo(video: VideoPart): Promise<string> {
-  if (!video.data) throw new Error("Vidéo sans données");
-  const binary = atob(video.data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const form = new FormData();
-  form.append("file", new Blob([bytes], { type: video.mediaType || "video/mp4" }), video.name || "video.mp4");
-  form.append("uploadPath", "sam-flash-chat-videos");
-  form.append("fileName", video.name || "video.mp4");
-  const res = await fetch("https://kieai.redpandaai.co/api/file-stream-upload", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${KIE_KEY()}` },
-    body: form,
-  });
-  const json = await res.json();
-  const url = json?.data?.downloadUrl ?? json?.downloadUrl ?? json?.data?.url;
-  if (!res.ok || typeof url !== "string" || !url.startsWith("http")) {
-    console.error("[chat-ia] KIE vidéo upload échoué", res.status, JSON.stringify(json).slice(0, 500));
-    throw new Error("KIE n'a pas accepté le fichier vidéo");
-  }
-  return url;
-}
+type Msg = { role: "user" | "assistant"; content: string; images?: ImagePart[] };
 
 /** Vérifie si l'utilisateur est propriétaire ou administrateur. */
 async function isAdminUser(context: {
@@ -78,19 +52,20 @@ export const aiAccess = createServerFn({ method: "GET" })
     return { enabled: await isAdminUser(context) };
   });
 
-/** Outils que Claude peut appeler en mode vidéo (génération Omni via KIE). */
-const OMNI_TOOLS = [
+/** Outil mis à disposition de Claude en mode vidéo : analyse d'une vidéo via Gemini (KIE). */
+const VIDEO_TOOLS = [
   {
     name: "generer_segment_omni",
     description:
-      "Génère un segment vidéo de 4, 6, 8 ou 10 secondes avec Omni. Débite les crédits du segment. Renvoie le lien du segment ou un identifiant de tâche si la génération prend du temps.",
+      "Lance la génération d'un segment vidéo avec Omni (4, 6, 8 ou 10 secondes, 360p ou 720p, 16:9 ou 9:16). Vérifie le solde et débite les crédits du segment. À appeler seulement après avoir présenté le plan et annoncé le coût, et après accord de l'utilisateur.",
     input_schema: {
       type: "object",
       properties: {
-        prompt: { type: "string", description: "Prompt détaillé du segment, sans voix off ni musique." },
+        prompt: { type: "string", description: "Prompt détaillé du segment (sujet, action, caméra, lumière, environnement, transition)." },
         duree: { type: "integer", enum: [4, 6, 8, 10] },
         resolution: { type: "string", enum: ["360p", "720p"] },
         format: { type: "string", enum: ["16:9", "9:16"] },
+        voix_off: { type: "boolean", description: "true seulement si l'utilisateur a demandé une voix off ou une musique." },
       },
       required: ["prompt", "duree", "resolution", "format"],
     },
@@ -104,16 +79,30 @@ const OMNI_TOOLS = [
       required: ["taskId"],
     },
   },
+  {
+    name: "analyser_video",
+    description:
+      "Analyse la vidéo fournie par l'utilisateur (son style, son rythme, ses transitions, sa composition) et renvoie une description détaillée. À utiliser avant d'écrire les prompts de génération.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "Ce qu'il faut observer ou décrire dans la vidéo." },
+      },
+      required: ["question"],
+    },
+  },
 ];
 
-type ToolOutcome = { content: string; isError: boolean };
 
-/** Exécute un outil demandé par Claude. Les vérifications de solde sont faites ici, côté serveur. */
+
+type OmniOutcome = { content: string; isError: boolean };
+
+/** Exécute generer_segment_omni / verifier_segment_omni. Le solde est contrôlé ici, côté serveur. */
 async function runOmniTool(
   name: string,
   input: Record<string, unknown>,
   ctx: { db: any; userId: string },
-): Promise<ToolOutcome> {
+): Promise<OmniOutcome> {
   if (name === "verifier_segment_omni") {
     const taskId = typeof input.taskId === "string" ? input.taskId.slice(0, 100) : "";
     if (!taskId) return { content: "Identifiant de tâche manquant.", isError: true };
@@ -134,16 +123,11 @@ async function runOmniTool(
     return { content: "Durée invalide : 4, 6, 8 ou 10 secondes.", isError: true };
   }
 
-  // Règle d'arrêt : on ne lance jamais un segment que le solde ne couvre pas.
-  const { data: profile } = await ctx.db
-    .from("profiles")
-    .select("credits_balance")
-    .eq("id", ctx.userId)
-    .maybeSingle();
+  const { data: profile } = await ctx.db.from("profiles").select("credits_balance").eq("id", ctx.userId).maybeSingle();
   const balance = Number(profile?.credits_balance ?? 0);
   if (balance < cost) {
     return {
-      content: `Solde insuffisant : ce segment coûte ${cost} crédits et le compte en a ${balance}. Arrêtez la génération, envoyez les segments déjà terminés et indiquez le nombre de crédits manquants.`,
+      content: `Solde insuffisant : ce segment coûte ${cost} crédits et le compte en a ${balance}. Arrêtez la génération, remettez les segments déjà terminés et indiquez les crédits manquants.`,
       isError: true,
     };
   }
@@ -161,17 +145,14 @@ async function runOmniTool(
     p_cost: cost,
     p_ref: `omni-${created.taskId}`,
   });
-  if (debited !== true) {
-    return { content: "Crédits insuffisants pour lancer ce segment.", isError: true };
-  }
+  if (debited !== true) return { content: "Crédits insuffisants pour lancer ce segment.", isError: true };
 
-  // Attente bornée : au-delà, Claude reçoit l'identifiant et peut vérifier plus tard.
   const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 6000));
     const st = await getOmniTask(created.taskId);
     if (st.state === "success") return { content: `Segment prêt (${cost} crédits) : ${st.resultUrl}`, isError: false };
-    if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}. Les ${cost} crédits de ce segment ont été débités.`, isError: false };
+    if (st.state === "fail") return { content: `Échec du segment : ${st.failMsg}. Les ${cost} crédits ont été débités.`, isError: false };
     if (st.state === "error") return { content: st.message, isError: true };
   }
   return {
@@ -180,46 +161,41 @@ async function runOmniTool(
   };
 }
 
-/** Appels Claude via KIE, avec outils en mode vidéo. Renvoie le texte final et le coût KIE cumulé. */
+/** Appel Claude via KIE. En mode vidéo, Claude peut appeler analyser_video (Gemini). */
 async function runClaude(args: {
   url: string;
   headers: Record<string, string>;
   model: string;
   messages: Msg[];
-  videoMode: boolean;
-  ctx: { db: any; userId: string };
+  videoMode?: boolean;
+  videoUrl?: string;
+  ctx?: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  const convo: unknown[] = args.messages.map((m) => {
-    const content: unknown[] = [
-      ...(m.images ?? []).map((img) => ({
-        type: "image",
-        source: { type: "base64", media_type: img.mediaType, data: img.data },
-      })),
-      ...(m.videos ?? []).filter((v) => v.url).map((v) => ({
-        // Tentative directe : si le modèle/KIE ne prend pas ce bloc en charge,
-        // l'API renverra explicitement une erreur au lieu de substituer des images.
-        type: "video",
-        source: { type: "url", url: v.url },
-      })),
-      { type: "text", text: m.content },
-    ];
-    return (m.images?.length || m.videos?.length) ? { role: m.role, content } : { role: m.role, content: m.content };
-  });
+  const convo: unknown[] = args.messages.map((m) =>
+    m.images && m.images.length > 0
+      ? {
+          role: m.role,
+          content: [
+            ...m.images.map((img) => ({
+              type: "image",
+              source: { type: "base64", media_type: img.mediaType, data: img.data },
+            })),
+            { type: "text", text: m.content },
+          ],
+        }
+      : { role: m.role, content: m.content },
+  );
 
   let text = "";
   let kieCredits = 0;
-  const maxTurns = args.videoMode ? 4 : 1;
+  const useTools = Boolean(args.videoMode);
+  const maxTurns = useTools ? 6 : 1;
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const body: Record<string, unknown> = {
-      model: args.model,
-      stream: false,
-      max_tokens: 4096,
-      messages: convo,
-    };
-    if (args.videoMode) {
-      body.system = VIDEO_ASSISTANT_INSTRUCTIONS;
-      body.tools = OMNI_TOOLS;
+    const body: Record<string, unknown> = { model: args.model, stream: false, max_tokens: 4096, messages: convo };
+    if (useTools) {
+      body.system = VIDEO_SYSTEM;
+      body.tools = VIDEO_TOOLS;
     }
     const res = await fetch(args.url, { method: "POST", headers: args.headers, body: JSON.stringify(body) });
     const json = await res.json();
@@ -237,92 +213,104 @@ async function runClaude(args: {
     convo.push({ role: "assistant", content: blocks });
     const results = [];
     for (const b of blocks.filter((b) => b.type === "tool_use")) {
-      const outcome = await runOmniTool(b.name ?? "", b.input ?? {}, args.ctx);
-      results.push({ type: "tool_result", tool_use_id: b.id, content: outcome.content, is_error: outcome.isError });
+      if (b.name === "generer_segment_omni" || b.name === "verifier_segment_omni") {
+        const outcome = args.ctx
+          ? await runOmniTool(b.name, b.input ?? {}, args.ctx)
+          : { content: "Génération indisponible.", isError: true };
+        results.push({ type: "tool_result", tool_use_id: b.id, content: outcome.content, is_error: outcome.isError });
+      } else if (b.name === "analyser_video" && args.videoUrl) {
+        const question = String(b.input?.question ?? "Décris le style de cette vidéo.");
+        const analysis = await analyzeVideoUrl({ videoUrl: args.videoUrl, prompt: question });
+        results.push({
+          type: "tool_result",
+          tool_use_id: b.id,
+          content: analysis.ok ? analysis.text : analysis.message,
+          is_error: !analysis.ok,
+        });
+      } else {
+        results.push({ type: "tool_result", tool_use_id: b.id, content: "Outil inconnu.", is_error: true });
+      }
     }
     convo.push({ role: "user", content: results });
   }
   return { ok: true, text, kieCredits };
 }
 
-/** Même outils, au format « function » de l'API Responses (utilisée par GPT 6 Astra). */
-const OMNI_FUNCTION_TOOLS = OMNI_TOOLS.map((t) => ({
-  type: "function",
-  name: t.name,
-  description: t.description,
-  parameters: t.input_schema,
-}));
-
-/** Appels GPT 6 Astra via KIE (format Responses), avec outils Omni en mode vidéo. */
+/** Appel GPT 6 Astra via KIE (format Responses) : texte et images uniquement. */
 async function runGpt(args: {
   url: string;
   headers: Record<string, string>;
   model: string;
   messages: Msg[];
-  videoMode: boolean;
-  ctx: { db: any; userId: string };
+  videoMode?: boolean;
+  ctx?: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  const convo: unknown[] = args.messages.map((m) => ({
+  const input = args.messages.map((m) => ({
     role: m.role,
     content: [
       ...(m.images ?? []).map((img) => ({
         type: "input_image",
         image_url: `data:${img.mediaType};base64,${img.data}`,
       })),
-      ...(m.videos ?? []).filter((v) => v.url).map((v) => ({
-        // Envoi du fichier original à l'API Responses pour tester la prise en charge du fichier vidéo.
-        type: "input_file",
-        file_url: v.url,
-        filename: v.name,
-      })),
       { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
     ],
   }));
-
-  let text = "";
-  let kieCredits = 0;
-  const maxTurns = args.videoMode ? 4 : 1;
-
-  for (let turn = 0; turn < maxTurns; turn++) {
-    const body: Record<string, unknown> = { model: args.model, stream: false, input: convo };
-    if (args.videoMode) {
-      body.instructions = VIDEO_ASSISTANT_INSTRUCTIONS;
-      body.tools = OMNI_FUNCTION_TOOLS;
-    }
-    const res = await fetch(args.url, { method: "POST", headers: args.headers, body: JSON.stringify(body) });
-    const json = await res.json();
-    if (!res.ok || (json.code && json.code !== 200)) {
-      console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
-      return { ok: false, message: GENERIC_ERROR };
-    }
-    kieCredits += Number(json.credits_consumed ?? 0);
-    const output: { type: string; content?: { type: string; text: string }[]; name?: string; arguments?: string; call_id?: string }[] =
-      json.output ?? [];
-    text += output
-      .filter((o) => o.type === "message")
-      .flatMap((o) => o.content ?? [])
-      .filter((c) => c.type === "output_text")
-      .map((c) => c.text)
-      .join("");
-
-    const calls = output.filter((o) => o.type === "function_call");
-    if (!args.videoMode || calls.length === 0) return { ok: true, text, kieCredits };
-
-    // Reprend les éléments de sortie tels quels, puis ajoute le résultat de chaque outil.
-    convo.push(...output);
-    for (const c of calls) {
-      let input: Record<string, unknown> = {};
-      try {
-        input = JSON.parse(c.arguments || "{}");
-      } catch {
-        input = {};
-      }
-      const outcome = await runOmniTool(c.name ?? "", input, args.ctx);
-      convo.push({ type: "function_call_output", call_id: c.call_id, output: outcome.content });
-    }
+  const res = await fetch(args.url, {
+    method: "POST",
+    headers: args.headers,
+    body: JSON.stringify({ model: args.model, stream: false, input }),
+  });
+  const json = await res.json();
+  if (!res.ok || (json.code && json.code !== 200)) {
+    console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
+    return { ok: false, message: GENERIC_ERROR };
   }
-  return { ok: true, text, kieCredits };
+  const output: { type: string; content?: { type: string; text: string }[] }[] = json.output ?? [];
+  const text = output
+    .filter((o) => o.type === "message")
+    .flatMap((o) => o.content ?? [])
+    .filter((c) => c.type === "output_text")
+    .map((c) => c.text)
+    .join("");
+  return { ok: true, text, kieCredits: Number(json.credits_consumed ?? 0) };
 }
+
+
+/** Reçoit une vidéo (base64, 3 Mo max) et la stocke à une adresse publique pour l'analyse. */
+export const uploadChatVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        mimeType: z.enum(["video/mp4", "video/webm", "video/quicktime"]),
+        data: z.string().min(1).max(4_200_000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const claims = context.claims as { email?: unknown } | null;
+    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+    if (!(email && OWNER_EMAILS.includes(email))) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      if (isAdmin !== true) return { ok: false as const, message: "Accès réservé." };
+    }
+    if (!isR2Configured()) return { ok: false as const, message: "Stockage indisponible pour le moment." };
+    const binary = atob(data.data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    if (bytes.length > 3_000_000) return { ok: false as const, message: "Vidéo trop lourde (3 Mo maximum)." };
+    const ext = data.mimeType === "video/webm" ? "webm" : data.mimeType === "video/quicktime" ? "mov" : "mp4";
+    const key = `chat-videos/${context.userId}/${crypto.randomUUID()}.${ext}`;
+    try {
+      const url = await uploadToR2(key, bytes, data.mimeType);
+      return { ok: true as const, url };
+    } catch {
+      return { ok: false as const, message: "Envoi de la vidéo impossible. Réessayez." };
+    }
+  });
 
 export const sendChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -332,6 +320,7 @@ export const sendChat = createServerFn({ method: "POST" })
         provider: z.enum(["claude", "gpt"]),
         model: z.string().min(1).max(60),
         mode: z.enum(["chat", "code", "video"]).default("chat"),
+        videoUrl: z.string().url().max(2000).optional(),
         messages: z
           .array(
             z.object({
@@ -344,13 +333,8 @@ export const sendChat = createServerFn({ method: "POST" })
                     data: z.string().max(2_500_000),
                   }),
                 )
-                .max(MAX_IMAGES_PER_MESSAGE)
+                .max(8)
                 .optional(),
-              videos: z.array(z.object({
-                name: z.string().min(1).max(255),
-                mediaType: z.enum(["video/mp4", "video/webm", "video/quicktime", "video/mpeg", "video/3gpp", "video/x-matroska", "application/octet-stream"]),
-                data: z.string().min(1).max(21_000_000),
-              })).max(1).optional(),
             }),
           )
           .min(1)
@@ -385,23 +369,9 @@ export const sendChat = createServerFn({ method: "POST" })
     }
 
     // Mode Code : consigne ajoutée au premier message, sans toucher à l'affichage côté client.
-    let messages: Msg[] = data.messages.map((m, i) =>
+    const messages: Msg[] = data.messages.map((m, i) =>
       data.mode === "code" && i === 0 && m.role === "user" ? { ...m, content: CODE_PREFIX + m.content } : m,
     );
-    try {
-      messages = await Promise.all(messages.map(async (m) => {
-        if (!m.videos?.length) return m;
-        const videos = await Promise.all(m.videos.map(async (video) => ({
-          name: video.name,
-          mediaType: video.mediaType,
-          url: await uploadKieVideo(video),
-        })));
-        return { ...m, videos };
-      }));
-    } catch (error) {
-      console.error("[chat-ia] envoi vidéo KIE impossible", error);
-      return { ok: false as const, message: "Le service n’a pas accepté le fichier vidéo. Essayez un MP4 de moins de 15 Mo ou vérifiez la prise en charge du modèle." };
-    }
 
     const headers = {
       Authorization: `Bearer ${KIE_KEY()}`,
@@ -425,6 +395,8 @@ export const sendChat = createServerFn({ method: "POST" })
         kieCredits = gpt.kieCredits;
       } else {
         const claude = await runClaude({
+          videoUrl: data.videoUrl,
+          ctx: { db: supabaseAdmin, userId: context.userId },
           url: "https://api.kie.ai/claude/v1/messages",
           headers,
           model: data.model,
