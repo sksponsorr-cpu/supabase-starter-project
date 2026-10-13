@@ -54,8 +54,9 @@ export const createMotionVideo = createServerFn({ method: "POST" })
       return { ok: true as const, jobId, codeModel: result.codeModel };
     } catch (err) {
       console.error("[flash-motion] création", err);
+      // Mode test : on affiche la vraie cause. Remettre le message générique une fois le système validé.
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      return { ok: false as const, message: "La création a échoué. Réessayez dans un instant." };
+      return { ok: false as const, message: `Diagnostic : ${message}` };
     }
   });
 
