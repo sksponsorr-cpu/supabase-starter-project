@@ -3,9 +3,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OWNER_EMAILS } from "@/lib/owners";
 import { kieCreditsToSamCredits } from "@/lib/ai-pricing";
-import { analyzeVideoUrl } from "@/lib/services/gemini.server";
 import { VIDEO_SYSTEM } from "@/lib/assistant/claude-instructions";
 import { createOmniTask, getOmniTask } from "@/lib/services/omni.server";
+import { analyzeVideoUrl } from "@/lib/services/gemini.server";
 import { omniSegmentCredits } from "@/lib/omni-pricing";
 import { isR2Configured, presignPutUrl, publicUrlFor, uploadToR2 } from "@/lib/services/r2.server";
 
@@ -79,18 +79,6 @@ const VIDEO_TOOLS = [
       required: ["taskId"],
     },
   },
-  {
-    name: "analyser_video",
-    description:
-      "Analyse la vidéo fournie par l'utilisateur (son style, son rythme, ses transitions, sa composition) et renvoie une description détaillée. À utiliser avant d'écrire les prompts de génération.",
-    input_schema: {
-      type: "object",
-      properties: {
-        question: { type: "string", description: "Ce qu'il faut observer ou décrire dans la vidéo." },
-      },
-      required: ["question"],
-    },
-  },
 ];
 
 
@@ -161,7 +149,7 @@ async function runOmniTool(
   };
 }
 
-/** Appel Claude via KIE. En mode vidéo, Claude peut appeler analyser_video (Gemini). */
+/** Appel Claude via KIE. En mode vidéo : Gemini analyse la vidéo, puis Claude construit le plan et lance la génération. */
 async function runClaude(args: {
   url: string;
   headers: Record<string, string>;
@@ -171,20 +159,30 @@ async function runClaude(args: {
   videoUrl?: string;
   ctx?: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  const convo: unknown[] = args.messages.map((m) =>
-    m.images && m.images.length > 0
-      ? {
-          role: m.role,
-          content: [
-            ...m.images.map((img) => ({
-              type: "image",
-              source: { type: "base64", media_type: img.mediaType, data: img.data },
-            })),
-            { type: "text", text: m.content },
-          ],
-        }
-      : { role: m.role, content: m.content },
-  );
+  // Étape 1 : Gemini analyse la vidéo de référence (il accepte les vidéos par adresse).
+  // Claude reçoit sa description en texte, puis construit le plan, les prompts et la génération.
+  let videoNote = "";
+  if (args.videoUrl) {
+    const analysis = await analyzeVideoUrl({
+      videoUrl: args.videoUrl,
+      prompt:
+        "Analyse cette vidéo en détail : scènes, plans successifs avec leur durée, mouvements de caméra, transitions, couleurs, éclairage, type d'animation, rythme et textes visibles. Ne décris pas l'identité des personnes.",
+    });
+    if (!analysis.ok) return { ok: false, message: analysis.message };
+    videoNote = `\n\n[Analyse de la vidéo de référence, produite par Gemini]\n${analysis.text}`;
+  }
+
+  const lastIndex = args.messages.length - 1;
+  const convo: unknown[] = args.messages.map((m, i) => {
+    const text = i === lastIndex ? m.content + videoNote : m.content;
+    if (!(m.images && m.images.length > 0)) return { role: m.role, content: text };
+    const blocks: unknown[] = [];
+    for (const img of m.images) {
+      blocks.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
+    }
+    blocks.push({ type: "text", text });
+    return { role: m.role, content: blocks };
+  });
 
   let text = "";
   let kieCredits = 0;
@@ -218,15 +216,6 @@ async function runClaude(args: {
           ? await runOmniTool(b.name, b.input ?? {}, args.ctx)
           : { content: "Génération indisponible.", isError: true };
         results.push({ type: "tool_result", tool_use_id: b.id, content: outcome.content, is_error: outcome.isError });
-      } else if (b.name === "analyser_video" && args.videoUrl) {
-        const question = String(b.input?.question ?? "Décris le style de cette vidéo.");
-        const analysis = await analyzeVideoUrl({ videoUrl: args.videoUrl, prompt: question });
-        results.push({
-          type: "tool_result",
-          tool_use_id: b.id,
-          content: analysis.ok ? analysis.text : analysis.message,
-          is_error: !analysis.ok,
-        });
       } else {
         results.push({ type: "tool_result", tool_use_id: b.id, content: "Outil inconnu.", is_error: true });
       }
