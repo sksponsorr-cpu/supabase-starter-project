@@ -275,7 +275,7 @@ export function LandingSection() {
   const faq = c.faq.length > 0 ? c.faq : DEFAULT_FAQ;
 
   return (
-    <section className="relative mx-auto mt-2 w-full max-w-md space-y-6 pb-6 pt-2">
+    <section className="relative mx-auto mt-2 w-full max-w-md md:max-w-3xl lg:max-w-5xl space-y-6 pb-6 pt-2">
       <Orbs />
 
       <Reveal className="text-center">
