@@ -32,7 +32,7 @@ function FlashMotionPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
-  // Vérifie l'avancement toutes les 5 secondes tant que la vidéo n'est pas prête.
+  // Vérifie l'avancement toutes les 2 secondes tant que la vidéo n'est pas prête.
   useEffect(() => {
     if (!jobId || status === "ready" || status === "failed") return;
     const timer = setInterval(async () => {
@@ -41,7 +41,7 @@ function FlashMotionPage() {
       setStatus(res.status as Status);
       if (res.status === "ready") setVideoUrl(res.videoUrl);
       if (res.status === "failed") setMessage(res.error ?? "Erreur pendant la fabrication.");
-    }, 5000);
+    }, 2000);
     return () => clearInterval(timer);
   }, [jobId, status, check]);
 
