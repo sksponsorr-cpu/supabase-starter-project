@@ -61,10 +61,22 @@ ffArgs.push(
 if (audioPath) ffArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
 ffArgs.push(outPath);
 
-const ff = spawn("ffmpeg", ffArgs, { stdio: ["pipe", "inherit", "inherit"] });
+ffArgs.splice(ffArgs.indexOf(outPath), 0, "-threads", "2");
+const ff = spawn("ffmpeg", ffArgs, { stdio: ["pipe", "inherit", "pipe"] });
+// On garde la fin des messages de ffmpeg pour comprendre une panne.
+let ffErr = "";
+ff.stderr.on("data", (chunk) => {
+  ffErr = (ffErr + chunk.toString()).slice(-2000);
+});
+// Si ffmpeg s'arrête, on ne plante pas : on remonte une erreur lisible.
+ff.stdin.on("error", () => {});
 const ffDone = new Promise((resolve, reject) => {
-  ff.on("error", reject);
-  ff.on("close", code => (code === 0 ? resolve() : reject(new Error(`ffmpeg a échoué (${code})`))));
+  ff.on("error", (err) => reject(new Error(`ffmpeg introuvable : ${err.message}`)));
+  ff.on("close", (code, signal) => {
+    if (code === 0) return resolve();
+    const cause = signal ? `arrêté par le système (${signal}, souvent manque de mémoire)` : `code ${code}`;
+    reject(new Error(`ffmpeg a échoué : ${cause}. ${ffErr.slice(-400)}`));
+  });
 });
 
 const totalFrames = Math.round(duration * fps);
@@ -72,6 +84,7 @@ for (let i = 0; i < totalFrames; i++) {
   const t = i / fps;
   await page.evaluate(time => window.renderAt(time), t);
   const png = await page.screenshot({ type: "png", omitBackground: false });
+  if (ff.exitCode !== null || ff.signalCode !== null) break; // ffmpeg s'est arrêté : inutile de continuer
   if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once("drain", r));
 }
 ff.stdin.end();
