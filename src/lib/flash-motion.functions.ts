@@ -56,3 +56,38 @@ export const getMotionVideo = createServerFn({ method: "GET" })
     }
     return { ok: true as const, status: job.status, error: job.error, videoUrl };
   });
+
+
+/** Historique : les dernières vidéos de l'utilisateur, avec leur progression. */
+export const listMotionVideos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("flash_motion_jobs")
+      .select("id, idea, seconds, status, stage, progress, error, video_path, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) return { ok: false as const, rows: [] as never[] };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rows = await Promise.all(
+      (data ?? []).map(async (j) => {
+        let videoUrl: string | null = null;
+        if (j.status === "ready" && j.video_path) {
+          const signed = await supabaseAdmin.storage.from("flash-motion").createSignedUrl(j.video_path, 60 * 60 * 6);
+          videoUrl = signed.data?.signedUrl ?? null;
+        }
+        return {
+          id: j.id as string,
+          idea: j.idea as string,
+          seconds: j.seconds as number,
+          status: j.status as "queued" | "rendering" | "ready" | "failed",
+          stage: (j.stage as string | null) ?? null,
+          progress: (j.progress as number | null) ?? 0,
+          error: (j.error as string | null) ?? null,
+          createdAt: j.created_at as string,
+          videoUrl,
+        };
+      }),
+    );
+    return { ok: true as const, rows };
+  });
