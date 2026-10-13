@@ -82,7 +82,7 @@ export async function createOmniTask(input: OmniInput): Promise<OmniCreateResult
       data?: { taskId?: string };
     } | null;
     if (!res.ok || !json || json.code !== 200 || !json.data?.taskId) {
-      return { ok: false, message: kieMessage(res.status, json?.msg) };
+      return { ok: false, message: kieMessage(json?.code ?? res.status, json?.msg) };
     }
     return { ok: true, taskId: json.data.taskId };
   } catch {
@@ -106,7 +106,7 @@ export async function getOmniTask(taskId: string): Promise<OmniStatus> {
       data?: { state?: string; resultJson?: string | null; failMsg?: string | null };
     } | null;
     if (!res.ok || !json || json.code !== 200 || !json.data) {
-      return { state: "error", message: kieMessage(res.status, json?.msg) };
+      return { state: "error", message: kieMessage(json?.code ?? res.status, json?.msg) };
     }
 
     const state = json.data.state;
