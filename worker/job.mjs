@@ -22,7 +22,8 @@ const KIE_KEY = process.env.KIE_API_KEY ?? "";
 const TTS_MODEL = "elevenlabs/text-to-speech-multilingual-v2";
 const TTS_VOICE = process.env.KIE_TTS_VOICE ?? "EkK5I93UQWFDigLMpZcX";
 const SCRIPT_MODEL = "claude-haiku-5-5"; // rapide, pour le script
-const W = 540, H = 960, FPS = 24; // aperçu rapide ; repasser à 1080x1920 pour la qualité finale
+const FORMATS = { vertical: [540, 960], square: [720, 720], landscape: [960, 540] };
+const FPS = 24;
 
 if (!SUPA || !SUPA_KEY || !KIE_KEY) {
   console.error("[flash-motion] variables manquantes : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY ou KIE_API_KEY");
@@ -81,21 +82,28 @@ async function withRetry(fn) {
   throw last;
 }
 
-async function askModel({ model, system, user, maxTokens = 8000 }) {
+async function askModel({ model, system, user, maxTokens = 8000, images = [] }) {
   return withRetry(async () => {
     const headers = { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" };
     if (model.startsWith("claude")) {
+      const content = images.length
+        ? [...images.map((img) => ({ type: "image", source: { type: "base64", media_type: img.mime, data: img.data } })), { type: "text", text: user }]
+        : user;
       const res = await fetch("https://api.kie.ai/claude/v1/messages", {
         method: "POST", headers,
-        body: JSON.stringify({ model, max_tokens: maxTokens, stream: false, system, messages: [{ role: "user", content: user }] }),
+        body: JSON.stringify({ model, max_tokens: maxTokens, stream: false, system, messages: [{ role: "user", content }] }),
       });
       const json = await res.json();
       if (!res.ok || (json.code && json.code !== 200)) throw new Error(`Claude indisponible (${res.status})`);
       return (json.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim();
     }
+    const content = [
+      { type: "input_text", text: user },
+      ...images.map((img) => ({ type: "input_image", image_url: `data:${img.mime};base64,${img.data}` })),
+    ];
     const res = await fetch("https://api.kie.ai/codex/v1/responses", {
       method: "POST", headers,
-      body: JSON.stringify({ model, stream: false, instructions: system, input: [{ role: "user", content: [{ type: "input_text", text: user }] }] }),
+      body: JSON.stringify({ model, stream: false, instructions: system, input: [{ role: "user", content }] }),
     });
     const json = await res.json();
     if (!res.ok || (json.code && json.code !== 200)) throw new Error(`GPT indisponible (${res.status})`);
@@ -104,10 +112,22 @@ async function askModel({ model, system, user, maxTokens = 8000 }) {
   });
 }
 
+/** Charge les images de référence depuis le stockage privé (3 maximum). */
+async function loadReferences(paths = []) {
+  const out = [];
+  for (const p of (paths ?? []).slice(0, 3)) {
+    const res = await fetch(`${SUPA}/storage/v1/object/flash-motion/${p}`, { headers: auth });
+    if (!res.ok) continue;
+    const mime = p.endsWith(".png") ? "image/png" : p.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    out.push({ mime, data: Buffer.from(await res.arrayBuffer()).toString("base64") });
+  }
+  return out;
+}
+
 const stripFences = (s) => s.replace(/^```(?:html|json)?\s*/i, "").replace(/```\s*$/, "").trim();
 
 // ---------- Voix off ElevenLabs via KIE ----------
-async function synthesize(text) {
+async function synthesizeKie(text) {
   const create = await fetch("https://api.kie.ai/api/v1/jobs/createTask", {
     method: "POST",
     headers: { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" },
@@ -139,6 +159,52 @@ async function synthesize(text) {
   throw new Error("Voix off : délai dépassé");
 }
 
+const FAL_KEY = process.env.FAL_KEY ?? "";
+const FAL_VOICE = process.env.FAL_TTS_VOICE ?? ""; // identifiant de voix MiniMax (voir la page du modèle sur fal.ai)
+
+/** Voix off via fal.ai (ElevenLabs). Renvoie l'audio ; les timings des mots sont estimés. */
+async function synthesizeFal(text) {
+  if (!FAL_KEY) throw new Error("fal.ai : FAL_KEY manquante");
+  const input = { text: text.slice(0, 4000) };
+  if (FAL_VOICE) input.voice_setting = { voice_id: FAL_VOICE, speed: 1, vol: 1, pitch: 0 };
+  const res = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
+    method: "POST",
+    headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const json = await res.json();
+  const audioUrl = json?.audio?.url ?? json?.audio_url ?? null;
+  if (!res.ok || !audioUrl) throw new Error(`fal.ai indisponible (${res.status})`);
+  const file = await fetch(audioUrl);
+  return { audio: Buffer.from(await file.arrayBuffer()), words: null };
+}
+
+/** Fournisseur choisi dans le bureau d'administration (KIE par défaut). */
+async function voiceProvider() {
+  try {
+    const rows = await rest("app_settings?id=eq.global&select=voice_provider", { headers: auth });
+    return rows?.[0]?.voice_provider === "fal" ? "fal" : "kie";
+  } catch {
+    return "kie";
+  }
+}
+
+/** Essaie le fournisseur choisi, puis l'autre en secours. */
+async function generateVoice(text) {
+  const first = (await voiceProvider()) === "fal" ? "fal" : "kie";
+  const order = first === "fal" ? ["fal", "kie"] : ["kie", "fal"];
+  let lastError;
+  for (const p of order) {
+    try {
+      return p === "fal" ? await synthesizeFal(text) : await synthesizeKie(text);
+    } catch (err) {
+      lastError = err;
+      console.error("[flash-motion] voix", p, "échec :", err.message);
+    }
+  }
+  throw lastError;
+}
+
 function estimateWords(text, duration) {
   const words = text.trim().split(/\s+/).filter(Boolean);
   const step = duration / Math.max(1, words.length);
@@ -146,13 +212,13 @@ function estimateWords(text, duration) {
 }
 
 // ---------- Rendu ----------
-async function renderVideo({ html, seconds, audio }) {
+async function renderVideo({ html, seconds, audio, w, h }) {
   const dir = await mkdtemp(join(tmpdir(), "fm-"));
   const htmlPath = join(dir, "scene.html");
   const videoPath = join(dir, "video.mp4");
   await writeFile(htmlPath, html, "utf8");
   const args = [join(here, "render.mjs"), "--html", htmlPath, "--out", videoPath,
-    "--duration", String(seconds), "--width", String(W), "--height", String(H), "--fps", String(FPS)];
+    "--duration", String(seconds), "--width", String(w), "--height", String(h), "--fps", String(FPS)];
   if (audio) {
     const audioPath = join(dir, "voix.mp3");
     await writeFile(audioPath, audio);
@@ -165,6 +231,7 @@ async function renderVideo({ html, seconds, audio }) {
 // ---------- Traitement d'une demande ----------
 async function processJob(job) {
   const seconds = job.seconds;
+  const [W, H] = FORMATS[job.format] ?? FORMATS.vertical;
 
   await updateJob(job.id, { stage: "Écriture du script", progress: 10 });
   // 1. Script
@@ -178,11 +245,15 @@ async function processJob(job) {
   // 2. Voix off (si demandée)
   let audio = null;
   let words = [];
-  if (job.with_voiceover) {
+  if (job.voice_path) {
+    const res = await fetch(`${SUPA}/storage/v1/object/flash-motion/${job.voice_path}`, { headers: auth });
+    if (!res.ok) throw new Error("Vocal introuvable");
+    audio = Buffer.from(await res.arrayBuffer());
+  } else if (job.with_voiceover) {
     let voice = null;
     for (let attempt = 1; attempt <= 3 && !voice; attempt++) {
       try {
-        voice = await synthesize(script.voiceover);
+        voice = await generateVoice(script.voiceover);
       } catch (err) {
         console.error("[flash-motion] voix tentative", attempt, err.message);
         if (attempt === 3) throw err;
@@ -200,11 +271,17 @@ async function processJob(job) {
     `Durée totale : ${seconds} secondes`,
     `Format : ${W} x ${H} pixels`,
     `Scènes proposées : ${JSON.stringify(script.scenes)}`,
-    job.with_voiceover
+    job.voice_path
+      ? "Vocal fourni par l'utilisateur : synchroniser les scènes sur sa durée, sans timings de mots."
+      : job.with_voiceover
       ? `Voix off : ${script.voiceover}\nTimings des mots (secondes) : ${JSON.stringify(words)}\nDéclare ces mots dans une variable WORDS et utilise FM.wordsVisible(WORDS, t).`
       : "Pas de voix off : ne rien synchroniser avec une voix.",
   ].join("\n");
-  const html = stripFences(await askModel({ model: job.code_model || "gpt-6-astra", system: CODE_SYSTEM, user: userMsg, maxTokens: 16000 }));
+  const images = await loadReferences(job.reference_paths);
+  const refNote = images.length
+    ? "\nImages de référence fournies : reproduire leur style, leurs couleurs et leur ambiance dans l'animation."
+    : "";
+  const html = stripFences(await askModel({ model: job.code_model || "gpt-6-astra", system: CODE_SYSTEM, user: userMsg + refNote, maxTokens: 16000, images }));
   if (!/<!doctype|<html/i.test(html) || !html.includes("<head>") || !html.includes("renderAt")) {
     throw new Error("La composition générée n'est pas valide");
   }
@@ -214,7 +291,7 @@ async function processJob(job) {
 
   await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
   // 4. Rendu
-  const bytes = await renderVideo({ html, seconds, audio });
+  const bytes = await renderVideo({ html, seconds, audio, w: W, h: H });
 
   await updateJob(job.id, { stage: "Envoi", progress: 92 });
   // 5. Envoi et clôture
