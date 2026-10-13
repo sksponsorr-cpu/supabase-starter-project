@@ -3,10 +3,14 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CODE_MODELS, DEFAULT_CODE_MODEL, FLASH_MOTION } from "@/lib/flash-motion/config";
 
+const REF_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const MAX_REF_BYTES = 4 * 1024 * 1024;
+
 const briefSchema = z.object({
   idea: z.string().trim().min(5, "Décrivez votre idée en quelques mots.").max(1000),
   seconds: z.number().int().min(FLASH_MOTION.minDurationSeconds).max(FLASH_MOTION.maxDurationSeconds),
   withVoiceover: z.boolean(),
+  referencePaths: z.array(z.string().max(300)).max(3).optional().default([]),
   codeModelId: z
     .string()
     .refine((id) => CODE_MODELS.some((m) => m.id === id), "Modèle inconnu")
@@ -20,6 +24,8 @@ export const createMotionVideo = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => briefSchema.parse(input))
   .handler(async ({ data, context }) => {
     const jobId = crypto.randomUUID();
+    // Seules les références de l'utilisateur connecté sont acceptées.
+    const refs = data.referencePaths.filter((p) => p.startsWith(`${context.userId}/refs/`));
     const { error } = await context.supabase.from("flash_motion_jobs").insert({
       id: jobId,
       user_id: context.userId,
@@ -27,6 +33,7 @@ export const createMotionVideo = createServerFn({ method: "POST" })
       seconds: data.seconds,
       with_voiceover: data.withVoiceover,
       code_model: data.codeModelId,
+      reference_paths: refs,
       status: "queued",
     });
     if (error) {
@@ -90,4 +97,25 @@ export const listMotionVideos = createServerFn({ method: "GET" })
       }),
     );
     return { ok: true as const, rows };
+  });
+
+
+/** Envoie une image de référence (JPG, PNG ou WebP, 4 Mo maximum) et renvoie son chemin. */
+export const uploadMotionReference = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ mime: z.string().max(40), dataBase64: z.string().min(10).max(6_000_000) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const ext = REF_TYPES[data.mime];
+    if (!ext) return { ok: false as const, message: "Format non accepté. Utilisez JPG, PNG ou WebP." };
+    const bytes = Buffer.from(data.dataBase64, "base64");
+    if (bytes.length > MAX_REF_BYTES) return { ok: false as const, message: "Image trop lourde (4 Mo maximum)." };
+    const path = `${context.userId}/refs/${crypto.randomUUID()}.${ext}`;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const up = await supabaseAdmin.storage
+      .from("flash-motion")
+      .upload(path, bytes, { contentType: data.mime, upsert: false });
+    if (up.error) return { ok: false as const, message: "Envoi impossible. Réessayez." };
+    return { ok: true as const, path };
   });
