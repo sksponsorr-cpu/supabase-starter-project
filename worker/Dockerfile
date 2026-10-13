@@ -1,3 +1,4 @@
+# Version 2 : worker sans bibliothèque Supabase (reconstruction forcée)
 # Image officielle Playwright : contient déjà Chromium et ses dépendances
 FROM mcr.microsoft.com/playwright:v1.47.0-jammy
 
