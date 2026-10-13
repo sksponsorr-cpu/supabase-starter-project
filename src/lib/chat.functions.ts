@@ -226,7 +226,15 @@ async function runClaude(args: {
   return { ok: true, text, kieCredits };
 }
 
-/** Appel GPT 6 Astra via KIE (format Responses) : texte et images uniquement. */
+/** Outils Omni au format GPT (API Responses). */
+const GPT_TOOLS = VIDEO_TOOLS.map((t) => ({
+  type: "function",
+  name: t.name,
+  description: t.description,
+  parameters: t.input_schema,
+}));
+
+/** Appel GPT 6 Astra via KIE (format Responses). En mode vidéo : Gemini analyse, GPT lance Omni. */
 async function runGpt(args: {
   url: string;
   headers: Record<string, string>;
@@ -236,7 +244,6 @@ async function runGpt(args: {
   videoUrl?: string;
   ctx?: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  // Même étape que pour Claude : Gemini analyse la vidéo de référence, GPT construit la suite.
   let videoNote = "";
   if (args.videoUrl) {
     const analysis = await analyzeVideoUrl({
@@ -249,7 +256,7 @@ async function runGpt(args: {
   }
 
   const lastIndex = args.messages.length - 1;
-  const input = args.messages.map((m, i) => ({
+  const convo: unknown[] = args.messages.map((m, i) => ({
     role: m.role,
     content: [
       ...(m.images ?? []).map((img) => ({
@@ -262,66 +269,54 @@ async function runGpt(args: {
       },
     ],
   }));
-  const body: Record<string, unknown> = { model: args.model, stream: false, input };
-  if (args.videoMode) body.instructions = VIDEO_SYSTEM;
-  const res = await fetch(args.url, {
-    method: "POST",
-    headers: args.headers,
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok || (json.code && json.code !== 200)) {
-    console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
-    return { ok: false, message: GENERIC_ERROR };
+
+  let text = "";
+  let kieCredits = 0;
+  const maxTurns = args.videoMode ? 6 : 1;
+
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const body: Record<string, unknown> = { model: args.model, stream: false, input: convo };
+    if (args.videoMode) {
+      body.instructions = VIDEO_SYSTEM;
+      body.tools = GPT_TOOLS;
+    }
+    const res = await fetch(args.url, { method: "POST", headers: args.headers, body: JSON.stringify(body) });
+    const json = await res.json();
+    if (!res.ok || (json.code && json.code !== 200)) {
+      console.error("[chat-ia] Kie GPT", res.status, JSON.stringify(json).slice(0, 500));
+      const detail = json?.msg ? String(json.msg) : `code ${json?.code ?? res.status}`;
+      return { ok: false, message: `GPT n'a pas répondu : ${detail.slice(0, 200)}` };
+    }
+    kieCredits += Number(json.credits_consumed ?? 0);
+    const output: { type: string; content?: { type: string; text: string }[]; name?: string; arguments?: string; call_id?: string }[] =
+      json.output ?? [];
+    text += output
+      .filter((o) => o.type === "message")
+      .flatMap((o) => o.content ?? [])
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text)
+      .join("");
+
+    const calls = output.filter((o) => o.type === "function_call");
+    if (!args.videoMode || calls.length === 0) return { ok: true, text, kieCredits };
+
+    convo.push(...output);
+    for (const c of calls) {
+      let input: Record<string, unknown> = {};
+      try {
+        input = JSON.parse(c.arguments || "{}");
+      } catch {
+        input = {};
+      }
+      const outcome = args.ctx
+        ? await runOmniTool(c.name ?? "", input, args.ctx)
+        : { content: "Génération indisponible.", isError: true };
+      convo.push({ type: "function_call_output", call_id: c.call_id, output: outcome.content });
+    }
   }
-  const output: { type: string; content?: { type: string; text: string }[] }[] = json.output ?? [];
-  const text = output
-    .filter((o) => o.type === "message")
-    .flatMap((o) => o.content ?? [])
-    .filter((c) => c.type === "output_text")
-    .map((c) => c.text)
-    .join("");
-  return { ok: true, text, kieCredits: Number(json.credits_consumed ?? 0) };
+  return { ok: true, text, kieCredits };
 }
 
-
-/** Reçoit une vidéo (base64, 3 Mo max) et la stocke à une adresse publique pour l'analyse. */
-export const uploadChatVideo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        mimeType: z.enum(["video/mp4", "video/webm", "video/quicktime"]),
-        data: z.string().min(1).max(4_200_000),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const claims = context.claims as { email?: unknown } | null;
-    const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
-    if (!(email && OWNER_EMAILS.includes(email))) {
-      const { data: isAdmin } = await context.supabase.rpc("has_role", {
-        _user_id: context.userId,
-        _role: "admin",
-      });
-      if (isAdmin !== true) return { ok: false as const, message: "Accès réservé." };
-    }
-    if (!isR2Configured()) return { ok: false as const, message: "Stockage indisponible pour le moment." };
-    const binary = atob(data.data);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    if (bytes.length > 3_000_000) return { ok: false as const, message: "Vidéo trop lourde (3 Mo maximum)." };
-    const ext = data.mimeType === "video/webm" ? "webm" : data.mimeType === "video/quicktime" ? "mov" : "mp4";
-    const key = `chat-videos/${context.userId}/${crypto.randomUUID()}.${ext}`;
-    try {
-      const url = await uploadToR2(key, bytes, data.mimeType);
-      return { ok: true as const, url };
-    } catch {
-      return { ok: false as const, message: "Envoi de la vidéo impossible. Réessayez." };
-    }
-  });
-
-/** Prépare l'envoi d'une vidéo (55 Mo max) : renvoie une URL signée pour l'envoyer directement vers R2. */
 export const prepareChatVideoUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
