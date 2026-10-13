@@ -113,7 +113,7 @@ async function synthesize(text) {
     headers: { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: TTS_MODEL,
-      input: { text: text.slice(0, 4000), voice: TTS_VOICE, stability: 0.5, similarity_boost: 0.75, style: 0, speed: 1, timestamps: true, previous_text: "", next_text: "" },
+      input: { text: text.slice(0, 4000), voice: TTS_VOICE, stability: 0.5, similarity_boost: 0.75, style: 0, speed: 1, timestamps: false, previous_text: "", next_text: "" },
     }),
   });
   const created = await create.json();
@@ -166,6 +166,7 @@ async function renderVideo({ html, seconds, audio }) {
 async function processJob(job) {
   const seconds = job.seconds;
 
+  await updateJob(job.id, { stage: "Écriture du script", progress: 10 });
   // 1. Script
   const scriptRaw = stripFences(await askModel({
     model: SCRIPT_MODEL, system: SCRIPT_SYSTEM,
@@ -173,15 +174,26 @@ async function processJob(job) {
   }));
   const script = JSON.parse(scriptRaw);
 
+  await updateJob(job.id, { stage: "Voix off", progress: 25 });
   // 2. Voix off (si demandée)
   let audio = null;
   let words = [];
   if (job.with_voiceover) {
-    const voice = await synthesize(script.voiceover);
+    let voice = null;
+    for (let attempt = 1; attempt <= 3 && !voice; attempt++) {
+      try {
+        voice = await synthesize(script.voiceover);
+      } catch (err) {
+        console.error("[flash-motion] voix tentative", attempt, err.message);
+        if (attempt === 3) throw err;
+        await sleep(6000 * attempt);
+      }
+    }
     audio = voice.audio;
     words = voice.words ?? estimateWords(script.voiceover, seconds);
   }
 
+  await updateJob(job.id, { stage: "Création de l'animation", progress: 45 });
   // 3. Code de l'animation, par le modèle choisi
   const userMsg = [
     `Idée : ${job.idea}`,
@@ -200,14 +212,16 @@ async function processJob(job) {
     throw new Error("La composition utilise un élément interdit");
   }
 
+  await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
   // 4. Rendu
   const bytes = await renderVideo({ html, seconds, audio });
 
+  await updateJob(job.id, { stage: "Envoi", progress: 92 });
   // 5. Envoi et clôture
   const videoPath = `${job.user_id}/${job.id}.mp4`;
   await uploadStorage(videoPath, bytes, "video/mp4");
   if (audio) await uploadStorage(`${job.user_id}/${job.id}.mp3`, audio, "audio/mpeg");
-  await updateJob(job.id, { status: "ready", video_path: videoPath, html: null });
+  await updateJob(job.id, { status: "ready", video_path: videoPath, html: null, stage: "Terminée", progress: 100 });
 }
 
 console.log("[flash-motion] worker démarré, surveillance de la file");
