@@ -107,9 +107,12 @@ async function toAttachment(file: File): Promise<Attachment | null> {
   return null;
 }
 
-/** Affiche le texte avec des blocs de code et un bouton Copier. */
-function MessageContent({ text }: { text: string }) {
-  const parts = text.split(/```/);
+/** Affiche le texte avec des blocs de code, et les choix proposés sous forme de boutons. */
+function MessageContent({ text, onChoose }: { text: string; onChoose?: (option: string) => void }) {
+  const choiceMatch = text.match(/\[\[choix:\s*([^\]]+)\]\]/);
+  const options = choiceMatch ? choiceMatch[1].split("|").map((o) => o.trim()).filter(Boolean) : [];
+  const cleanText = text.replace(/\[\[choix:[^\]]*\]\]/g, "").trim();
+  const parts = cleanText.split(/```/);
   return (
     <div className="space-y-2">
       {parts.map((part, i) => {
@@ -123,6 +126,20 @@ function MessageContent({ text }: { text: string }) {
         const code = part.replace(/^[a-zA-Z0-9+#-]*\n/, "");
         return <CodeBlock key={i} code={code.replace(/\n$/, "")} />;
       })}
+      {onChoose && options.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {options.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => onChoose(o)}
+              className="rounded-full border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-transform active:scale-95"
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -249,8 +266,8 @@ function ChatPage() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const submit = async () => {
-    const text = input.trim();
+  const submit = async (override?: unknown) => {
+    const text = (typeof override === "string" ? override : input).trim();
     if ((!text && attachments.length === 0) || busy) return;
 
     let images = attachments.filter((a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image");
@@ -444,7 +461,14 @@ function ChatPage() {
                 m.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-card/60"
               }`}
             >
-              {m.role === "assistant" ? <MessageContent text={m.content} /> : <p className="whitespace-pre-wrap break-words">{m.content}</p>}
+              {m.role === "assistant" ? (
+                <MessageContent
+                  text={m.content}
+                  onChoose={i === current.messages.length - 1 && !busy ? (opt) => void submit(opt) : undefined}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap break-words">{m.content}</p>
+              )}
               {m.note && <p className="mt-1 text-xs opacity-80">📎 {m.note}</p>}
             </div>
           </div>
