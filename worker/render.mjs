@@ -51,7 +51,7 @@ if (!hasRender) throw new Error("La composition doit définir window.renderAt(t)
 
 const ffArgs = [
   "-y", "-loglevel", "error",
-  "-f", "image2pipe", "-framerate", String(fps), "-i", "-",
+  "-f", "image2pipe", "-c:v", "mjpeg", "-framerate", String(fps), "-i", "-",
 ];
 if (audioPath) ffArgs.push("-i", audioPath);
 ffArgs.push(
@@ -83,7 +83,7 @@ const totalFrames = Math.round(duration * fps);
 for (let i = 0; i < totalFrames; i++) {
   const t = i / fps;
   await page.evaluate(time => window.renderAt(time), t);
-  const png = await page.screenshot({ type: "png", omitBackground: false });
+  const png = await page.screenshot({ type: "jpeg", quality: 92 });
   if (ff.exitCode !== null || ff.signalCode !== null) break; // ffmpeg s'est arrêté : inutile de continuer
   if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once("drain", r));
 }
