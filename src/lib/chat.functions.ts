@@ -199,7 +199,8 @@ async function runClaude(args: {
     const json = await res.json();
     if (!res.ok || (json.code && json.code !== 200)) {
       console.error("[chat-ia] Kie Claude", res.status, JSON.stringify(json).slice(0, 500));
-      return { ok: false, message: GENERIC_ERROR };
+      const detail = json?.msg ? String(json.msg) : `code ${json?.code ?? res.status}`;
+      return { ok: false, message: `Claude n'a pas répondu : ${detail.slice(0, 200)}` };
     }
     kieCredits += Number(json.credits_consumed ?? 0);
     const blocks: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[] =
@@ -232,22 +233,41 @@ async function runGpt(args: {
   model: string;
   messages: Msg[];
   videoMode?: boolean;
+  videoUrl?: string;
   ctx?: { db: any; userId: string };
 }): Promise<{ ok: true; text: string; kieCredits: number } | { ok: false; message: string }> {
-  const input = args.messages.map((m) => ({
+  // Même étape que pour Claude : Gemini analyse la vidéo de référence, GPT construit la suite.
+  let videoNote = "";
+  if (args.videoUrl) {
+    const analysis = await analyzeVideoUrl({
+      videoUrl: args.videoUrl,
+      prompt:
+        "Analyse cette vidéo en détail : scènes, plans successifs avec leur durée, mouvements de caméra, transitions, couleurs, éclairage, type d'animation, rythme et textes visibles. Ne décris pas l'identité des personnes.",
+    });
+    if (!analysis.ok) return { ok: false, message: analysis.message };
+    videoNote = `\n\n[Analyse de la vidéo de référence, produite par Gemini]\n${analysis.text}`;
+  }
+
+  const lastIndex = args.messages.length - 1;
+  const input = args.messages.map((m, i) => ({
     role: m.role,
     content: [
       ...(m.images ?? []).map((img) => ({
         type: "input_image",
         image_url: `data:${img.mediaType};base64,${img.data}`,
       })),
-      { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
+      {
+        type: m.role === "assistant" ? "output_text" : "input_text",
+        text: i === lastIndex ? m.content + videoNote : m.content,
+      },
     ],
   }));
+  const body: Record<string, unknown> = { model: args.model, stream: false, input };
+  if (args.videoMode) body.instructions = VIDEO_SYSTEM;
   const res = await fetch(args.url, {
     method: "POST",
     headers: args.headers,
-    body: JSON.stringify({ model: args.model, stream: false, input }),
+    body: JSON.stringify(body),
   });
   const json = await res.json();
   if (!res.ok || (json.code && json.code !== 200)) {
@@ -409,6 +429,7 @@ export const sendChat = createServerFn({ method: "POST" })
           model: data.model,
           messages,
           videoMode: data.mode === "video",
+          videoUrl: data.videoUrl,
           ctx: { db: supabaseAdmin, userId: context.userId },
         });
         if (!gpt.ok) return { ok: false as const, message: gpt.message };
