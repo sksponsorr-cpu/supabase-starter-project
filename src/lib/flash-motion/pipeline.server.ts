@@ -33,7 +33,7 @@ export async function buildMotionVideo(brief: MotionBrief) {
   // 1. Script
   const scriptRaw = stripFences(
     await askModel({
-      provider: "claude",
+      provider: "gpt",
       model: FLASH_MOTION.scriptModel,
       system: SCRIPT_SYSTEM,
       user: `Idée : ${brief.idea}\nDurée : ${seconds} secondes`,

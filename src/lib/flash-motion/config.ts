@@ -17,8 +17,8 @@ export const CODE_MODELS: ModelOption[] = [
 export const DEFAULT_CODE_MODEL = "gpt-6-astra";
 
 export const FLASH_MOTION = {
-  // Modèle qui écrit le script de la voix off (peu coûteux).
-  scriptModel: "claude-haiku-5-5",
+  // Modèle qui écrit le script de la voix off (GPT, moins limité que Claude sur KIE).
+  scriptModel: "gpt-6-astra",
   // Voix off ElevenLabs via KIE (identifiant documenté par KIE).
   ttsModel: "elevenlabs/text-to-speech-multilingual-v2",
   // Voix choisie dans la liste KIE. Par défaut : James (EkK5I93UQWFDigLMpZcX).

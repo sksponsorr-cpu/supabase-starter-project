@@ -6,7 +6,33 @@ import type { Provider } from "./config";
 
 const KIE_KEY = () => process.env.KIE_API_KEY ?? "";
 
+/** Réessaie automatiquement quand KIE répond 429 (trop de requêtes). */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : "";
+      if (!msg.includes("(429)")) throw err;
+      await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 export async function askModel(args: {
+  provider: Provider;
+  model: string;
+  system: string;
+  user: string;
+  maxTokens?: number;
+}): Promise<string> {
+  return withRetry(() => callModel(args));
+}
+
+async function callModel(args: {
   provider: Provider;
   model: string;
   system: string;
