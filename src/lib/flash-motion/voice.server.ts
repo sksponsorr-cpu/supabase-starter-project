@@ -1,9 +1,6 @@
 /**
  * Voix off ElevenLabs via KIE. Serveur uniquement (KIE_API_KEY).
- * Modèle de tâche asynchrone : createTask puis recordInfo, comme pour la vidéo dans le projet.
- *
- * Les timings des mots ne viennent pas de KIE : ils sont estimés en répartissant
- * les mots sur la durée de l'audio. C'est approximatif, mais suffisant pour des sous-titres.
+ * Documentation : elevenlabs/text-to-speech-multilingual-v2 (createTask puis recordInfo).
  */
 import { FLASH_MOTION } from "./config";
 
@@ -12,7 +9,7 @@ const BASE = "https://api.kie.ai/api/v1/jobs";
 export type WordTiming = { word: string; start: number; end: number };
 
 export function voiceAvailable(): boolean {
-  return Boolean(process.env.KIE_API_KEY) && Boolean(FLASH_MOTION.ttsVoiceId);
+  return Boolean(process.env.KIE_API_KEY);
 }
 
 function key(): string {
@@ -21,8 +18,12 @@ function key(): string {
   return k;
 }
 
-/** Lance la synthèse, attend le résultat, renvoie les octets MP3 et la durée estimée. */
-export async function synthesizeVoiceover(text: string): Promise<{ audio: Uint8Array; duration: number }> {
+/** Lance la synthèse, attend le résultat, renvoie l'audio, sa durée et les mots si KIE les fournit. */
+export async function synthesizeVoiceover(text: string): Promise<{
+  audio: Uint8Array;
+  duration: number;
+  words: WordTiming[] | null;
+}> {
   const create = await fetch(`${BASE}/createTask`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key()}`, "Content-Type": "application/json" },
@@ -30,8 +31,14 @@ export async function synthesizeVoiceover(text: string): Promise<{ audio: Uint8A
       model: FLASH_MOTION.ttsModel,
       input: {
         text: text.slice(0, 4000),
-        voice_id: FLASH_MOTION.ttsVoiceId,
-        language_code: "fr",
+        voice: FLASH_MOTION.ttsVoice,
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0,
+        speed: 1,
+        timestamps: true,
+        previous_text: "",
+        next_text: "",
       },
     }),
   });
@@ -53,21 +60,25 @@ export async function synthesizeVoiceover(text: string): Promise<{ audio: Uint8A
     const state = json.data?.state;
     if (state === "fail") throw new Error(`Synthèse vocale échouée : ${json.data?.failMsg ?? "erreur"}`);
     if (state === "success") {
-      const parsed = JSON.parse(json.data?.resultJson ?? "{}") as { resultUrls?: string[] };
+      const parsed = JSON.parse(json.data?.resultJson ?? "{}") as {
+        resultUrls?: string[];
+        resultObject?: { words?: WordTiming[] } | null;
+      };
       const url = parsed.resultUrls?.[0];
       if (!url) throw new Error("Synthèse vocale : aucun fichier audio renvoyé");
       const file = await fetch(url);
       if (!file.ok) throw new Error("Téléchargement de la voix off impossible");
       const audio = new Uint8Array(await file.arrayBuffer());
-      // Estimation : environ 2,5 mots par seconde en français parlé
-      const words = text.trim().split(/\s+/).length;
-      return { audio, duration: Math.max(1, words / 2.5) };
+      const words = parsed.resultObject?.words?.length ? parsed.resultObject.words : null;
+      // Estimation de secours : environ 2,5 mots par seconde
+      const count = text.trim().split(/\s+/).length;
+      return { audio, duration: Math.max(1, count / 2.5), words };
     }
   }
   throw new Error("Synthèse vocale : délai dépassé");
 }
 
-/** Répartit les mots sur la durée de la voix (estimation). */
+/** Répartit les mots sur la durée de la voix (estimation de secours). */
 export function estimateWordTimings(text: string, duration: number): WordTiming[] {
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];

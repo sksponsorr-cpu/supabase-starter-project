@@ -1,8 +1,8 @@
 /**
  * Pipeline Flash Motion AI (tout via KIE : GPT, Claude et ElevenLabs) :
  *  1. Un modèle léger écrit le script (voix off + scènes)
- *  2. La voix off ElevenLabs est générée via KIE si demandée
- *  3. Les mots sont répartis sur la durée de la voix (estimation)
+ *  2. La voix off ElevenLabs est générée si demandée
+ *  3. Les timings des mots viennent de KIE, sinon ils sont estimés
  *  4. Le modèle choisi par l'utilisateur écrit la composition HTML
  *  5. La composition part dans la file de rendu (supabase/flash_motion.sql)
  */
@@ -48,7 +48,7 @@ export async function buildMotionVideo(brief: MotionBrief) {
   if (withVoiceover) {
     const voice = await synthesizeVoiceover(script.voiceover);
     audio = voice.audio;
-    words = estimateWordTimings(script.voiceover, voice.duration);
+    words = voice.words ?? estimateWordTimings(script.voiceover, voice.duration);
   }
 
   // 4. Composition HTML, écrite par le modèle choisi

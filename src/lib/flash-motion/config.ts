@@ -19,10 +19,11 @@ export const DEFAULT_CODE_MODEL = "gpt-6-astra";
 export const FLASH_MOTION = {
   // Modèle qui écrit le script de la voix off (peu coûteux).
   scriptModel: "claude-haiku-5-5",
-  // Voix off ElevenLabs via KIE. VÉRIFIEZ l'identifiant exact dans la documentation Kie.ai (section audio / ElevenLabs).
-  ttsModel: process.env.KIE_TTS_MODEL ?? "elevenlabs/text-to-speech-multilingual-v2",
-  // Identifiant de voix ElevenLabs (voice_id). Choisissez-le dans votre compte ElevenLabs.
-  ttsVoiceId: process.env.KIE_TTS_VOICE_ID ?? "",
+  // Voix off ElevenLabs via KIE (identifiant documenté par KIE).
+  ttsModel: "elevenlabs/text-to-speech-multilingual-v2",
+  // Voix choisie dans la liste KIE. Par défaut : James (EkK5I93UQWFDigLMpZcX).
+  // Peut être changée avec la variable KIE_TTS_VOICE (une voix de la liste).
+  ttsVoice: process.env.KIE_TTS_VOICE ?? "EkK5I93UQWFDigLMpZcX",
   width: 1080,
   height: 1920,
   fps: 30,
