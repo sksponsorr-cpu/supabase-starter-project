@@ -217,7 +217,7 @@ function Login() {
       </header>
 
       {/* Hero clair et bleu */}
-      <section className="relative mx-auto flex w-full max-w-md flex-col items-center px-5 pb-10 pt-6 text-center">
+      <section className="relative mx-auto flex w-full max-w-md md:max-w-3xl lg:max-w-5xl flex-col items-center px-5 pb-10 pt-6 text-center">
         <span className="rounded-full border border-[#3b4ef8]/30 bg-white px-4 py-1.5 text-sm font-medium text-[#3b4ef8]">
           Création vidéo IA pour les créateurs
         </span>
@@ -264,7 +264,7 @@ function Login() {
       <div id="presentation" />
       <LandingSection />
 
-      <section className="mx-auto mt-10 w-full max-w-md px-5">
+      <section className="mx-auto mt-10 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
         <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Tout ce qu'il faut pour monétiser vos contenus</h2>
         <div className="mt-6 grid grid-cols-2 gap-3">
           {[
@@ -300,7 +300,7 @@ function Login() {
         </p>
       </section>
 
-      <section className="mx-auto mt-12 w-full max-w-md px-5">
+      <section className="mx-auto mt-12 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#3b4ef8]">Packs de crédits</p>
         <h2 className="mt-2 text-center text-3xl font-bold text-[#0b1220]">Payez seulement ce que vous créez</h2>
         <div className="mt-8 space-y-6">
@@ -343,7 +343,7 @@ function Login() {
         </div>
       </section>
 
-      <section className="mx-auto mt-12 w-full max-w-md px-5">
+      <section className="mx-auto mt-12 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
         <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Ce que les créateurs créent avec Sam flash</h2>
         <p className="mt-2 text-center text-sm text-[#4b5563]">Tous les modèles inclus, un seul portefeuille de crédits.</p>
         <ShowcaseGallery />
