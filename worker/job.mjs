@@ -2,27 +2,35 @@
 /**
  * Worker Flash Motion AI : prend un job en file, rend la vidéo, la range dans Supabase.
  * Variables : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- * Lancer en continu (boucle) ou une seule fois : node job.mjs --once
  */
 import { createClient } from "@supabase/supabase-js";
+import WebSocket from "ws";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { writeFile, mkdtemp } from "node:fs/promises";
+import { writeFile, readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const exec = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
-const once = process.argv.includes("--once");
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("[flash-motion] SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquante");
+  process.exit(1);
+}
+
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
+  // Node sans WebSocket natif : on fournit le module ws à la bibliothèque Supabase.
+  realtime: { transport: WebSocket },
 });
 
 async function claimNext() {
-  const { data } = await db
+  const { data, error } = await db
     .from("flash_motion_jobs").select("*").eq("status", "queued")
     .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  if (error) throw new Error(`Lecture de la file impossible : ${error.message}`);
   if (!data) return null;
   // Réservation : ne passe en "rendering" que si le job est encore en file.
   const { data: claimed } = await db
@@ -50,7 +58,6 @@ async function processJob(job) {
   if (audioLocal) args.push("--audio", audioLocal);
   await exec("node", args, { timeout: 15 * 60 * 1000, maxBuffer: 10 * 1024 * 1024 });
 
-  const { readFile } = await import("node:fs/promises");
   const bytes = await readFile(videoPath);
   const storagePath = `${job.user_id}/${job.id}.mp4`;
   const up = await db.storage.from("flash-motion").upload(storagePath, bytes, {
@@ -70,12 +77,25 @@ async function fail(job, err) {
   }).eq("id", job.id);
 }
 
+console.log("[flash-motion] worker démarré, surveillance de la file");
+
+// La boucle ne s'arrête jamais sur une erreur : elle journalise et continue.
 while (true) {
-  const job = await claimNext();
-  if (job) {
-    try { await processJob(job); console.log("[flash-motion] prêt", job.id); }
-    catch (err) { await fail(job, err); }
-  } else if (once) break;
-  else await new Promise(r => setTimeout(r, 3000));
-  if (once && !job) break;
+  try {
+    const job = await claimNext();
+    if (job) {
+      console.log("[flash-motion] job pris", job.id);
+      try {
+        await processJob(job);
+        console.log("[flash-motion] prêt", job.id);
+      } catch (err) {
+        await fail(job, err);
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  } catch (err) {
+    console.error("[flash-motion] erreur de boucle", err.message);
+    await new Promise((r) => setTimeout(r, 5000));
+  }
 }
