@@ -15,7 +15,7 @@ export const Route = createFileRoute("/outils-ai")({
   component: ToolsPage,
 });
 
-type ToolId = "claude" | "chatgpt" | "clonage-video" | "avatar-ai";
+type ToolId = "motion-ai" | "clonage-video";
 
 type Tool = {
   id: ToolId;
@@ -27,18 +27,11 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    id: "claude",
-    name: "Claude AI",
-    logo: "/tools/claude.png",
-    description: "Discutez avec les modèles Claude et programmez avec l'aide de l'IA.",
-    price: "Débit selon l'usage réel",
-  },
-  {
-    id: "chatgpt",
-    name: "ChatGPT",
-    logo: "/tools/chatgpt.png",
-    description: "Discussion et programmation assistée avec les modèles GPT.",
-    price: "Débit selon l'usage réel",
+    id: "motion-ai",
+    name: "Motion AI",
+    logo: "/tools/motion-ai.png",
+    description: "Décrivez votre idée, l'IA fabrique votre vidéo motion design. Choisissez votre modèle (GPT ou Claude).",
+    price: "Selon la durée choisie",
   },
   {
     id: "clonage-video",
@@ -47,27 +40,13 @@ const TOOLS: Tool[] = [
     description: "Donnez les mouvements d'une vidéo à un autre personnage.",
     price: "À partir de 0,9 crédit / seconde",
   },
-  {
-    id: "avatar-ai",
-    name: "Avatar AI",
-    logo: "/tools/avatar-ai.png",
-    description: "Créez un avatar qui parle à partir d'une photo et d'une voix.",
-    price: "À partir de 0,65 crédit / seconde",
-  },
 ];
 
 /** Lien vers la bonne page selon l'outil. */
 function OpenLink({ id, className, children }: { id: ToolId; className?: string; children: React.ReactNode }) {
-  if (id === "claude") {
+  if (id === "motion-ai") {
     return (
-      <Link to="/chat-ia" search={{ p: "claude" }} className={className}>
-        {children}
-      </Link>
-    );
-  }
-  if (id === "chatgpt") {
-    return (
-      <Link to="/chat-ia" search={{ p: "gpt" }} className={className}>
+      <Link to="/flash-motion" className={className}>
         {children}
       </Link>
     );
