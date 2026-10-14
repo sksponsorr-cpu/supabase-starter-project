@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState } from "react";
 import {
   Mail,
   Loader2,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   X,
   Play,
+  Pause,
   Volume2,
   VolumeX,
   Zap,
@@ -15,12 +17,15 @@ import {
   Shield,
   Layers,
   Wand2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { LandingBackground } from "@/components/samflash/LandingBackground";
+import { getLanding, type LandingContent } from "@/lib/landing.functions";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -38,7 +43,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Transformez une idée en vidéo prête à publier avec Sam flash 2.0. Génération IA ultra-rapide d'images et vidéos depuis mobile et ordinateur.",
+          "Transformez une idée en vidéo prête à publier avec Sam flash 2.0. Vidéos de démonstration et génération IA ultra-rapide d'images et vidéos.",
       },
       {
         property: "og:title",
@@ -47,7 +52,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Générez des vidéos et images IA en quelques secondes. Studio de création sur mobile et ordinateur.",
+          "Générez des vidéos et images IA en quelques secondes. Regardez les vidéos de démonstration créées par notre communauté.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -55,6 +60,28 @@ export const Route = createFileRoute("/")({
   }),
   component: LandingPage,
 });
+
+const DEFAULT_LANDING: LandingContent = {
+  title: "Transformez une idée en vidéo prête à publier",
+  text: "Décrivez votre idée, Sam flash 2.0 la transforme en vidéo ou en image depuis votre mobile ou ordinateur.",
+  introVideo:
+    "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/landing/694ad18f-998f-4d7c-b1d2-8ee37b3f7dd2.mp4",
+  videos: [
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-17-09-07.mp4",
+      caption: "Création IA cinématique",
+    },
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-18-27-14.mp4",
+      caption: "Mouvement fluide 60fps",
+    },
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-17-06-26.mp4",
+      caption: "Rendu photo-réaliste",
+    },
+  ],
+  faq: [],
+};
 
 const HOW_IT_WORKS = [
   {
@@ -191,6 +218,28 @@ function LandingPage() {
   const { next } = Route.useSearch();
   const { session, loading } = useAuth();
 
+  // Chargement du contenu de landing depuis le serveur / Supabase app_settings
+  const fetchLanding = useServerFn(getLanding);
+  const [landingContent, setLandingContent] = useState<LandingContent>(DEFAULT_LANDING);
+
+  useEffect(() => {
+    fetchLanding()
+      .then((data) => {
+        if (data) {
+          setLandingContent({
+            title: data.title || DEFAULT_LANDING.title,
+            text: data.text || DEFAULT_LANDING.text,
+            introVideo: data.introVideo || DEFAULT_LANDING.introVideo,
+            videos: data.videos && data.videos.length > 0 ? data.videos : DEFAULT_LANDING.videos,
+            faq: data.faq && data.faq.length > 0 ? data.faq : DEFAULT_LANDING.faq,
+          });
+        }
+      })
+      .catch(() => {
+        // En cas d'erreur réseau, les vidéos par défaut restent affichées
+      });
+  }, [fetchLanding]);
+
   // Redirection automatique si déjà connecté
   const goNext = () => {
     if (next) window.location.href = next;
@@ -212,9 +261,78 @@ function LandingPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // État de la vidéo de présentation
-  const [videoSound, setVideoSound] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  // État de la vidéo d'introduction
+  const introVideoRef = useRef<HTMLVideoElement>(null);
+  const [introPlaying, setIntroPlaying] = useState(true);
+  const [introSound, setIntroSound] = useState(false);
+
+  // IntersectionObserver pour la vidéo d'introduction (lecture automatique quand visible)
+  useEffect(() => {
+    const el = introVideoRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          void el.play().catch(() => {});
+          setIntroPlaying(true);
+        } else {
+          el.pause();
+          setIntroPlaying(false);
+        }
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [landingContent.introVideo]);
+
+  // État du carrousel de vidéos communautaires
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
+  const [activeSoundUrl, setActiveSoundUrl] = useState<string | null>(null);
+
+  // Défilement automatique continu du carrousel
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    let animId: number;
+    let lastTime = performance.now();
+
+    const step = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+      if (!isCarouselHovered && el) {
+        // Vitesse douce : environ 35px par seconde
+        el.scrollLeft += delta * 0.035;
+        if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
+          el.scrollLeft = 0;
+        }
+      }
+      animId = requestAnimationFrame(step);
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [isCarouselHovered, landingContent.videos]);
+
+  const scrollCarousel = (direction: "left" | "right") => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const offset = direction === "left" ? -280 : 280;
+    el.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
+  const toggleCarouselSound = (videoUrl: string) => {
+    setActiveSoundUrl((prev) => (prev === videoUrl ? null : videoUrl));
+  };
+
+  const scrollToDemonstration = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const target = document.getElementById("demonstration");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const openAuth = (isSignUp: boolean) => {
     setSignUp(isSignUp);
@@ -286,13 +404,19 @@ function LandingPage() {
     }
   };
 
+  // Liste des vidéos dédoublée pour un défilement infini et fluide
+  const displayVideos =
+    landingContent.videos.length > 0
+      ? [...landingContent.videos, ...landingContent.videos]
+      : DEFAULT_LANDING.videos;
+
   return (
     <div className="relative min-h-screen text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       {/* 3. Arrière-plan 3D animé et discret */}
       <LandingBackground />
 
       {/* Navigation supérieure */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/70 border-b border-slate-200/60 transition-all">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-slate-200/60 transition-all">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5 group">
             <img
@@ -311,11 +435,11 @@ function LandingPage() {
           </a>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
+            <a href="#demonstration" className="hover:text-indigo-600 transition-colors">
+              Démonstration
+            </a>
             <a href="#comment-ca-marche" className="hover:text-indigo-600 transition-colors">
               Comment ça marche
-            </a>
-            <a href="#fonctionnalites" className="hover:text-indigo-600 transition-colors">
-              Fonctionnalités
             </a>
             <a href="#tarifs" className="hover:text-indigo-600 transition-colors">
               Tarifs
@@ -356,7 +480,7 @@ function LandingPage() {
             Décrivez votre vision en quelques mots. Sam flash 2.0 génère une vidéo cinématique ou une image haute fidélité en quelques secondes, prête pour vos réseaux sociaux ou vos projets.
           </p>
 
-          {/* 1 & 2. Boutons d'action avec largeur max ~340px et effet 3D */}
+          {/* 1 & 2. Boutons d'action centrés avec largeur max ~340px et effet 3D */}
           <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
             <button
               type="button"
@@ -368,10 +492,11 @@ function LandingPage() {
             </button>
 
             <a
-              href="#presentation"
+              href="#demonstration"
+              onClick={scrollToDemonstration}
               className="btn-3d-secondary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold text-center cursor-pointer"
             >
-              Voir la vidéo de présentation
+              Voir les vidéos de démonstration
             </a>
           </div>
 
@@ -393,93 +518,240 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Section Vidéo de présentation */}
-      <section id="presentation" className="px-4 py-12 sm:py-16">
-        <div className="max-w-4xl mx-auto text-center mb-8">
-          <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/70 text-slate-700">
-            Aperçu interactif
-          </span>
-          <h2 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Voyez ce que l'IA réalise à partir d'un simple texte
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            Pas de logiciel à installer, pas de montage complexe. Tout s'opère instantanément.
-          </p>
-        </div>
+      {/* Section Vidéos de démonstration */}
+      <section id="demonstration" className="px-4 py-12 sm:py-16">
+        <div className="max-w-5xl mx-auto">
+          {/* En-tête de section */}
+          <div className="max-w-3xl mx-auto text-center mb-10">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+              Démonstration en direct
+            </span>
+            <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Découvrez Sam flash en action
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+              Voyez comment fonctionne la plateforme et explorez les différentes vidéos créées par nos utilisateurs qui défilent et se jouent automatiquement.
+            </p>
+          </div>
 
-        {/* Cadre vidéo équilibré et centré */}
-        <div className="max-w-3xl mx-auto">
-          <div className="relative rounded-3xl overflow-hidden border border-slate-200/90 bg-slate-900 shadow-2xl">
-            {/* Barre de navigation style navigateur */}
-            <div className="h-10 bg-slate-900/90 border-b border-white/10 px-4 flex items-center justify-between text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
-              </div>
-              <div className="flex items-center gap-1 text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1 rounded-md">
-                sam-flash.lat/studio
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Prêt à diffuser
-                </span>
+          {/* 1. Vidéo de démonstration principale : Comment fonctionne Sam Flash */}
+          {landingContent.introVideo && (
+            <div className="max-w-3xl mx-auto mb-16">
+              <div className="relative rounded-3xl overflow-hidden border border-slate-200/90 bg-slate-950 shadow-2xl">
+                {/* Barre supérieure style application */}
+                <div className="h-10 bg-slate-900/90 border-b border-white/10 px-4 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1 rounded-md">
+                    <Film className="h-3 w-3 text-indigo-400" />
+                    Démonstration vidéo — Fonctionnement de Sam Flash
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                      HD
+                    </span>
+                  </div>
+                </div>
+
+                {/* Vidéo MP4 interactive */}
+                <div className="relative aspect-video w-full bg-black overflow-hidden flex items-center justify-center">
+                  <video
+                    ref={introVideoRef}
+                    src={
+                      landingContent.introVideo.includes("#")
+                        ? landingContent.introVideo
+                        : `${landingContent.introVideo}#t=0.001`
+                    }
+                    muted={!introSound}
+                    loop
+                    autoPlay
+                    playsInline
+                    preload="metadata"
+                    controlsList="nodownload noplaybackrate noremoteplayback"
+                    draggable={false}
+                    className="w-full h-full object-cover"
+                    onClick={() => {
+                      if (introVideoRef.current) {
+                        if (introVideoRef.current.paused) {
+                          void introVideoRef.current.play();
+                          setIntroPlaying(true);
+                        } else {
+                          introVideoRef.current.pause();
+                          setIntroPlaying(false);
+                        }
+                      }
+                    }}
+                  />
+
+                  {/* Boutons de contrôle flottants */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                    <button
+                      type="button"
+                      onClick={() => setIntroSound(!introSound)}
+                      aria-label={introSound ? "Couper le son" : "Activer le son"}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/15 hover:bg-black/80 transition-colors cursor-pointer shadow-md"
+                    >
+                      {introSound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-white/90 bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/15 z-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (introVideoRef.current) {
+                          if (introVideoRef.current.paused) {
+                            void introVideoRef.current.play();
+                            setIntroPlaying(true);
+                          } else {
+                            introVideoRef.current.pause();
+                            setIntroPlaying(false);
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-2 font-medium hover:text-indigo-300 transition-colors cursor-pointer"
+                    >
+                      {introPlaying ? (
+                        <>
+                          <Pause className="h-3.5 w-3.5" />
+                          <span>Pause</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>Lecture</span>
+                        </>
+                      )}
+                    </button>
+                    <span className="text-[11px] font-mono text-white/70">
+                      {introSound ? "Son activé ✓" : "Appuyez pour le son"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Zone visuelle dynamique de simulation */}
-            <div className="relative aspect-video w-full bg-radial from-indigo-950 via-slate-950 to-black overflow-hidden flex flex-col justify-between p-6 sm:p-8">
-              {/* Effet ambiant de lumière */}
-              <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_50%_40%,rgba(99,102,241,0.35),transparent_70%)]" />
-
-              {/* Tag en haut de vidéo */}
-              <div className="relative z-10 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-black/60 text-white backdrop-blur-md border border-white/10">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-                  Génération terminée · 1080p Full HD
+          {/* 2. Les différentes vidéos de démonstration qui défilent et se jouent d'elles-mêmes */}
+          <div className="mt-12">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+                  Fait avec Sam flash 2.0
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setVideoSound(!videoSound)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/10 hover:bg-black/80 transition-colors cursor-pointer"
-                  aria-label={videoSound ? "Couper le son" : "Activer le son"}
-                >
-                  {videoSound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                </button>
-              </div>
-
-              {/* Centre de la vidéo : simulation de prompt et scène */}
-              <div className="relative z-10 text-center my-auto px-4">
-                <div className="inline-flex items-center justify-center p-4 rounded-full bg-indigo-600/30 border border-indigo-400/40 text-white mb-4 backdrop-blur-md">
-                  <Film className="h-8 w-8 text-indigo-300" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  Scène cinématique générée par Sam flash 2.0
+                <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                  Vidéos de démonstration créées par les utilisateurs
                 </h3>
-                <p className="mt-2 text-xs sm:text-sm text-indigo-200/90 font-mono max-w-lg mx-auto bg-black/40 px-3 py-2 rounded-lg border border-white/10">
-                  « Vue aérienne d'une métropole futuriste baignée par le soleil couchant, reflets dorés sur les gratte-ciels, 4k ultra-réaliste »
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                  Ces vidéos ont été générées sur la plateforme. Elles défilent et se jouent automatiquement. Touchez une vidéo pour écouter avec le son.
                 </p>
               </div>
 
-              {/* Barre de contrôle basse */}
-              <div className="relative z-10 flex items-center justify-between text-xs text-white/80 bg-black/50 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10">
+              {/* Boutons de contrôle fléchés */}
+              <div className="flex items-center gap-2 self-end">
                 <button
                   type="button"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="flex items-center gap-2 text-white font-medium hover:text-indigo-300 transition-colors cursor-pointer"
+                  onClick={() => scrollCarousel("left")}
+                  aria-label="Vidéos précédentes"
+                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
                 >
-                  <Play className={`h-4 w-4 fill-current ${isPlaying ? "text-indigo-400" : ""}`} />
-                  <span>{isPlaying ? "En cours de lecture" : "Mettre en pause"}</span>
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="font-mono text-[11px] text-white/60">00:06 / 00:06 HD</span>
+                <button
+                  type="button"
+                  onClick={() => scrollCarousel("right")}
+                  aria-label="Vidéos suivantes"
+                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
+            </div>
+
+            {/* Piste de défilement horizontal fluide et automatique */}
+            <div
+              ref={carouselRef}
+              onMouseEnter={() => setIsCarouselHovered(true)}
+              onMouseLeave={() => setIsCarouselHovered(false)}
+              onTouchStart={() => setIsCarouselHovered(true)}
+              onTouchEnd={() => setIsCarouselHovered(false)}
+              className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x"
+            >
+              {displayVideos.map((video, idx) => {
+                const isSoundOn = activeSoundUrl === video.url;
+                return (
+                  <div
+                    key={`${video.url}-${idx}`}
+                    className="relative w-48 sm:w-56 shrink-0 aspect-[9/16] rounded-3xl overflow-hidden border-2 border-slate-200/90 bg-black shadow-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-indigo-400 cursor-pointer snap-start"
+                    onClick={() => toggleCarouselSound(video.url)}
+                  >
+                    {/* Vidéo qui se joue d'elle-même en continu */}
+                    <video
+                      src={video.url.includes("#") ? video.url : `${video.url}#t=0.001`}
+                      muted={!isSoundOn}
+                      loop
+                      autoPlay
+                      playsInline
+                      preload="metadata"
+                      controlsList="nodownload noplaybackrate noremoteplayback"
+                      draggable={false}
+                      className="h-full w-full object-cover pointer-events-none"
+                    />
+
+                    {/* Badge son flottant */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCarouselSound(video.url);
+                      }}
+                      aria-label={isSoundOn ? "Couper le son" : "Activer le son"}
+                      className={`absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md border transition-all ${
+                        isSoundOn
+                          ? "bg-indigo-600 text-white border-indigo-400 shadow-md scale-110"
+                          : "bg-black/60 text-white/90 border-white/20 hover:bg-black/80"
+                      }`}
+                    >
+                      {isSoundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    </button>
+
+                    {/* Gradient de superposition sombre en bas pour le texte */}
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end">
+                      <span className="text-[11px] font-medium text-white/90 line-clamp-1">
+                        {video.caption || "Généré avec Sam flash 2.0"}
+                      </span>
+                      <span className="text-[10px] text-indigo-300 font-mono">
+                        {isSoundOn ? "Son actif 🔊" : "Touchez pour le son"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bouton centré pour inciter à la création */}
+            <div className="mt-8 text-center">
+              <button
+                type="button"
+                onClick={() => openAuth(true)}
+                className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer mx-auto"
+              >
+                Créer ma première vidéo
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <p className="mt-2.5 text-xs text-slate-500">
+                Essayez gratuitement : une vidéo et 2 images offertes à l'inscription.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Section Comment ça marche */}
-      <section id="comment-ca-marche" className="px-4 py-16 sm:py-20">
+      <section id="comment-ca-marche" className="px-4 py-16 sm:py-20 border-t border-slate-200/60">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
@@ -666,7 +938,7 @@ function LandingPage() {
             Prêt à donner vie à vos créations ?
           </h2>
           <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-xl mx-auto">
-            Rejoignez Sam flash 2.0 en quelques secondes et réalisez votre première vidéo avec l'intelligence artificielle dès maintenant.
+            Rejoignez Sam flash 2.0 dès aujourd'hui et générez votre première vidéo avec l'intelligence artificielle en quelques secondes.
           </p>
 
           <div className="mt-8 flex justify-center">
