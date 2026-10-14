@@ -12,8 +12,9 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CODE_SYSTEM, SCRIPT_SYSTEM } from "./prompts.mjs";
+import { CODE_SYSTEM, SCRIPT_SYSTEM, REVIEW_SYSTEM } from "./prompts.mjs";
 import { audioDuration, transcribeWords } from "./voice.mjs";
+import { inspectComposition } from "./verify.mjs";
 
 const exec = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -122,10 +123,14 @@ async function loadReferences(paths = []) {
   const out = [];
   for (const p of (paths ?? []).slice(0, 3)) {
     const res = await fetch(`${SUPA}/storage/v1/object/flash-motion/${p}`, { headers: auth });
-    if (!res.ok) continue;
+    if (!res.ok) {
+      console.error("[flash-motion] référence introuvable (", res.status, ") :", p);
+      continue;
+    }
     const mime = p.endsWith(".png") ? "image/png" : p.endsWith(".webp") ? "image/webp" : "image/jpeg";
     out.push({ mime, data: Buffer.from(await res.arrayBuffer()).toString("base64") });
   }
+  console.log("[flash-motion] références chargées :", out.length, "sur", (paths ?? []).length);
   return out;
 }
 
@@ -267,9 +272,30 @@ function scaleScenes(scenes, total) {
   return scenes.map((s) => ({ ...s, seconds: Math.round((Number(s.seconds) || 0) * k * 10) / 10 }));
 }
 
+// ---------- Revue visuelle : le modèle regarde le rendu et juge ----------
+async function reviewVisually({ job, scenes, frames }) {
+  const storyboard = scenes.map((sc, i) => `${i + 1}. ${sc.text} | ${sc.visual ?? ""} | ${sc.camera ?? ""}`).join("\n");
+  const user = `Vidéo demandée : ${job.idea}\nStoryboard :\n${storyboard}\nImages clés du rendu actuel (dans l'ordre : 25 %, 50 %, 80 % de la durée) jointes.`;
+  const raw = stripFences(await askModel({
+    model: job.code_model || "gpt-6-astra",
+    system: REVIEW_SYSTEM,
+    user,
+    maxTokens: 1500,
+    images: frames,
+  }));
+  try {
+    const verdict = JSON.parse(raw);
+    return { ok: verdict.ok === true, issues: Array.isArray(verdict.issues) ? verdict.issues : [] };
+  } catch {
+    console.error("[flash-motion] revue illisible, rendu accepté :", raw.slice(0, 120));
+    return { ok: true, issues: [] };
+  }
+}
+
 // ---------- Composition HTML (modèle choisi) ----------
-async function generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback }) {
+async function generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback, previousHtml }) {
   const userMsg = [
+    feedback && previousHtml ? `Code précédent à corriger (garde ce qui marche, change ce qui est signalé) :\n${previousHtml.slice(0, 30000)}` : "",
     `Idée : ${job.idea}`,
     `Durée totale : ${seconds} secondes`,
     `Format : ${W} x ${H} pixels`,
@@ -327,6 +353,17 @@ async function processJob(job) {
   let seconds = job.seconds;
   const [W, H] = FORMATS[job.format] ?? FORMATS.vertical;
 
+  // Mode « page prête » : la page fournie est rendue telle quelle, sans modèle.
+  if (job.code_model === "prebuilt" && job.html) {
+    await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 60 });
+    const rendered = await renderVideo({ html: job.html, seconds, audio: null, w: W, h: H });
+    await updateJob(job.id, { stage: "Envoi", progress: 92 });
+    const videoPath = `${job.user_id}/${job.id}.mp4`;
+    await uploadStorage(videoPath, rendered, "video/mp4");
+    await updateJob(job.id, { status: "ready", video_path: videoPath, html: null, stage: "Terminée", progress: 100 });
+    return;
+  }
+
   // 1. Script
   await updateJob(job.id, { stage: "Écriture du script", progress: 10 });
   const scriptRaw = stripFences(await askModel({
@@ -361,7 +398,7 @@ async function processJob(job) {
   // La vidéo suit la voix réelle : sa durée remplace la durée demandée.
   if (audio) {
     const real = await audioDuration(audio);
-    seconds = Math.min(Math.max(Math.ceil(real * 10) / 10 + MAX_TAIL, 3), 60);
+    seconds = Math.min(Math.max(job.seconds, Math.ceil(real * 10) / 10 + MAX_TAIL), 60);
     if (!words.length) {
       try {
         words = (await transcribeWords(audio)) ?? [];
@@ -381,19 +418,23 @@ async function processJob(job) {
   const withWords = words.length > 0;
   const hasVoice = !!audio;
 
-  // 3 et 4. Composition puis rendu, avec une seconde tentative si la vidéo est statique
-  let images = await loadReferences(job.reference_paths);
-  const refNote = images.length
+  // 3, 4. Composition, contrôle automatique et correction, puis rendu
+  let refImages = await loadReferences(job.reference_paths);
+  const refNote = refImages.length
     ? "\nImages de référence fournies : reproduire leur style, leurs couleurs et leur ambiance dans l'animation."
     : "";
+  const requiredTexts = [...new Set(scenes.flatMap((sc) => [sc.text, sc.keyword]).filter(Boolean))];
   let rendered = null;
   let feedback = "";
-  const MAX_ATTEMPTS = 3;
+  let reviewImages = [];
+  let previousHtml = null;
+  // Opus corrige mieux à partir d'une image : on lui laisse une tentative de plus.
+  const MAX_ATTEMPTS = String(job.code_model || "").includes("opus") ? 4 : 3;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     await updateJob(job.id, { stage: "Création de l'animation", progress: 45 });
     let html;
     try {
-      html = await generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback });
+      html = await generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images: [...refImages, ...reviewImages], refNote, feedback, previousHtml });
     } catch (err) {
       if (!err.retryable || attempt === MAX_ATTEMPTS) throw err;
       console.error("[flash-motion] composition refusée, nouvelle tentative :", err.forbidden ?? err.refusal ?? err.message);
@@ -401,14 +442,54 @@ async function processJob(job) {
         feedback = `Ton code précédent contenait « ${err.forbidden} », interdit. Supprime-le : n'utilise que window.renderAt(t) et window.FM, sans horloge réelle ni animation CSS.`;
       } else {
         // Réponse qui n'est pas du HTML : souvent un refus lié à l'image. On l'écarte et on reste sur des formes.
-        if (images.length) {
+        if (refImages.length) {
           console.error("[flash-motion] images de référence écartées pour la nouvelle tentative");
-          images = [];
+          refImages = [];
         }
         feedback = "Ta réponse précédente n'était pas une page HTML. Renvoie uniquement le code HTML complet. N'essaie pas de représenter une personne réelle : utilise des formes, des couleurs et des textes.";
       }
+      reviewImages = [];
       continue;
     }
+
+    // Contrôle automatique : textes présents, éléments dans le cadre
+    await updateJob(job.id, { stage: "Contrôle de la vidéo", progress: 60 });
+    let report = { problems: [], frames: [] };
+    try {
+      report = await inspectComposition({ html, seconds, width: W, height: H, requiredTexts });
+    } catch (err) {
+      console.error("[flash-motion] contrôle impossible :", err.message);
+    }
+    if (report.problems.length && attempt < MAX_ATTEMPTS) {
+      console.error("[flash-motion] contrôle, à corriger :", report.problems.join(" ; "));
+      feedback = "Problèmes relevés dans ta page précédente :\n- " + report.problems.join("\n- ") +
+        "\nCorrige-les tous, en gardant le même storyboard. Les images jointes montrent le rendu actuel.";
+      previousHtml = html;
+      reviewImages = report.frames;
+      continue;
+    }
+    if (report.problems.length) console.error("[flash-motion] problèmes restants, rendu quand même :", report.problems.join(" ; "));
+
+    // Revue visuelle : le modèle regarde le rendu et décide s'il faut corriger
+    if (!report.problems.length && attempt < MAX_ATTEMPTS && report.frames.length) {
+      await updateJob(job.id, { stage: "Revue visuelle", progress: 65 });
+      let verdict = { ok: true, issues: [] };
+      try {
+        verdict = await reviewVisually({ job, scenes, frames: report.frames });
+      } catch (err) {
+        console.error("[flash-motion] revue impossible :", err.message);
+      }
+      if (!verdict.ok && verdict.issues.length) {
+        console.error("[flash-motion] revue, à corriger :", verdict.issues.join(" ; "));
+        feedback = "Revue visuelle de ton rendu. Corrige ces points, sans changer le storyboard :\n- " + verdict.issues.join("\n- ");
+        previousHtml = html;
+        reviewImages = report.frames;
+        continue;
+      }
+    }
+    reviewImages = [];
+    previousHtml = null;
+
     await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
     try {
       rendered = await renderVideo({ html, seconds, audio, w: W, h: H });

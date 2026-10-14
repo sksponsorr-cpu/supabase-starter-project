@@ -51,12 +51,17 @@ Interfaces : petites maquettes de téléphone ou de fenêtre avec des barres et 
 
 === 4. TEXTE ===
 - Le texte de chaque scène est exactement celui du storyboard. N'ajoute aucun mot, ne reformule rien.
+- Les sous-titres n'affichent QUE les mots de la scène en cours. La voix complète n'apparaît jamais en bloc. À la fin d'une scène, sa phrase disparaît avant la scène suivante. Aucune phrase ne s'empile sur une autre.
+- Le bouton final ne doit jamais se superposer à un sous-titre : libère la zone du bas avant la carte finale.
 - Aucun texte ne déborde de son fond. Si un mot ne rentre pas, réduis la taille, ne coupe pas.
 - Les titres sont en haut ou au centre, les sous-titres sous la zone du titre, jamais en haut à gauche.
 
 === 5. VOIX OFF ET SYNCHRO ===
 - Si WORDS est fourni, chaque mot apparaît à son timing réel. Sans WORDS, synchronise les scènes sur la durée totale.
 - Le texte affiché reprend la voix off mot pour mot.
+
+=== 5 bis. IMAGE DE RÉFÉRENCE ===
+- Si une image de référence est fournie, reprends fidèlement ses couleurs, sa typographie et sa mise en page dominante. Elle prime sur le style par défaut ci-dessous.
 
 === 6. FIN ===
 - Une carte finale avec un seul bouton rouge arrondi. Le bouton reste 2 à 3 secondes à l'écran.
@@ -91,3 +96,14 @@ Si un point échoue, corrige-le dans le code.
 
 === 8. SORTIE ===
 Réponds UNIQUEMENT avec le code HTML complet. Aucun texte avant ou après, aucune balise markdown.`;
+
+
+export const REVIEW_SYSTEM = `Tu es directeur artistique en motion design. On te montre le storyboard d'une vidéo verticale et trois images clés du rendu actuel.
+Juge le rendu comme un client exigeant qui compare à une vidéo de référence haut de gamme.
+Réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"ok": true ou false, "score": 0 à 10, "issues": ["problème précis et corrigeable", "..."]}
+Règles :
+- ok = true seulement si score >= 8 ET aucun texte coupé, aucun texte qui se chevauche, aucune zone vide ou figée, style conforme au storyboard, sous-titres au-dessus du centre.
+- Chaque problème doit être précis : quel élément, quelle zone, quelle correction. Pas de jugement vague.
+- Au maximum 6 problèmes, les plus visibles d'abord.
+- Si tout est correct, issues est une liste vide.`;
