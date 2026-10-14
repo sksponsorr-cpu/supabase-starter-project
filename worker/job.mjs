@@ -8,6 +8,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeFile, readFile, mkdtemp } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -297,7 +298,8 @@ async function processJob(job) {
 
   await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
   // 4. Rendu
-  const bytes = await renderVideo({ html, seconds, audio, w: W, h: H });
+  const rendered = await renderVideo({ html, seconds, audio, w: W, h: H });
+  const bytes = await addSoundEffects(rendered, buildCues(script.scenes, seconds), !!audio);
 
   await updateJob(job.id, { stage: "Envoi", progress: 92 });
   // 5. Envoi et clôture
@@ -305,6 +307,49 @@ async function processJob(job) {
   await uploadStorage(videoPath, bytes, "video/mp4");
   if (audio) await uploadStorage(`${job.user_id}/${job.id}.mp3`, audio, "audio/mpeg");
   await updateJob(job.id, { status: "ready", video_path: videoPath, html: null, stage: "Terminée", progress: 100 });
+}
+
+// ---------- Effets sonores ----------
+// Fichiers dans worker/sounds/ : bubble.wav, pop.wav, notif.wav
+const SFX = { bubble: "bubble.wav", pop: "pop.wav", notif: "notif.wav" };
+
+/** Place les sons au début de chaque scène : bulle au départ, pop entre les scènes, notification à la fin. */
+function buildCues(scenes, total) {
+  const cues = [];
+  let t = 0;
+  scenes.forEach((sc, i) => {
+    const at = Math.max(0, Math.min(t, total - 0.5));
+    if (i === 0) cues.push({ file: SFX.bubble, at, vol: 0.6 });
+    else if (i === scenes.length - 1 && scenes.length > 1) cues.push({ file: SFX.notif, at, vol: 0.7 });
+    else cues.push({ file: SFX.pop, at, vol: 0.8 });
+    t += Number(sc.seconds) || 0;
+  });
+  return cues.filter((c) => c.at < total);
+}
+
+/** Mélange les effets sonores dans la vidéo (sans réencoder l'image). */
+async function addSoundEffects(videoBytes, cues, hasVoice) {
+  const present = cues.map((c, k) => k).filter((k) => existsSync(join(here, "sounds", cues[k].file)));
+  if (!present.length) return videoBytes;
+  const dir = await mkdtemp(join(tmpdir(), "sfx-"));
+  const inPath = join(dir, "in.mp4");
+  const outPath = join(dir, "out.mp4");
+  await writeFile(inPath, videoBytes);
+  const args = ["-y", "-loglevel", "error", "-i", inPath];
+  present.forEach((k) => args.push("-i", join(here, "sounds", cues[k].file)));
+  const parts = [];
+  const labels = [];
+  if (hasVoice) labels.push("[0:a]");
+  present.forEach((k, idx) => {
+    const ms = Math.round(cues[k].at * 1000);
+    parts.push(`[${idx + 1}:a]adelay=${ms}|${ms},volume=${cues[k].vol}[s${idx}]`);
+    labels.push(`[s${idx}]`);
+  });
+  parts.push(`${labels.join("")}amix=inputs=${labels.length}:normalize=0:dropout_transition=0[aout]`);
+  args.push("-filter_complex", parts.join(";"), "-map", "0:v", "-map", "[aout]",
+    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", outPath);
+  await exec("ffmpeg", args, { timeout: 5 * 60 * 1000 });
+  return readFile(outPath);
 }
 
 console.log("[flash-motion] worker démarré, surveillance de la file");
