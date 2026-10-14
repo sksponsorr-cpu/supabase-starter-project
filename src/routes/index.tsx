@@ -20,7 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import logoAsset from "@/assets/sam-flash-logo.png";
+import logoAsset from "@/assets/sam-flash-logo-sm.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
@@ -368,30 +368,24 @@ function LandingPage() {
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-    let animId = 0;
-    let lastTime = performance.now();
-
+    // Défilement léger : 20 mises à jour par seconde au lieu de 60, et pause hors écran ou onglet caché.
     const io = new IntersectionObserver(([entry]) => {
       visibleRef.current = !!entry?.isIntersecting;
     });
     io.observe(el);
 
-    const step = (time: number) => {
-      const delta = time - lastTime;
-      lastTime = time;
-      if (visibleRef.current && !hoverRef.current) {
-        // Vitesse douce : environ 35px par seconde
-        el.scrollLeft += delta * 0.035;
-        if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
-          el.scrollLeft = 0;
-        }
+    const STEP_MS = 50;
+    const PX_PER_STEP = 0.035 * STEP_MS; // même vitesse qu'avant : ~35 px par seconde
+    const timer = window.setInterval(() => {
+      if (document.hidden || !visibleRef.current || hoverRef.current) return;
+      el.scrollLeft += PX_PER_STEP;
+      if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
+        el.scrollLeft = 0;
       }
-      animId = requestAnimationFrame(step);
-    };
+    }, STEP_MS);
 
-    animId = requestAnimationFrame(step);
     return () => {
-      cancelAnimationFrame(animId);
+      window.clearInterval(timer);
       io.disconnect();
     };
   }, [landingContent.videos]);
