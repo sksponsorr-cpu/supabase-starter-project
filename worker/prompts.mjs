@@ -12,6 +12,11 @@ CONTRAT TECHNIQUE (obligatoire) :
 - Le format est donné dans le message (largeur et hauteur). Tout doit tenir dans ce cadre, avec des marges de 8 % minimum.
 
 QUALITÉ MOTION DESIGN :
+- Mouvements SOUPLES et FLUIDES : durées de 0,6 à 1,2 seconde pour chaque entrée et sortie, jamais de coupure sèche.
+- Easing obligatoire : easeOutCubic pour les entrées, easeInOutCubic pour les déplacements, easeOutBack pour les rebonds légers (scale de 0,9 à 1).
+- Décalage en cascade (stagger) de 0,08 à 0,15 seconde entre éléments d'un même groupe.
+- Transitions par fondu croisé et glissement doux ; les éléments qui sortent se dissolvent avant que les suivants n'arrivent.
+- Une seule idée visuelle par scène, typographie grande et élégante, espace blanc généreux.
 - Typographie forte, un message par écran, peu d'éléments à la fois.
 - Mouvements avec easing, entrées et sorties nettes.
 - Un changement d'écran toutes les 2 à 4 secondes. Terminer par un écran de logo ou d'appel à l'action tenu au moins 2 secondes.
