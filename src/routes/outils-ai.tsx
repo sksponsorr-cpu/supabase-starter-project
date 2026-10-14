@@ -21,6 +21,7 @@ type Tool = {
   id: ToolId;
   name: string;
   logo: string;
+  logo2?: string;
   description: string;
   price: string;
 };
@@ -29,7 +30,8 @@ const TOOLS: Tool[] = [
   {
     id: "motion-ai",
     name: "Motion AI",
-    logo: "/tools/motion-ai.png",
+    logo: "/tools/chatgpt.png",
+    logo2: "/tools/claude.png",
     description: "Décrivez votre idée, l'IA fabrique votre vidéo motion design. Choisissez votre modèle (GPT ou Claude).",
     price: "Selon la durée choisie",
   },
@@ -92,7 +94,10 @@ function ToolsPage() {
             const body = (
               <>
                 <div className="flex h-36 items-center justify-center bg-zinc-100">
-                  <ToolLogo src={tool.logo} name={tool.name} className="h-28 w-28" />
+                  <div className="flex items-center justify-center gap-3">
+                          <ToolLogo src={tool.logo} name={tool.name} className="h-28 w-28" />
+                          {tool.logo2 && <ToolLogo src={tool.logo2} name={tool.name} className="h-28 w-28" />}
+                        </div>
                 </div>
                 <div className="flex flex-1 flex-col gap-2 p-5">
                   <h2 className="text-lg font-semibold">{tool.name}</h2>
