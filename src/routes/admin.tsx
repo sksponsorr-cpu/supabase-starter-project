@@ -110,6 +110,7 @@ import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
 import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { getGenerationProvider, setGenerationProvider, type GenerationProvider } from "@/lib/maintenance.functions";
+import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
 import { Loader2 as GenLoader } from "lucide-react";
 import { ImageIcon as GenerationIcon } from "lucide-react";
 import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
@@ -1766,6 +1767,7 @@ function AdminPage() {
 
             {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
             {active === "generation" && isAdmin && <AdminGenerationPanel />}
+            {active === "generation" && isAdmin && <AdminVoicePanel />}
             {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
             {active === "promos" && isAdmin && <AdminPromoPanel />}
 
