@@ -290,10 +290,17 @@ async function generateComposition({ job, seconds, W, H, scenes, words, withWord
     images,
   }));
   if (!/<!doctype|<html/i.test(html) || !html.includes("<head>") || !html.includes("renderAt")) {
-    throw new Error("La composition générée n'est pas valide");
+    const err = new Error("La composition générée n'est pas valide");
+    err.retryable = true;
+    err.refusal = html.slice(0, 200);
+    throw err;
   }
-  if (/requestAnimationFrame|setTimeout|setInterval|Math\.random|<script[^>]+src=/i.test(html)) {
-    throw new Error("La composition utilise un élément interdit");
+  const forbidden = html.match(/requestAnimationFrame|setTimeout|setInterval|Math\.random|performance\.now|<script[^>]+src=|@keyframes|backdrop-filter/i);
+  if (forbidden) {
+    const err = new Error(`La composition utilise un élément interdit : ${forbidden[0]}`);
+    err.retryable = true;
+    err.forbidden = forbidden[0];
+    throw err;
   }
   return html;
 }
@@ -375,25 +382,44 @@ async function processJob(job) {
   const hasVoice = !!audio;
 
   // 3 et 4. Composition puis rendu, avec une seconde tentative si la vidéo est statique
-  const images = await loadReferences(job.reference_paths);
+  let images = await loadReferences(job.reference_paths);
   const refNote = images.length
     ? "\nImages de référence fournies : reproduire leur style, leurs couleurs et leur ambiance dans l'animation."
     : "";
   let rendered = null;
   let feedback = "";
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     await updateJob(job.id, { stage: "Création de l'animation", progress: 45 });
-    const html = await generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback });
+    let html;
+    try {
+      html = await generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback });
+    } catch (err) {
+      if (!err.retryable || attempt === MAX_ATTEMPTS) throw err;
+      console.error("[flash-motion] composition refusée, nouvelle tentative :", err.forbidden ?? err.refusal ?? err.message);
+      if (err.forbidden) {
+        feedback = `Ton code précédent contenait « ${err.forbidden} », interdit. Supprime-le : n'utilise que window.renderAt(t) et window.FM, sans horloge réelle ni animation CSS.`;
+      } else {
+        // Réponse qui n'est pas du HTML : souvent un refus lié à l'image. On l'écarte et on reste sur des formes.
+        if (images.length) {
+          console.error("[flash-motion] images de référence écartées pour la nouvelle tentative");
+          images = [];
+        }
+        feedback = "Ta réponse précédente n'était pas une page HTML. Renvoie uniquement le code HTML complet. N'essaie pas de représenter une personne réelle : utilise des formes, des couleurs et des textes.";
+      }
+      continue;
+    }
     await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
     try {
       rendered = await renderVideo({ html, seconds, audio, w: W, h: H });
       break;
     } catch (err) {
-      if (attempt === 2 || !String(err.message).includes("statique")) throw err;
+      if (attempt === MAX_ATTEMPTS || !String(err.message).includes("statique")) throw err;
       console.error("[flash-motion] composition statique, nouvelle tentative");
       feedback = "La composition précédente était statique. Ajoute un mouvement à chaque scène : zoom ou glissement avec FM.seg et un easing, et fondu d'entrée et de sortie.";
     }
   }
+  if (!rendered) throw new Error("Composition impossible à générer après plusieurs tentatives");
 
   // 5. Effets sonores
   const bytes = await addSoundEffects(rendered, buildCues(scenes, seconds), hasVoice);
@@ -426,6 +452,9 @@ function buildCues(scenes, total) {
 /** Mélange les effets sonores dans la vidéo (sans réencoder l'image). */
 async function addSoundEffects(videoBytes, cues, hasVoice) {
   const present = cues.map((c, k) => k).filter((k) => existsSync(join(here, "sounds", cues[k].file)));
+  if (present.length < cues.length) {
+    console.error(`[flash-motion] effets sonores manquants : ${cues.length - present.length} sur ${cues.length} (voir worker/sounds/)`);
+  }
   if (!present.length) return videoBytes;
   const dir = await mkdtemp(join(tmpdir(), "sfx-"));
   const inPath = join(dir, "in.mp4");
