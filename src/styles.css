@@ -207,3 +207,96 @@
   0% { background-position: 150% 0; }
   100% { background-position: -50% 0; }
 }
+
+/* ==========================================================================
+   3D Buttons Design (Indigo primary & White secondary)
+   Pure CSS / Tailwind utilities with solid bottom shadows, hover lift & active press
+   ========================================================================== */
+
+.btn-3d-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 0 #3730a3, 0 12px 20px -3px rgba(79, 70, 229, 0.35);
+  transform: translateY(0);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              filter 150ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.btn-3d-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #3730a3, 0 16px 26px -3px rgba(79, 70, 229, 0.45);
+  filter: brightness(1.04);
+}
+
+.btn-3d-primary:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #3730a3, 0 4px 10px rgba(79, 70, 229, 0.25);
+  filter: brightness(0.98);
+}
+
+.btn-3d-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 3px 0 #3730a3;
+}
+
+.btn-3d-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 6px 0 #94a3b8, 0 10px 18px -3px rgba(15, 23, 42, 0.08);
+  transform: translateY(0);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 150ms ease,
+              background 150ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.btn-3d-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #94a3b8, 0 14px 22px -3px rgba(15, 23, 42, 0.12);
+  border-color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+}
+
+.btn-3d-secondary:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #94a3b8, 0 4px 8px rgba(15, 23, 42, 0.06);
+}
+
+.btn-3d-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 3px 0 #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-3d-primary,
+  .btn-3d-secondary {
+    transition: none !important;
+    transform: none !important;
+  }
+  .btn-3d-primary:hover:not(:disabled),
+  .btn-3d-primary:active:not(:disabled),
+  .btn-3d-secondary:hover:not(:disabled),
+  .btn-3d-secondary:active:not(:disabled) {
+    transform: none !important;
+  }
+}
+
