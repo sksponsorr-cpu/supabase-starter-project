@@ -160,20 +160,26 @@ async function synthesizeKie(text) {
 }
 
 const FAL_KEY = process.env.FAL_KEY ?? "";
-const FAL_VOICE = process.env.FAL_TTS_VOICE ?? ""; // identifiant de voix MiniMax (voir la page du modèle sur fal.ai)
+const FAL_VOICE = process.env.FAL_TTS_VOICE ?? "Daniel"; // voix ElevenLabs sur fal : Daniel, Brian, Rachel, George, Callum...
 
 /** Voix off via fal.ai (ElevenLabs). Renvoie l'audio ; les timings des mots sont estimés. */
 async function synthesizeFal(text) {
   if (!FAL_KEY) throw new Error("fal.ai : FAL_KEY manquante");
-  const input = { text: text.slice(0, 4000) };
-  if (FAL_VOICE) input.voice_setting = { voice_id: FAL_VOICE, speed: 1, vol: 1, pitch: 0 };
-  const res = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
+  const input = {
+    text: text.slice(0, 4000),
+    voice: FAL_VOICE,
+    stability: 0.4,
+    similarity_boost: 0.8,
+    style: 0.35,
+    speed: 1,
+  };
+  const res = await fetch("https://fal.run/fal-ai/elevenlabs/tts/multilingual-v2", {
     method: "POST",
     headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   const json = await res.json();
-  const audioUrl = json?.audio?.url ?? json?.audio_url ?? null;
+  const audioUrl = json?.audio?.url ?? null;
   if (!res.ok || !audioUrl) throw new Error(`fal.ai indisponible (${res.status})`);
   const file = await fetch(audioUrl);
   return { audio: Buffer.from(await file.arrayBuffer()), words: null };
