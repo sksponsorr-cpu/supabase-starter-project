@@ -10,6 +10,8 @@ const briefSchema = z.object({
   idea: z.string().trim().min(5, "Décrivez votre idée en quelques mots.").max(1000),
   seconds: z.number().int().min(FLASH_MOTION.minDurationSeconds).max(FLASH_MOTION.maxDurationSeconds),
   withVoiceover: z.boolean(),
+  format: z.enum(["vertical", "square", "landscape"]).optional().default("vertical"),
+  voicePath: z.string().max(300).optional(),
   referencePaths: z.array(z.string().max(300)).max(3).optional().default([]),
   codeModelId: z
     .string()
@@ -26,6 +28,7 @@ export const createMotionVideo = createServerFn({ method: "POST" })
     const jobId = crypto.randomUUID();
     // Seules les références de l'utilisateur connecté sont acceptées.
     const refs = data.referencePaths.filter((p) => p.startsWith(`${context.userId}/refs/`));
+    const voicePath = data.voicePath && data.voicePath.startsWith(`${context.userId}/voices/`) ? data.voicePath : null;
     const { error } = await context.supabase.from("flash_motion_jobs").insert({
       id: jobId,
       user_id: context.userId,
@@ -33,6 +36,8 @@ export const createMotionVideo = createServerFn({ method: "POST" })
       seconds: data.seconds,
       with_voiceover: data.withVoiceover,
       code_model: data.codeModelId,
+      format: data.format,
+      voice_path: voicePath,
       reference_paths: refs,
       status: "queued",
     });
@@ -112,6 +117,36 @@ export const uploadMotionReference = createServerFn({ method: "POST" })
     const bytes = Buffer.from(data.dataBase64, "base64");
     if (bytes.length > MAX_REF_BYTES) return { ok: false as const, message: "Image trop lourde (4 Mo maximum)." };
     const path = `${context.userId}/refs/${crypto.randomUUID()}.${ext}`;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const up = await supabaseAdmin.storage
+      .from("flash-motion")
+      .upload(path, bytes, { contentType: data.mime, upsert: false });
+    if (up.error) return { ok: false as const, message: "Envoi impossible. Réessayez." };
+    return { ok: true as const, path };
+  });
+
+
+const AUDIO_TYPES: Record<string, string> = {
+  "audio/mpeg": "mp3",
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+};
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+
+/** Envoie un vocal (MP3, M4A ou WAV, 4 Mo maximum) : il remplacera la voix générée. */
+export const uploadMotionVoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ mime: z.string().max(40), dataBase64: z.string().min(10).max(6_000_000) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const ext = AUDIO_TYPES[data.mime];
+    if (!ext) return { ok: false as const, message: "Format audio non accepté. Utilisez MP3, M4A ou WAV." };
+    const bytes = Buffer.from(data.dataBase64, "base64");
+    if (bytes.length > MAX_AUDIO_BYTES) return { ok: false as const, message: "Vocal trop lourd (4 Mo maximum)." };
+    const path = `${context.userId}/voices/${crypto.randomUUID()}.${ext}`;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const up = await supabaseAdmin.storage
       .from("flash-motion")
