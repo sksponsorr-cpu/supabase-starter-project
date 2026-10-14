@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createMotionVideo, listMotionVideos, uploadMotionReference, uploadMotionVoice } from "@/lib/flash-motion.functions";
 import { DEFAULT_CODE_MODEL, FLASH_MOTION } from "@/lib/flash-motion/config";
+import { ModelPicker } from "@/components/flash-motion/ModelPicker";
 
 export const Route = createFileRoute("/flash-motion")({
   component: FlashMotionPage,
@@ -32,6 +33,7 @@ function FlashMotionPage() {
   const list = useServerFn(listMotionVideos);
   const upload = useServerFn(uploadMotionReference);
   const uploadVoice = useServerFn(uploadMotionVoice);
+  const [model, setModel] = useState<string>(DEFAULT_CODE_MODEL);
   const [format, setFormat] = useState<"vertical" | "square" | "landscape">("vertical");
   const [voice, setVoice] = useState<{ path: string; name: string } | null>(null);
   const [refs, setRefs] = useState<{ path: string; preview: string }[]>([]);
@@ -88,7 +90,7 @@ function FlashMotionPage() {
     setMessage(null);
     setBusy(true);
     const res = await create({
-      data: { idea, seconds, withVoiceover, format, voicePath: voice?.path, referencePaths: refs.map((r) => r.path), codeModelId: DEFAULT_CODE_MODEL },
+      data: { idea, seconds, withVoiceover, format, voicePath: voice?.path, referencePaths: refs.map((r) => r.path), codeModelId: model },
     });
     setBusy(false);
     if (!res.ok) {
@@ -103,6 +105,7 @@ function FlashMotionPage() {
 
   const field = { display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 14 };
   const input = { padding: "10px 12px", borderRadius: 10, border: "1px solid #d4d4d8", fontSize: 15 };
+  const fileStyle = { padding: "10px", borderRadius: 10, border: "1px dashed #3f3f46", background: "#09090b", color: "#e4e4e7", fontSize: 14, width: "100%" };
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -142,10 +145,17 @@ function FlashMotionPage() {
           </select>
         </label>
 
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
+          <input type="checkbox" checked={withVoiceover} disabled={!!voice} onChange={(e) => setWithVoiceover(e.target.checked)} />
+          Ajouter une voix off
+        </label>
+
+        <ModelPicker value={model} onChange={setModel} />
+
         <div style={field}>
           <span>Envoyer un vocal (facultatif, MP3, M4A ou WAV, 4 Mo max)</span>
           <input
-            type="file"
+            type="file" style={fileStyle}
             accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav"
             disabled={!!voice}
             onChange={async (e) => {
@@ -170,7 +180,7 @@ function FlashMotionPage() {
         <div style={field}>
           <span>Images de référence (facultatif, 3 maximum : JPG, PNG, WebP)</span>
           <input
-            type="file"
+            type="file" style={fileStyle}
             accept="image/jpeg,image/png,image/webp"
             multiple
             disabled={refs.length >= 3}
@@ -193,11 +203,6 @@ function FlashMotionPage() {
             </div>
           )}
         </div>
-
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
-          <input type="checkbox" checked={withVoiceover} disabled={!!voice} onChange={(e) => setWithVoiceover(e.target.checked)} />
-          Ajouter une voix off
-        </label>
 
         <button
           type="submit"
