@@ -130,60 +130,57 @@ const FEATURES = [
 
 const PLAN_CARDS = [
   {
-    name: "Découverte",
-    badge: "Offre d'essai",
-    quota: "1 vidéo & 2 images offertes",
-    desc: "Idéal pour tester gratuitement la puissance du studio de création.",
+    name: "Gratuit",
+    badge: "Sans carte bancaire",
+    quota: "10 crédits offerts",
+    desc: "Pour découvrir Sam flash 2.0 sans rien payer.",
     features: [
-      "1 vidéo offerte (8s max)",
-      "2 images IA offertes",
+      "10 crédits offerts à l'inscription",
+      "Soit 2 vidéos de 5 secondes en 480p",
       "Un compte gratuit par appareil",
-      "Téléchargement direct",
     ],
     highlight: false,
-    cta: "Essayer gratuitement",
+    cta: "Commencer gratuitement",
   },
   {
-    name: "Super Grok",
-    badge: "Recommandé",
-    quota: "3 min 20 s de vidéo / jour",
-    desc: "La formule parfaite pour créer régulièrement du contenu sur les réseaux.",
+    name: "Essai",
+    badge: "Pack ponctuel",
+    quota: "2 000 FCFA · 40 crédits",
+    desc: "Un pack pour tester sans vous engager.",
     features: [
-      "Vidéos HD 720p de 6 secondes",
-      "Génération d'images illimitée",
-      "Import d'images de référence",
-      "Rendu ultra-rapide",
+      "8 vidéos de 5 secondes en 480p",
+      "Pour tester sans vous engager",
+      "Paiement par Mobile Money",
+    ],
+    highlight: false,
+    cta: "Choisir Essai",
+  },
+  {
+    name: "Sam Flash Light",
+    badge: "Par mois",
+    quota: "5 000 FCFA · 110 crédits / mois",
+    desc: "Tous les outils IA dans un seul abonnement.",
+    features: [
+      "110 crédits par mois",
+      "22 vidéos de 5 secondes en 480p",
+      "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI",
+    ],
+    highlight: false,
+    cta: "Choisir Sam Flash Light",
+  },
+  {
+    name: "Sam Flash Pro",
+    badge: "Le plus populaire",
+    quota: "16 500 FCFA · 450 crédits / mois",
+    desc: "Le plus de crédits, sans limite de qualité.",
+    features: [
+      "400 crédits payés + 50 crédits offerts chaque mois",
+      "Environ 90 vidéos de 5 secondes en 480p",
+      "Vidéo 1080p, générations prioritaires",
+      "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI",
     ],
     highlight: true,
-    cta: "Choisir Super Grok",
-  },
-  {
-    name: "Super Grok Plus",
-    badge: "Créateurs actifs",
-    quota: "6 min 40 s de vidéo / jour",
-    desc: "Davantage de temps de génération et un rendu supérieur pour vos projets.",
-    features: [
-      "Tout dans Super Grok",
-      "Création en résolution 1080p",
-      "Générations prioritaires",
-      "Crédits mensuels étendus",
-    ],
-    highlight: false,
-    cta: "Choisir Super Grok Plus",
-  },
-  {
-    name: "Super Grok Heavy",
-    badge: "Performance max",
-    quota: "20 min de vidéo / jour",
-    desc: "Pour les professionnels et les créateurs exigeants nécessitant le débit maximal.",
-    features: [
-      "Tout dans Super Grok Plus",
-      "Vidéo 1080p native",
-      "Vitesse de calcul maximale",
-      "Accès anticipé aux nouveaux modèles",
-    ],
-    highlight: false,
-    cta: "Choisir Super Grok Heavy",
+    cta: "Choisir Sam Flash Pro",
   },
 ];
 
@@ -213,6 +210,48 @@ const FAQ_ITEMS = [
     a: "Toutes vos créations sont automatiquement sauvegardées dans votre espace galerie sécurisé, accessible dès que vous vous connectez à votre compte.",
   },
 ];
+
+/**
+ * Vidéo qui ne charge sa source et ne joue que lorsqu'elle est visible à l'écran.
+ * Le rendu est identique, mais la page reste légère.
+ */
+function LazyVideo({ src, muted, className }: { src: string; muted: boolean; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [near, setNear] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setNear(true);
+          void el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { rootMargin: "200px", threshold: 0.2 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={ref}
+      src={near ? src : undefined}
+      muted={muted}
+      loop
+      autoPlay
+      playsInline
+      preload="none"
+      controlsList="nodownload noplaybackrate noremoteplayback"
+      draggable={false}
+      className={className}
+    />
+  );
+}
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -289,22 +328,28 @@ function LandingPage() {
     return () => observer.disconnect();
   }, [landingContent.introVideo]);
 
-  // État du carrousel de vidéos communautaires
+  // État du carrousel de vidéos communautaires (refs : pas de re-rendu à chaque mouvement)
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
+  const hoverRef = useRef(false);
+  const visibleRef = useRef(true);
   const [activeSoundUrl, setActiveSoundUrl] = useState<string | null>(null);
 
-  // Défilement automatique continu du carrousel
+  // Défilement automatique continu du carrousel, uniquement quand il est affiché
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-    let animId: number;
+    let animId = 0;
     let lastTime = performance.now();
+
+    const io = new IntersectionObserver(([entry]) => {
+      visibleRef.current = !!entry?.isIntersecting;
+    });
+    io.observe(el);
 
     const step = (time: number) => {
       const delta = time - lastTime;
       lastTime = time;
-      if (!isCarouselHovered && el) {
+      if (visibleRef.current && !hoverRef.current) {
         // Vitesse douce : environ 35px par seconde
         el.scrollLeft += delta * 0.035;
         if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
@@ -315,8 +360,11 @@ function LandingPage() {
     };
 
     animId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animId);
-  }, [isCarouselHovered, landingContent.videos]);
+    return () => {
+      cancelAnimationFrame(animId);
+      io.disconnect();
+    };
+  }, [landingContent.videos]);
 
   const scrollCarousel = (direction: "left" | "right") => {
     const el = carouselRef.current;
@@ -686,10 +734,10 @@ function LandingPage() {
             {/* Piste de défilement horizontal fluide et automatique */}
             <div
               ref={carouselRef}
-              onMouseEnter={() => setIsCarouselHovered(true)}
-              onMouseLeave={() => setIsCarouselHovered(false)}
-              onTouchStart={() => setIsCarouselHovered(true)}
-              onTouchEnd={() => setIsCarouselHovered(false)}
+              onMouseEnter={() => (hoverRef.current = true)}
+              onMouseLeave={() => (hoverRef.current = false)}
+              onTouchStart={() => (hoverRef.current = true)}
+              onTouchEnd={() => (hoverRef.current = false)}
               className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x"
             >
               {displayVideos.map((video, idx) => {
@@ -700,16 +748,10 @@ function LandingPage() {
                     className="relative w-48 sm:w-56 shrink-0 aspect-[9/16] rounded-3xl overflow-hidden border-2 border-slate-200/90 bg-black shadow-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-indigo-400 cursor-pointer snap-start"
                     onClick={() => toggleCarouselSound(video.url)}
                   >
-                    {/* Vidéo qui se joue d'elle-même en continu */}
-                    <video
+                    {/* Vidéo qui se joue d'elle-même, uniquement quand elle est visible */}
+                    <LazyVideo
                       src={video.url.includes("#") ? video.url : `${video.url}#t=0.001`}
                       muted={!isSoundOn}
-                      loop
-                      autoPlay
-                      playsInline
-                      preload="metadata"
-                      controlsList="nodownload noplaybackrate noremoteplayback"
-                      draggable={false}
                       className="h-full w-full object-cover pointer-events-none"
                     />
 
