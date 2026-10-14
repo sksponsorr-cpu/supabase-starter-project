@@ -83,7 +83,7 @@ async function withRetry(fn) {
   throw last;
 }
 
-async function askModel({ model, system, user, maxTokens = 8000, images = [] }) {
+async function askKie({ model, system, user, maxTokens = 8000, images = [] }) {
   return withRetry(async () => {
     const headers = { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" };
     if (model.startsWith("claude")) {
@@ -126,6 +126,56 @@ async function loadReferences(paths = []) {
 }
 
 const stripFences = (s) => s.replace(/^```(?:html|json)?\s*/i, "").replace(/```\s*$/, "").trim();
+
+// ---------- Modèles Claude / GPT : KIE ou fal.ai (OpenRouter) ----------
+const FAL_MODEL = {
+  "gpt-6-astra": "openai/gpt-6-astra",
+  "claude-sonnet-5-5": "anthropic/claude-sonnet-5",
+  "claude-opus-4-8": "anthropic/claude-opus-5.5",
+  "claude-haiku-5-5": "anthropic/claude-sonnet-5",
+};
+
+async function askFal({ model, system, user, images = [] }) {
+  if (!FAL_KEY) throw new Error("fal : FAL_KEY manquante");
+  const body = { prompt: user, system_prompt: system, model: FAL_MODEL[model] ?? "openai/gpt-6-astra" };
+  const endpoint = images.length ? "https://fal.run/openrouter/router/vision" : "https://fal.run/openrouter/router";
+  if (images.length) body.image_urls = images.map((img) => `data:${img.mime};base64,${img.data}`);
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok || typeof json.output !== "string") throw new Error(`fal indisponible (${res.status})`);
+  return json.output.trim();
+}
+
+/** Fournisseur des modèles choisi dans le bureau d'administration (KIE par défaut). */
+async function codeProvider() {
+  try {
+    const rows = await rest("app_settings?id=eq.global&select=code_provider", { headers: auth });
+    return rows?.[0]?.code_provider === "fal" ? "fal" : "kie";
+  } catch {
+    return "kie";
+  }
+}
+
+/** Essaie le fournisseur choisi, puis l'autre en secours. */
+async function askModel(args) {
+  const first = (await codeProvider()) === "fal" ? "fal" : "kie";
+  const order = first === "fal" ? ["fal", "kie"] : ["kie", "fal"];
+  let lastError;
+  for (const p of order) {
+    try {
+      return p === "fal" ? await askFal(args) : await askKie(args);
+    } catch (err) {
+      lastError = err;
+      console.error("[flash-motion] modèle", p, "échec :", err.message);
+    }
+  }
+  throw lastError;
+}
+
 
 // ---------- Voix off ElevenLabs via KIE ----------
 async function synthesizeKie(text) {
