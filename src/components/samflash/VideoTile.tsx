@@ -7,7 +7,7 @@ export function warmVideo(url?: string | null) {
   if (!url || warmed.has(url) || typeof document === "undefined") return;
   warmed.add(url);
   const v = document.createElement("video");
-  v.preload = "auto";
+  v.preload = "metadata";
   v.muted = true;
   v.src = url;
   v.load();
@@ -17,6 +17,8 @@ export function warmVideo(url?: string | null) {
  * Pause automatique des vignettes pendant qu'une vidéo est ouverte en grand.
  * Les vignettes reprennent toutes seules à la fermeture.
  */
+const MAX_PLAYING = 2;
+const playing = new Set<HTMLVideoElement>();
 let pauseCount = 0;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((fn) => fn());
@@ -42,8 +44,14 @@ export function VideoTile({ src, className }: { src: string; className?: string 
     let visible = false;
 
     const sync = () => {
-      if (visible && pauseCount === 0) void el.play().catch(() => {});
-      else el.pause();
+      const wantsPlay = visible && pauseCount === 0;
+      if (wantsPlay && (playing.has(el) || playing.size < MAX_PLAYING)) {
+        playing.add(el);
+        void el.play().catch(() => {});
+      } else {
+        el.pause();
+        playing.delete(el);
+      }
     };
 
     const io = new IntersectionObserver(
@@ -51,7 +59,7 @@ export function VideoTile({ src, className }: { src: string; className?: string 
         visible = entry.isIntersecting;
         sync();
       },
-      { threshold: 0.4 },
+      { threshold: 0.6 },
     );
     io.observe(el);
     listeners.add(sync);
@@ -59,6 +67,8 @@ export function VideoTile({ src, className }: { src: string; className?: string 
     return () => {
       io.disconnect();
       listeners.delete(sync);
+      el.pause();
+      playing.delete(el);
     };
   }, [src]);
 
