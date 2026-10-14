@@ -27,6 +27,7 @@ import { z } from "zod";
 import { LandingBackground } from "@/components/samflash/LandingBackground";
 import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
+import { listPrices, type PriceRow } from "@/lib/payments.functions";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -253,12 +254,41 @@ function LazyVideo({ src, muted, className }: { src: string; muted: boolean; cla
   );
 }
 
+const FCFA_PER_EUR = 655.957;
+
+/** Remplace prix, crédits et textes des forfaits Light et Pro par ceux de la base (bureau d'administration). */
+function planCardsFromPrices(rows: PriceRow[] | null) {
+  const fmt = (n: number) => n.toLocaleString("fr-FR");
+  return PLAN_CARDS.map((pk) => {
+    const id = pk.name === "Sam Flash Light" ? "base" : pk.name === "Sam Flash Pro" ? "plus" : null;
+    const row = id && rows ? rows.find((r) => r.id === id) : undefined;
+    if (!row) return pk;
+    const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
+    const bonus = Math.round(row.credits_bonus ?? 0);
+    const paid = row.credits_fixed !== null ? row.credits_fixed - bonus : Math.round(row.amount_eur * (row.credits_rate ?? 0));
+    const credits = row.credits_fixed ?? paid + bonus;
+    const features = [...pk.features];
+    features[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
+    features[1] = `${id === "plus" ? "Environ " : ""}${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
+    return { ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features };
+  });
+}
+
 function LandingPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const { session, loading } = useAuth();
 
   // Chargement du contenu de landing depuis le serveur / Supabase app_settings
+  const fetchListPrices = useServerFn(listPrices);
+  const [dbPrices, setDbPrices] = useState<PriceRow[] | null>(null);
+  useEffect(() => {
+    fetchListPrices()
+      .then((rows) => setDbPrices(rows as PriceRow[]))
+      .catch(() => setDbPrices(null));
+  }, [fetchListPrices]);
+  const planCards = planCardsFromPrices(dbPrices);
+
   const fetchLanding = useServerFn(getLanding);
   const [landingContent, setLandingContent] = useState<LandingContent>(DEFAULT_LANDING);
 
@@ -496,7 +526,7 @@ function LandingPage() {
             </div>
           </a>
 
-          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-800">
             <a href="#demonstration" className="hover:text-indigo-600 transition-colors">
               Démonstration
             </a>
@@ -537,7 +567,7 @@ function LandingPage() {
           </h1>
 
           {/* Sous-titre */}
-          <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-lg sm:text-xl text-slate-800 font-medium max-w-2xl mx-auto leading-relaxed">
             Décrivez votre vision en quelques mots. Sam flash 2.0 génère une vidéo cinématique ou une image haute fidélité en quelques secondes, prête pour vos réseaux sociaux ou vos projets.
           </p>
 
@@ -561,7 +591,7 @@ function LandingPage() {
           </div>
 
           {/* Réassurance sous boutons */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-500 font-medium">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-700 font-medium">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               1 vidéo & 2 images offertes
@@ -589,7 +619,7 @@ function LandingPage() {
             <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Découvrez Sam flash en action
             </h2>
-            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+            <p className="mt-3 text-sm sm:text-base text-slate-800 leading-relaxed">
               Voyez comment fonctionne la plateforme et explorez les différentes vidéos créées par nos utilisateurs qui défilent et se jouent automatiquement.
             </p>
           </div>
@@ -705,7 +735,7 @@ function LandingPage() {
                 <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   Vidéos de démonstration créées par les utilisateurs
                 </h3>
-                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                <p className="mt-1 text-xs sm:text-sm text-slate-800">
                   Ces vidéos ont été générées sur la plateforme. Elles défilent et se jouent automatiquement. Touchez une vidéo pour écouter avec le son.
                 </p>
               </div>
@@ -795,7 +825,7 @@ function LandingPage() {
                 Créer ma première vidéo
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <p className="mt-2.5 text-xs text-slate-500">
+              <p className="mt-2.5 text-xs text-slate-700">
                 Essayez gratuitement : une vidéo et 2 images offertes à l'inscription.
               </p>
             </div>
@@ -813,7 +843,7 @@ function LandingPage() {
             <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Comment ça marche
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-slate-800">
               Trois étapes directes, sans compétences techniques ni montage manuel.
             </p>
           </div>
@@ -836,7 +866,7 @@ function LandingPage() {
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                    <p className="mt-2 text-sm text-slate-800 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               );
@@ -855,7 +885,7 @@ function LandingPage() {
             <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Tout ce dont vous avez besoin pour vos contenus
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-slate-800">
               Un studio complet taillé pour la publication immédiate sur tous les réseaux.
             </p>
           </div>
@@ -872,7 +902,7 @@ function LandingPage() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-base font-bold text-slate-900">{f.title}</h3>
-                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                  <p className="mt-2 text-sm text-slate-800 leading-relaxed">{f.desc}</p>
                 </div>
               );
             })}
@@ -890,13 +920,13 @@ function LandingPage() {
             <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Ce que vous recevez selon votre formule
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-slate-800">
               Commencez gratuitement, puis choisissez la formule adaptée à votre rythme de création.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PLAN_CARDS.map((p) => (
+            {planCards.map((p) => (
               <div
                 key={p.name}
                 className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all ${
@@ -911,7 +941,7 @@ function LandingPage() {
                       className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                         p.highlight
                           ? "bg-indigo-600 text-white"
-                          : "bg-slate-100 text-slate-600"
+                          : "bg-slate-100 text-slate-800"
                       }`}
                     >
                       {p.badge}
@@ -922,11 +952,11 @@ function LandingPage() {
                   <div className="mt-2 text-xs font-semibold text-indigo-600 bg-indigo-50/80 px-2.5 py-1 rounded-md inline-block">
                     {p.quota}
                   </div>
-                  <p className="mt-3 text-xs text-slate-500 leading-relaxed">{p.desc}</p>
+                  <p className="mt-3 text-sm text-slate-700 leading-relaxed">{p.desc}</p>
 
                   <ul className="mt-6 space-y-2.5 border-t border-slate-100 pt-5">
                     {p.features.map((feat) => (
-                      <li key={feat} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700">
+                      <li key={feat} className="flex items-start gap-2 text-sm sm:text-base text-slate-900 font-medium">
                         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
@@ -970,11 +1000,11 @@ function LandingPage() {
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-slate-900">
                   <span>{item.q}</span>
-                  <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold transition-transform duration-200 group-open:rotate-45">
+                  <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 font-bold transition-transform duration-200 group-open:rotate-45">
                     +
                   </span>
                 </summary>
-                <p className="mt-3 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+                <p className="mt-3 text-sm text-slate-800 leading-relaxed border-t border-slate-100 pt-3">
                   {item.a}
                 </p>
               </details>
@@ -989,7 +1019,7 @@ function LandingPage() {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
             Prêt à donner vie à vos créations ?
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-xl mx-auto">
+          <p className="mt-4 text-base sm:text-lg text-slate-800 max-w-xl mx-auto">
             Rejoignez Sam flash 2.0 dès aujourd'hui et réalisez votre première vidéo avec l'intelligence artificielle en quelques secondes.
           </p>
 
@@ -1006,7 +1036,7 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white/70 py-10 px-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white/70 py-10 px-4 text-center text-xs text-slate-700">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Sam flash 2.0 — Tous droits réservés.</p>
           <div className="flex items-center gap-6 font-medium">
@@ -1035,7 +1065,7 @@ function LandingPage() {
             <button
               type="button"
               onClick={closeAuth}
-              className="absolute right-4 top-4 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-2 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Fermer"
             >
               <X className="h-5 w-5" />
@@ -1051,7 +1081,7 @@ function LandingPage() {
               <h3 className="text-2xl font-bold tracking-tight text-slate-900">
                 {signUp ? "Créer un compte gratuit" : "Se connecter"}
               </h3>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-700">
                 {signUp
                   ? "1 vidéo et 2 images offertes à l'inscription"
                   : "Retrouvez vos vidéos et images générées"}
@@ -1080,7 +1110,7 @@ function LandingPage() {
                   onClick={() => setAuthMode("email")}
                   className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-2.5 flex items-center justify-center cursor-pointer"
                 >
-                  <Mail className="h-5 w-5 text-slate-600" />
+                  <Mail className="h-5 w-5 text-slate-800" />
                   Continuer avec l'e-mail
                 </button>
 
@@ -1102,7 +1132,7 @@ function LandingPage() {
                 <button
                   type="button"
                   onClick={() => setAuthMode("providers")}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 mb-1 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-semibold text-slate-700 hover:text-slate-800 mb-1 flex items-center gap-1 cursor-pointer"
                 >
                   ← Retour aux options
                 </button>
@@ -1150,7 +1180,7 @@ function LandingPage() {
                     className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
                   />
                   {signUp && (
-                    <p className="mt-1 text-[11px] text-slate-500">
+                    <p className="mt-1 text-[11px] text-slate-700">
                       Minimum 8 caractères.
                     </p>
                   )}
@@ -1205,11 +1235,11 @@ function LandingPage() {
 
             <p className="mt-5 text-center text-[11px] text-slate-400">
               En continuant, vous acceptez nos{" "}
-              <Link to="/conditions" className="underline hover:text-slate-600">
+              <Link to="/conditions" className="underline hover:text-slate-800">
                 Conditions
               </Link>{" "}
               et notre{" "}
-              <Link to="/confidentialite" className="underline hover:text-slate-600">
+              <Link to="/confidentialite" className="underline hover:text-slate-800">
                 Politique de confidentialité
               </Link>
               .
