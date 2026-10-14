@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Download, ImagePlus, Loader2, Music, Video } from "lucide-react";
+import { ArrowLeft, Download, ImagePlus, Loader2, Music, Trash2, Video, XCircle } from "lucide-react";
 import { aiAccess } from "@/lib/chat.functions";
 import {
   getAiJob,
@@ -10,6 +10,7 @@ import {
   startAiJob,
   type AiJobRow,
 } from "@/lib/ai-tools.functions";
+import { cancelAiJob, deleteAiJob } from "@/lib/ai-jobs-manage.functions";
 import {
   AVATAR_MAX_SECONDS,
   CLONE_MAX_SECONDS,
@@ -97,6 +98,9 @@ export function AiToolPage({
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [jobs, setJobs] = useState<AiJobRow[]>([]);
   const timer = useRef<number | null>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const cancel = useServerFn(cancelAiJob);
+  const remove = useServerFn(deleteAiJob);
 
   const variant = variants.find((v) => v.id === variantId) ?? variants[0];
   const estimate = seconds > 0 ? jobCost(variant, seconds) : null;
@@ -210,6 +214,7 @@ export function AiToolPage({
         return;
       }
       setProgress(0);
+      setCurrentJobId(res.jobId);
       setPhase("processing");
       void refreshJobs();
       watch(res.jobId);
@@ -217,6 +222,27 @@ export function AiToolPage({
       toast.error(error instanceof Error && error.message !== "upload" ? error.message : "Envoi du fichier impossible. Réessayez.");
       setPhase("idle");
     }
+  };
+
+  const cancelJob = async (jobId: string) => {
+    const r = await cancel({ data: { jobId } });
+    if (!r.ok) {
+      toast.error(r.message);
+    } else {
+      toast.message?.("Génération annulée. Vos crédits sont remboursés.");
+      if (jobId === currentJobId) {
+        if (timer.current) window.clearInterval(timer.current);
+        setPhase("idle");
+        setCurrentJobId(null);
+      }
+    }
+    void refreshJobs();
+  };
+
+  const removeJob = async (jobId: string) => {
+    const r = await remove({ data: { jobId } });
+    if (!r.ok) toast.error(r.message);
+    void refreshJobs();
   };
 
   const refreshOne = async (jobId: string) => {
@@ -345,6 +371,23 @@ export function AiToolPage({
           </button>
 
           {phase === "processing" && (
+            <div className="space-y-3">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-foreground transition-[width] duration-700 ease-out"
+                  style={{ width: `${Math.max(progress, 4)}%` }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => currentJobId && void cancelJob(currentJobId)}
+                className="mx-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <XCircle className="h-3.5 w-3.5" /> Annuler la génération
+              </button>
+            </div>
+          )}
+          {phase === "processing" && (
             <p className="text-center text-xs text-muted-foreground">
               Cela peut prendre quelques minutes. Vous pouvez quitter cette page : la génération reste dans la liste ci-dessous.
             </p>
@@ -353,7 +396,7 @@ export function AiToolPage({
 
         {resultUrl && (
           <div className="mt-6 space-y-3 rounded-2xl border border-border bg-card/40 p-4">
-            <video src={resultUrl} controls playsInline className="w-full rounded-xl" />
+            <video src={resultUrl} controls playsInline className="mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl" />
             <a
               href={resultUrl}
               target="_blank"
@@ -388,6 +431,15 @@ export function AiToolPage({
                       Actualiser
                     </button>
                   ) : null}
+                  {j.status === "pending" || j.status === "processing" ? (
+                    <button type="button" onClick={() => void cancelJob(j.id)} className="rounded-full bg-secondary px-3 py-1.5 text-xs">
+                      Annuler
+                    </button>
+                  ) : (
+                    <button type="button" aria-label="Supprimer" onClick={() => void removeJob(j.id)} className="rounded-full p-2 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
