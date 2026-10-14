@@ -58,7 +58,7 @@ function ScrollTilt({ children }: { children: ReactNode }) {
       const vh = window.innerHeight;
       const p = clamp((vh - r.top) / (vh * 0.85));
       const e = 1 - Math.pow(1 - p, 3);
-      el.style.transform = `perspective(900px) rotateX(${(1 - e) * 24}deg) translateY(${(1 - e) * 50}px) scale(${0.88 + 0.12 * e})`;
+      el.style.transform = `translateY(${(1 - e) * 36}px) scale(${0.94 + 0.06 * e})`;
       el.style.opacity = String(0.25 + 0.75 * e);
     };
     const onScroll = () => {
@@ -74,7 +74,7 @@ function ScrollTilt({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <div ref={ref} style={{ transformOrigin: "50% 100%", willChange: "transform, opacity" }}>
+    <div ref={ref} style={{ transformOrigin: "50% 100%" }}>
       {children}
     </div>
   );
