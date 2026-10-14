@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { LandingBackground } from "@/components/samflash/LandingBackground";
+import { OffersTopBanner } from "@/components/samflash/OffersTopBanner";
+import { RecentSalesToast } from "@/components/samflash/RecentSalesToast";
 import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
@@ -500,9 +502,11 @@ function LandingPage() {
     <div className="relative min-h-screen text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       {/* 3. Arrière-plan 3D animé et discret */}
       <LandingBackground />
+      <OffersTopBanner />
+      <RecentSalesToast />
 
       {/* Navigation supérieure */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-slate-200/60 transition-all">
+      <header className="sticky top-9 z-30 bg-white/95 border-b border-slate-200/60 transition-all">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5 group">
             <img
@@ -848,7 +852,7 @@ function LandingPage() {
               return (
                 <div
                   key={item.step}
-                  className="relative rounded-3xl border border-slate-200/80 bg-white/80 backdrop-blur-md p-6 sm:p-8 shadow-sm transition-all hover:shadow-md hover:border-indigo-200 flex flex-col justify-between"
+                  className="relative rounded-3xl border border-slate-200/80 bg-white/95 p-6 sm:p-8 shadow-sm transition-all hover:shadow-md hover:border-indigo-200 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-5">
@@ -890,7 +894,7 @@ function LandingPage() {
               return (
                 <div
                   key={f.title}
-                  className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-md p-6 shadow-xs hover:shadow-md transition-shadow"
+                  className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs hover:shadow-md transition-shadow"
                 >
                   <div className="h-11 w-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
                     <Icon className="h-5 w-5" />
@@ -905,10 +909,10 @@ function LandingPage() {
       </section>
 
       {/* Section Tarifs & Abonnements */}
-      <section id="tarifs" className="px-4 py-16 sm:py-20">
+      <section id="tarifs" className="scroll-mt-20 px-4 py-16 sm:py-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+            <span className="ob-blink inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-orange-500 text-white shadow-md">
               Offres flexibles
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
@@ -926,7 +930,7 @@ function LandingPage() {
                 className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all ${
                   p.highlight
                     ? "border-2 border-indigo-500 bg-white shadow-xl shadow-indigo-100 ring-4 ring-indigo-50"
-                    : "border border-slate-200/90 bg-white/80 backdrop-blur-md shadow-xs hover:shadow-md"
+                    : "border border-slate-200/90 bg-white shadow-xs hover:shadow-md"
                 }`}
               >
                 <div>
