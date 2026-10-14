@@ -11,11 +11,26 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminChallengeRouteImport } from './routes/admin-challenge'
+import { Route as AdminR2RouteImport } from './routes/admin-r2'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AvatarAiRouteImport } from './routes/avatar-ai'
+import { Route as ChallengeRouteImport } from './routes/challenge'
+import { Route as ChatIaRouteImport } from './routes/chat-ia'
+import { Route as ChatIaCorrigeRouteImport } from './routes/chat-ia-corrige'
+import { Route as ClonageVideoRouteImport } from './routes/clonage-video'
+import { Route as ConditionsRouteImport } from './routes/conditions'
+import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
+import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DeveloppeurRouteImport } from './routes/developpeur'
+import { Route as FlashMotionRouteImport } from './routes/flash-motion'
 import { Route as GalerieRouteImport } from './routes/galerie'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as OutilsAiRouteImport } from './routes/outils-ai'
+import { Route as ParrainageRouteImport } from './routes/parrainage'
+import { Route as TableauDeBordRouteImport } from './routes/tableau-de-bord'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -23,11 +38,6 @@ import { Route as ApiPublicWebhooksChariowRouteImport } from './routes/api/publi
 import { Route as ApiPublicWebhooksPaymentFailedRouteImport } from './routes/api/public/webhooks/payment-failed'
 import { Route as ApiPublicWebhooksPaymentSuccessRouteImport } from './routes/api/public/webhooks/payment-success'
 import { Route as ApiPublicWebhooksSwychrRouteImport } from './routes/api/public/webhooks/swychr'
-import { Route as OutilsAiRouteImport } from './routes/outils-ai'
-import { Route as ChatIaRouteImport } from './routes/chat-ia'
-import { Route as AvatarAiRouteImport } from './routes/avatar-ai'
-import { Route as ClonageVideoRouteImport } from './routes/clonage-video'
-import { Route as ConnexionRouteImport } from './routes/connexion'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,14 +49,74 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminChallengeRoute = AdminChallengeRouteImport.update({
+  id: '/admin-challenge',
+  path: '/admin-challenge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminR2Route = AdminR2RouteImport.update({
+  id: '/admin-r2',
+  path: '/admin-r2',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AvatarAiRoute = AvatarAiRouteImport.update({
+  id: '/avatar-ai',
+  path: '/avatar-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengeRoute = ChallengeRouteImport.update({
+  id: '/challenge',
+  path: '/challenge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIaRoute = ChatIaRouteImport.update({
+  id: '/chat-ia',
+  path: '/chat-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIaCorrigeRoute = ChatIaCorrigeRouteImport.update({
+  id: '/chat-ia-corrige',
+  path: '/chat-ia-corrige',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClonageVideoRoute = ClonageVideoRouteImport.update({
+  id: '/clonage-video',
+  path: '/clonage-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConditionsRoute = ConditionsRouteImport.update({
+  id: '/conditions',
+  path: '/conditions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
+  id: '/confidentialite',
+  path: '/confidentialite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeveloppeurRoute = DeveloppeurRouteImport.update({
   id: '/developpeur',
   path: '/developpeur',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FlashMotionRoute = FlashMotionRouteImport.update({
+  id: '/flash-motion',
+  path: '/flash-motion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GalerieRoute = GalerieRouteImport.update({
@@ -62,6 +132,21 @@ const HistoryRoute = HistoryRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutilsAiRoute = OutilsAiRouteImport.update({
+  id: '/outils-ai',
+  path: '/outils-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParrainageRoute = ParrainageRouteImport.update({
+  id: '/parrainage',
+  path: '/parrainage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TableauDeBordRoute = TableauDeBordRouteImport.update({
+  id: '/tableau-de-bord',
+  path: '/tableau-de-bord',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -104,42 +189,29 @@ const ApiPublicWebhooksSwychrRoute = ApiPublicWebhooksSwychrRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
-const OutilsAiRoute = OutilsAiRouteImport.update({
-  id: '/outils-ai',
-  path: '/outils-ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChatIaRoute = ChatIaRouteImport.update({
-  id: '/chat-ia',
-  path: '/chat-ia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const AvatarAiRoute = AvatarAiRouteImport.update({
-  id: '/avatar-ai',
-  path: '/avatar-ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClonageVideoRoute = ClonageVideoRouteImport.update({
-  id: '/clonage-video',
-  path: '/clonage-video',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ConnexionRoute = ConnexionRouteImport.update({
-  id: '/connexion',
-  path: '/connexion',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-challenge': typeof AdminChallengeRoute
+  '/admin-r2': typeof AdminR2Route
   '/app': typeof AppRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/challenge': typeof ChallengeRoute
+  '/chat-ia': typeof ChatIaRoute
+  '/chat-ia-corrige': typeof ChatIaCorrigeRoute
+  '/clonage-video': typeof ClonageVideoRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/contact': typeof ContactRoute
   '/developpeur': typeof DeveloppeurRoute
+  '/flash-motion': typeof FlashMotionRoute
   '/galerie': typeof GalerieRoute
   '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/parrainage': typeof ParrainageRoute
+  '/tableau-de-bord': typeof TableauDeBordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -147,20 +219,30 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
-  '/outils-ai': typeof OutilsAiRoute
-  '/chat-ia': typeof ChatIaRoute
-  '/avatar-ai': typeof AvatarAiRoute
-  '/clonage-video': typeof ClonageVideoRoute
-  '/connexion': typeof ConnexionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-challenge': typeof AdminChallengeRoute
+  '/admin-r2': typeof AdminR2Route
   '/app': typeof AppRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/challenge': typeof ChallengeRoute
+  '/chat-ia': typeof ChatIaRoute
+  '/chat-ia-corrige': typeof ChatIaCorrigeRoute
+  '/clonage-video': typeof ClonageVideoRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/contact': typeof ContactRoute
   '/developpeur': typeof DeveloppeurRoute
+  '/flash-motion': typeof FlashMotionRoute
   '/galerie': typeof GalerieRoute
   '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/parrainage': typeof ParrainageRoute
+  '/tableau-de-bord': typeof TableauDeBordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -168,21 +250,31 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
-  '/outils-ai': typeof OutilsAiRoute
-  '/chat-ia': typeof ChatIaRoute
-  '/avatar-ai': typeof AvatarAiRoute
-  '/clonage-video': typeof ClonageVideoRoute
-  '/connexion': typeof ConnexionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-challenge': typeof AdminChallengeRoute
+  '/admin-r2': typeof AdminR2Route
   '/app': typeof AppRoute
+  '/avatar-ai': typeof AvatarAiRoute
+  '/challenge': typeof ChallengeRoute
+  '/chat-ia': typeof ChatIaRoute
+  '/chat-ia-corrige': typeof ChatIaCorrigeRoute
+  '/clonage-video': typeof ClonageVideoRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/contact': typeof ContactRoute
   '/developpeur': typeof DeveloppeurRoute
+  '/flash-motion': typeof FlashMotionRoute
   '/galerie': typeof GalerieRoute
   '/history': typeof HistoryRoute
   '/mcp': typeof McpRoute
+  '/outils-ai': typeof OutilsAiRoute
+  '/parrainage': typeof ParrainageRoute
+  '/tableau-de-bord': typeof TableauDeBordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -190,22 +282,32 @@ export interface FileRoutesById {
   '/api/public/webhooks/payment-failed': typeof ApiPublicWebhooksPaymentFailedRoute
   '/api/public/webhooks/payment-success': typeof ApiPublicWebhooksPaymentSuccessRoute
   '/api/public/webhooks/swychr': typeof ApiPublicWebhooksSwychrRoute
-  '/outils-ai': typeof OutilsAiRoute
-  '/chat-ia': typeof ChatIaRoute
-  '/avatar-ai': typeof AvatarAiRoute
-  '/clonage-video': typeof ClonageVideoRoute
-  '/connexion': typeof ConnexionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin-challenge'
+    | '/admin-r2'
     | '/app'
+    | '/avatar-ai'
+    | '/challenge'
+    | '/chat-ia'
+    | '/chat-ia-corrige'
+    | '/clonage-video'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/contact'
     | '/developpeur'
+    | '/flash-motion'
     | '/galerie'
     | '/history'
     | '/mcp'
+    | '/outils-ai'
+    | '/parrainage'
+    | '/tableau-de-bord'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
     | '/.lovable/oauth/consent'
@@ -213,20 +315,30 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
-    | '/outils-ai'
-    | '/chat-ia'
-    | '/avatar-ai'
-    | '/clonage-video'
-    | '/connexion'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/admin-challenge'
+    | '/admin-r2'
     | '/app'
+    | '/avatar-ai'
+    | '/challenge'
+    | '/chat-ia'
+    | '/chat-ia-corrige'
+    | '/clonage-video'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/contact'
     | '/developpeur'
+    | '/flash-motion'
     | '/galerie'
     | '/history'
     | '/mcp'
+    | '/outils-ai'
+    | '/parrainage'
+    | '/tableau-de-bord'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
     | '/.lovable/oauth/consent'
@@ -234,20 +346,30 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
-    | '/outils-ai'
-    | '/chat-ia'
-    | '/avatar-ai'
-    | '/clonage-video'
-    | '/connexion'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin-challenge'
+    | '/admin-r2'
     | '/app'
+    | '/avatar-ai'
+    | '/challenge'
+    | '/chat-ia'
+    | '/chat-ia-corrige'
+    | '/clonage-video'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/contact'
     | '/developpeur'
+    | '/flash-motion'
     | '/galerie'
     | '/history'
     | '/mcp'
+    | '/outils-ai'
+    | '/parrainage'
+    | '/tableau-de-bord'
     | '/.well-known/oauth-protected-resource'
     | '/checkout/success'
     | '/.lovable/oauth/consent'
@@ -255,21 +377,31 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/payment-failed'
     | '/api/public/webhooks/payment-success'
     | '/api/public/webhooks/swychr'
-    | '/outils-ai'
-    | '/chat-ia'
-    | '/avatar-ai'
-    | '/clonage-video'
-    | '/connexion'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AdminChallengeRoute: typeof AdminChallengeRoute
+  AdminR2Route: typeof AdminR2Route
   AppRoute: typeof AppRoute
+  AvatarAiRoute: typeof AvatarAiRoute
+  ChallengeRoute: typeof ChallengeRoute
+  ChatIaRoute: typeof ChatIaRoute
+  ChatIaCorrigeRoute: typeof ChatIaCorrigeRoute
+  ClonageVideoRoute: typeof ClonageVideoRoute
+  ConditionsRoute: typeof ConditionsRoute
+  ConfidentialiteRoute: typeof ConfidentialiteRoute
+  ConnexionRoute: typeof ConnexionRoute
+  ContactRoute: typeof ContactRoute
   DeveloppeurRoute: typeof DeveloppeurRoute
+  FlashMotionRoute: typeof FlashMotionRoute
   GalerieRoute: typeof GalerieRoute
   HistoryRoute: typeof HistoryRoute
   McpRoute: typeof McpRoute
+  OutilsAiRoute: typeof OutilsAiRoute
+  ParrainageRoute: typeof ParrainageRoute
+  TableauDeBordRoute: typeof TableauDeBordRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -277,11 +409,6 @@ export interface RootRouteChildren {
   ApiPublicWebhooksPaymentFailedRoute: typeof ApiPublicWebhooksPaymentFailedRoute
   ApiPublicWebhooksPaymentSuccessRoute: typeof ApiPublicWebhooksPaymentSuccessRoute
   ApiPublicWebhooksSwychrRoute: typeof ApiPublicWebhooksSwychrRoute
-  OutilsAiRoute: typeof OutilsAiRoute
-  ChatIaRoute: typeof ChatIaRoute
-  AvatarAiRoute: typeof AvatarAiRoute
-  ClonageVideoRoute: typeof ClonageVideoRoute
-  ConnexionRoute: typeof ConnexionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -300,6 +427,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-challenge': {
+      id: '/admin-challenge'
+      path: '/admin-challenge'
+      fullPath: '/admin-challenge'
+      preLoaderRoute: typeof AdminChallengeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-r2': {
+      id: '/admin-r2'
+      path: '/admin-r2'
+      fullPath: '/admin-r2'
+      preLoaderRoute: typeof AdminR2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
@@ -307,11 +448,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/avatar-ai': {
+      id: '/avatar-ai'
+      path: '/avatar-ai'
+      fullPath: '/avatar-ai'
+      preLoaderRoute: typeof AvatarAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenge': {
+      id: '/challenge'
+      path: '/challenge'
+      fullPath: '/challenge'
+      preLoaderRoute: typeof ChallengeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat-ia': {
+      id: '/chat-ia'
+      path: '/chat-ia'
+      fullPath: '/chat-ia'
+      preLoaderRoute: typeof ChatIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat-ia-corrige': {
+      id: '/chat-ia-corrige'
+      path: '/chat-ia-corrige'
+      fullPath: '/chat-ia-corrige'
+      preLoaderRoute: typeof ChatIaCorrigeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clonage-video': {
+      id: '/clonage-video'
+      path: '/clonage-video'
+      fullPath: '/clonage-video'
+      preLoaderRoute: typeof ClonageVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conditions': {
+      id: '/conditions'
+      path: '/conditions'
+      fullPath: '/conditions'
+      preLoaderRoute: typeof ConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confidentialite': {
+      id: '/confidentialite'
+      path: '/confidentialite'
+      fullPath: '/confidentialite'
+      preLoaderRoute: typeof ConfidentialiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/developpeur': {
       id: '/developpeur'
       path: '/developpeur'
       fullPath: '/developpeur'
       preLoaderRoute: typeof DeveloppeurRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flash-motion': {
+      id: '/flash-motion'
+      path: '/flash-motion'
+      fullPath: '/flash-motion'
+      preLoaderRoute: typeof FlashMotionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/galerie': {
@@ -333,6 +544,27 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outils-ai': {
+      id: '/outils-ai'
+      path: '/outils-ai'
+      fullPath: '/outils-ai'
+      preLoaderRoute: typeof OutilsAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parrainage': {
+      id: '/parrainage'
+      path: '/parrainage'
+      fullPath: '/parrainage'
+      preLoaderRoute: typeof ParrainageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tableau-de-bord': {
+      id: '/tableau-de-bord'
+      path: '/tableau-de-bord'
+      fullPath: '/tableau-de-bord'
+      preLoaderRoute: typeof TableauDeBordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -384,52 +616,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksSwychrRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/outils-ai': {
-      id: '/outils-ai'
-      path: '/outils-ai'
-      fullPath: '/outils-ai'
-      preLoaderRoute: typeof OutilsAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/chat-ia': {
-      id: '/chat-ia'
-      path: '/chat-ia'
-      fullPath: '/chat-ia'
-      preLoaderRoute: typeof ChatIaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/avatar-ai': {
-      id: '/avatar-ai'
-      path: '/avatar-ai'
-      fullPath: '/avatar-ai'
-      preLoaderRoute: typeof AvatarAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clonage-video': {
-      id: '/clonage-video'
-      path: '/clonage-video'
-      fullPath: '/clonage-video'
-      preLoaderRoute: typeof ClonageVideoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/connexion': {
-      id: '/connexion'
-      path: '/connexion'
-      fullPath: '/connexion'
-      preLoaderRoute: typeof ConnexionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AdminChallengeRoute: AdminChallengeRoute,
+  AdminR2Route: AdminR2Route,
   AppRoute: AppRoute,
+  AvatarAiRoute: AvatarAiRoute,
+  ChallengeRoute: ChallengeRoute,
+  ChatIaRoute: ChatIaRoute,
+  ChatIaCorrigeRoute: ChatIaCorrigeRoute,
+  ClonageVideoRoute: ClonageVideoRoute,
+  ConditionsRoute: ConditionsRoute,
+  ConfidentialiteRoute: ConfidentialiteRoute,
+  ConnexionRoute: ConnexionRoute,
+  ContactRoute: ContactRoute,
   DeveloppeurRoute: DeveloppeurRoute,
+  FlashMotionRoute: FlashMotionRoute,
   GalerieRoute: GalerieRoute,
   HistoryRoute: HistoryRoute,
   McpRoute: McpRoute,
+  OutilsAiRoute: OutilsAiRoute,
+  ParrainageRoute: ParrainageRoute,
+  TableauDeBordRoute: TableauDeBordRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   CheckoutSuccessRoute: CheckoutSuccessRoute,
@@ -438,11 +650,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksPaymentFailedRoute: ApiPublicWebhooksPaymentFailedRoute,
   ApiPublicWebhooksPaymentSuccessRoute: ApiPublicWebhooksPaymentSuccessRoute,
   ApiPublicWebhooksSwychrRoute: ApiPublicWebhooksSwychrRoute,
-  OutilsAiRoute: OutilsAiRoute,
-  ChatIaRoute: ChatIaRoute,
-  AvatarAiRoute: AvatarAiRoute,
-  ClonageVideoRoute: ClonageVideoRoute,
-  ConnexionRoute: ConnexionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

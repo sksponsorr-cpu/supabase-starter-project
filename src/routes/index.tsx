@@ -1,17 +1,32 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
-import { Mail, Loader2, ChevronLeft } from "lucide-react";
-import nightSky from "@/assets/night-sky.jpg";
+import {
+  Mail,
+  Loader2,
+  Sparkles,
+  Film,
+  CheckCircle2,
+  X,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Zap,
+  ArrowRight,
+  Shield,
+  Layers,
+  Wand2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
-import { useServerFn } from "@tanstack/react-start";
-import { getLanding, type LandingContent } from "@/lib/landing.functions";
-import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { z } from "zod";
+import { LandingBackground } from "@/components/samflash/LandingBackground";
+import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
-import { LandingSection } from "@/components/samflash/LandingSection";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -21,47 +36,225 @@ const credentialsSchema = z.object({
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): { next?: string } =>
-    typeof s['next'] === "string" && s['next'].startsWith("/") ? { next: s['next'] } : {},
+    typeof s["next"] === "string" && s["next"].startsWith("/") ? { next: s["next"] } : {},
 
   head: () => ({
     meta: [
-      { title: "Sam flash 2.0 — Créez images et vidéos IA" },
+      { title: "Sam flash 2.0 — Transformez une idée en vidéo prête à publier" },
       {
         name: "description",
         content:
-          "Sam flash 2.0 — Générez des vidéos et images IA en quelques secondes depuis votre mobile.",
+          "Transformez une idée en vidéo prête à publier avec Sam flash 2.0. Vidéos de démonstration et génération IA ultra-rapide d'images et vidéos.",
       },
-      { property: "og:title", content: "Sam flash 2.0 — Créez images et vidéos IA" },
+      {
+        property: "og:title",
+        content: "Sam flash 2.0 — Transformez une idée en vidéo prête à publier",
+      },
       {
         property: "og:description",
-        content: "Générez des vidéos et images IA en quelques secondes avec Sam flash 2.0.",
+        content:
+          "Générez des vidéos et images IA en quelques secondes. Regardez les vidéos de démonstration créées par notre communauté.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Login,
+  component: LandingPage,
 });
 
-function Login() {
-  const fetchListPrices = useServerFn(listPrices);
-  const [dbPrices, setDbPrices] = useState<PriceRow[] | null>(null);
-  useEffect(() => {
-    fetchListPrices({})
-      .then((rows) => setDbPrices(rows as PriceRow[]))
-      .catch(() => undefined);
-  }, [fetchListPrices]);
-  const packsView = packsFromPrices(dbPrices);
+const DEFAULT_LANDING: LandingContent = {
+  title: "Transformez une idée en vidéo prête à publier",
+  text: "Décrivez votre idée, Sam flash 2.0 la transforme en vidéo ou en image depuis votre mobile ou ordinateur.",
+  introVideo:
+    "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/landing/694ad18f-998f-4d7c-b1d2-8ee37b3f7dd2.mp4",
+  videos: [
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-17-09-07.mp4",
+      caption: "Création IA cinématique",
+    },
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-18-27-14.mp4",
+      caption: "Mouvement fluide 60fps",
+    },
+    {
+      url: "https://pub-81238d7d2815461880e4a22dc5a71d16.r2.dev/grok_video_2026-08-26-17-06-26.mp4",
+      caption: "Rendu photo-réaliste",
+    },
+  ],
+  faq: [],
+};
 
+const HOW_IT_WORKS = [
+  {
+    step: "01",
+    icon: Wand2,
+    title: "1. Décrivez votre idée",
+    desc: "Écrivez en quelques mots la scène, l'ambiance ou le sujet que vous imaginez, en français ou dans toute autre langue.",
+  },
+  {
+    step: "02",
+    icon: Layers,
+    title: "2. Choisissez image ou vidéo",
+    desc: "Sélectionnez le format (vertical 9:16 pour TikTok/Reels ou horizontal 16:9) et lancez la génération en un clic.",
+  },
+  {
+    step: "03",
+    icon: CheckCircle2,
+    title: "3. Retrouvez vos créations",
+    desc: "Votre vidéo est prête en quelques secondes, enregistrée dans votre galerie, prête à être partagée ou téléchargée sans filigrane.",
+  },
+];
+
+const FEATURES = [
+  {
+    icon: Film,
+    title: "Vidéos cinématiques par IA",
+    desc: "Transformez une idée ou une photo de référence en séquence vidéo fluide avec mouvements de caméra immersifs.",
+  },
+  {
+    icon: Sparkles,
+    title: "Images haute résolution",
+    desc: "Concevez des visuels originaux et détaillés pour vos miniatures, vos réseaux sociaux ou vos projets créatifs.",
+  },
+  {
+    icon: Zap,
+    title: "Amélioration des prompts",
+    desc: "Notre assistant IA enrichit vos descriptions pour maximiser la fidélité visuelle et la précision du résultat.",
+  },
+  {
+    icon: Shield,
+    title: "Galerie & Export direct",
+    desc: "Conservez l'historique complet de vos générations et téléchargez vos fichiers immédiatement sur tous vos appareils.",
+  },
+];
+
+const PLAN_CARDS = [
+  {
+    name: "Découverte",
+    badge: "Offre d'essai",
+    quota: "1 vidéo & 2 images offertes",
+    desc: "Idéal pour tester gratuitement la puissance du studio de création.",
+    features: [
+      "1 vidéo offerte (8s max)",
+      "2 images IA offertes",
+      "Un compte gratuit par appareil",
+      "Téléchargement direct",
+    ],
+    highlight: false,
+    cta: "Essayer gratuitement",
+  },
+  {
+    name: "Super Grok",
+    badge: "Recommandé",
+    quota: "3 min 20 s de vidéo / jour",
+    desc: "La formule parfaite pour créer régulièrement du contenu sur les réseaux.",
+    features: [
+      "Vidéos HD 720p de 6 secondes",
+      "Génération d'images illimitée",
+      "Import d'images de référence",
+      "Rendu ultra-rapide",
+    ],
+    highlight: true,
+    cta: "Choisir Super Grok",
+  },
+  {
+    name: "Super Grok Plus",
+    badge: "Créateurs actifs",
+    quota: "6 min 40 s de vidéo / jour",
+    desc: "Davantage de temps de génération et un rendu supérieur pour vos projets.",
+    features: [
+      "Tout dans Super Grok",
+      "Création en résolution 1080p",
+      "Générations prioritaires",
+      "Crédits mensuels étendus",
+    ],
+    highlight: false,
+    cta: "Choisir Super Grok Plus",
+  },
+  {
+    name: "Super Grok Heavy",
+    badge: "Performance max",
+    quota: "20 min de vidéo / jour",
+    desc: "Pour les professionnels et les créateurs exigeants nécessitant le débit maximal.",
+    features: [
+      "Tout dans Super Grok Plus",
+      "Vidéo 1080p native",
+      "Vitesse de calcul maximale",
+      "Accès anticipé aux nouveaux modèles",
+    ],
+    highlight: false,
+    cta: "Choisir Super Grok Heavy",
+  },
+];
+
+const FAQ_ITEMS = [
+  {
+    q: "Qu'est-ce que Sam flash 2.0 ?",
+    a: "Sam flash 2.0 est un studio de création propulsé par l'intelligence artificielle. Il vous permet de générer des vidéos cinématiques et des images spectaculaires à partir d'une simple description textuelle, directement depuis votre navigateur mobile ou ordinateur.",
+  },
+  {
+    q: "Puis-je essayer gratuitement sans carte bancaire ?",
+    a: "Oui, absolument. Dès votre inscription gratuite, vous recevez immédiatement 1 vidéo (jusqu'à 8 secondes) et 2 images offertes, sans renseigner aucune carte bancaire.",
+  },
+  {
+    q: "Combien de temps prend la génération d'une vidéo ?",
+    a: "La majorité des vidéos sont créées en quelques secondes seulement grâce à notre infrastructure de serveurs accélérés par GPU.",
+  },
+  {
+    q: "Quelle est la qualité des vidéos obtenues ?",
+    a: "L'offre Super Grok produit des vidéos en haute définition 720p. Les formules Super Grok Plus et Heavy permettent d'atteindre la résolution Full HD 1080p avec des détails cinématiques nets.",
+  },
+  {
+    q: "Puis-je annuler ou changer d'abonnement quand je veux ?",
+    a: "Oui, votre abonnement est sans engagement. Vous pouvez l'annuler ou changer de formule à tout moment en un clic depuis votre espace personnel.",
+  },
+  {
+    q: "Où sont stockées mes créations ?",
+    a: "Toutes vos créations sont automatiquement sauvegardées dans votre espace galerie sécurisé, accessible dès que vous vous connectez à votre compte.",
+  },
+];
+
+function LandingPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const { session, loading } = useAuth();
 
+  // Chargement du contenu de landing depuis le serveur / Supabase app_settings
+  const fetchLanding = useServerFn(getLanding);
+  const [landingContent, setLandingContent] = useState<LandingContent>(DEFAULT_LANDING);
+
+  useEffect(() => {
+    fetchLanding()
+      .then((data) => {
+        if (data) {
+          setLandingContent({
+            title: data.title || DEFAULT_LANDING.title,
+            text: data.text || DEFAULT_LANDING.text,
+            introVideo: data.introVideo || DEFAULT_LANDING.introVideo,
+            videos: data.videos && data.videos.length > 0 ? data.videos : DEFAULT_LANDING.videos,
+            faq: data.faq && data.faq.length > 0 ? data.faq : DEFAULT_LANDING.faq,
+          });
+        }
+      })
+      .catch(() => {
+        // En cas d'erreur réseau, les vidéos par défaut restent affichées
+      });
+  }, [fetchLanding]);
+
+  // Redirection automatique si déjà connecté
   const goNext = () => {
     if (next) window.location.href = next;
     else void navigate({ to: "/app" });
   };
-  const [mode, setMode] = useState<"providers" | "email">("providers");
+
+  useEffect(() => {
+    if (!loading && session) goNext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, session, next]);
+
+  // État de la modale d'authentification
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"providers" | "email">("providers");
   const [signUp, setSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,45 +263,95 @@ function Login() {
   const [message, setMessage] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
-  const [inApp, setInApp] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [captchaSlow, setCaptchaSlow] = useState(false);
 
+  // État de la vidéo d'introduction
+  const introVideoRef = useRef<HTMLVideoElement>(null);
+  const [introPlaying, setIntroPlaying] = useState(true);
+  const [introSound, setIntroSound] = useState(false);
+
+  // IntersectionObserver pour la vidéo d'introduction (lecture automatique quand visible)
   useEffect(() => {
-    if (!loading && session) goNext();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, session, next]);
+    const el = introVideoRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          void el.play().catch(() => {});
+          setIntroPlaying(true);
+        } else {
+          el.pause();
+          setIntroPlaying(false);
+        }
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [landingContent.introVideo]);
 
-  // Facebook, TikTok, Instagram… : Google refuse la connexion dans ces navigateurs intégrés.
+  // État du carrousel de vidéos communautaires
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
+  const [activeSoundUrl, setActiveSoundUrl] = useState<string | null>(null);
+
+  // Défilement automatique continu du carrousel
   useEffect(() => {
-    const ua = navigator.userAgent || "";
-    if (/FBAN|FBAV|FB_IAB|Instagram|musical_ly|TikTok|BytedanceWebview|Snapchat|; wv\)/i.test(ua)) setInApp(true);
-  }, []);
+    const el = carouselRef.current;
+    if (!el) return;
+    let animId: number;
+    let lastTime = performance.now();
 
-  // Si la vérification anti-robot n'apparaît pas au bout de 8 s, propose de la relancer.
-  useEffect(() => {
-    if (mode !== "email" || !TURNSTILE_SITE_KEY || captchaToken) {
-      setCaptchaSlow(false);
-      return;
-    }
-    const id = window.setTimeout(() => setCaptchaSlow(true), 8000);
-    return () => window.clearTimeout(id);
-  }, [mode, captchaToken, captchaReset]);
+    const step = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+      if (!isCarouselHovered && el) {
+        // Vitesse douce : environ 35px par seconde
+        el.scrollLeft += delta * 0.035;
+        if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
+          el.scrollLeft = 0;
+        }
+      }
+      animId = requestAnimationFrame(step);
+    };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.origin);
-      setCopied(true);
-    } catch {
-      setMessage("Copiez l'adresse sam-flash.lat et ouvrez-la dans Chrome.");
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [isCarouselHovered, landingContent.videos]);
+
+  const scrollCarousel = (direction: "left" | "right") => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const offset = direction === "left" ? -280 : 280;
+    el.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
+  const toggleCarouselSound = (videoUrl: string) => {
+    setActiveSoundUrl((prev) => (prev === videoUrl ? null : videoUrl));
+  };
+
+  const scrollToDemonstration = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const target = document.getElementById("demonstration");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
     }
   };
 
-  const google = async () => {
+  const openAuth = (isSignUp: boolean) => {
+    setSignUp(isSignUp);
+    setAuthMode("providers");
+    setMessage(null);
+    setAuthOpen(true);
+  };
+
+  const closeAuth = () => {
+    setAuthOpen(false);
+    setMessage(null);
+  };
+
+  const handleGoogle = async () => {
     setBusy(true);
     setMessage(null);
-    // Le projet utilise un Supabase personnel : on passe par l'OAuth Supabase
-    // directement (le broker Lovable n'est disponible qu'avec Lovable Cloud).
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -121,7 +364,6 @@ function Login() {
       setMessage("Connexion Google impossible pour le moment.");
       setBusy(false);
     }
-    // En cas de succès, le navigateur est redirigé vers Google.
   };
 
   const submitEmail = async (e: React.FormEvent) => {
@@ -129,10 +371,6 @@ function Login() {
     const parsed = credentialsSchema.safeParse({ email, password, fullName });
     if (!parsed.success) {
       setMessage(parsed.error.issues[0]?.message ?? "Informations invalides.");
-      return;
-    }
-    if (TURNSTILE_SITE_KEY && !captchaToken) {
-      setMessage("Validez d'abord la vérification anti-robot.");
       return;
     }
     setBusy(true);
@@ -151,30 +389,17 @@ function Login() {
       setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       if (error) {
-        const code = (error as { code?: string }).code ?? "";
-        const msg = error.message.toLowerCase();
-        if (code === "user_already_exists" || code === "email_exists" || msg.includes("already registered")) {
-          setMessage("Cet e-mail a déjà un compte. Appuyez sur « J'ai déjà un compte » pour vous connecter.");
-        } else if (code === "weak_password" || msg.includes("password should be")) {
-          setMessage("Mot de passe trop faible. Utilisez au moins 8 caractères avec des lettres et des chiffres.");
-        } else if (code.includes("captcha") || msg.includes("captcha")) {
-          setMessage("La vérification de sécurité a échoué. Réessayez.");
-        } else if (error.status === 429 || code.includes("rate_limit")) {
-          setMessage("Trop de tentatives. Patientez quelques minutes puis réessayez.");
-        } else if (code === "email_address_invalid" || code === "validation_failed") {
-          setMessage("Cette adresse e-mail n'est pas valide.");
-        } else if (code === "signup_disabled") {
-          setMessage("Les inscriptions sont momentanément fermées.");
+        if (error.message.includes("User already registered") || (error as { status?: number }).status === 422) {
+          setMessage("Cet e-mail est déjà utilisé. Veuillez vous connecter.");
+        } else if (error.message.includes("Password should be")) {
+          setMessage("Le mot de passe doit contenir au moins 8 caractères.");
         } else {
-          setMessage("Inscription impossible pour le moment. Réessayez dans un instant.");
+          setMessage("Inscription impossible. Vérifiez vos informations et réessayez.");
         }
-      } else if (data.user && data.user.identities && data.user.identities.length === 0) {
-        // Supabase renvoie un faux succès quand l'e-mail existe déjà.
-        setMessage("Cet e-mail a déjà un compte. Appuyez sur « J'ai déjà un compte » pour vous connecter.");
       } else if (data.session) {
         goNext();
       } else {
-        setMessage("Compte créé. Vérifiez votre e-mail (et les spams) pour confirmer votre inscription.");
+        setMessage("Compte créé. Vérifiez votre boîte de réception pour confirmer votre inscription.");
       }
       return;
     }
@@ -187,367 +412,769 @@ function Login() {
     setCaptchaToken(null);
     setCaptchaReset((n) => n + 1);
     if (error) {
-      setMessage(
-        error.message.toLowerCase().includes("not confirmed")
-          ? "Confirmez d'abord votre e-mail (vérifiez aussi les spams)."
-          : "E-mail ou mot de passe incorrect. Pas encore de compte ? Appuyez sur « Créer un nouveau compte ».",
-      );
-    } else goNext();
+      setMessage("Identifiants invalides. Vérifiez votre adresse et mot de passe.");
+    } else {
+      goNext();
+    }
   };
 
+  // Liste des vidéos dédoublée pour un défilement infini et fluide
+  const displayVideos =
+    landingContent.videos.length > 0
+      ? [...landingContent.videos, ...landingContent.videos]
+      : DEFAULT_LANDING.videos;
+
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#eef2ff] text-[#0b1220]">
-      <style>{`
-        @keyframes sfFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes sfBlink { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,78,248,0.7); transform: scale(1); } 50% { box-shadow: 0 0 0 14px rgba(59,78,248,0); transform: scale(1.03); } }
-        @keyframes sfWord { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-      {/* En-tête : logo en haut à gauche, bouton en bleu à droite */}
-      <header className="sticky top-0 z-30 flex items-center justify-between bg-[#eef2ff]/90 px-5 py-4 backdrop-blur">
-        <div className="flex items-center gap-2.5">
-          <img src={logoAsset} alt="Logo Sam flash 2.0" className="h-9 w-9 rounded-full object-cover" />
-          <span className="text-lg font-semibold tracking-tight">Sam flash 2.0</span>
+    <div className="relative min-h-screen text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+      {/* 3. Arrière-plan 3D animé et discret */}
+      <LandingBackground />
+
+      {/* Navigation supérieure */}
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-slate-200/60 transition-all">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5 group">
+            <img
+              src={logoAsset}
+              alt="Logo Sam flash 2.0"
+              className="h-9 w-9 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105"
+            />
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-lg tracking-tight text-slate-900">
+                Sam flash
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+                2.0
+              </span>
+            </div>
+          </a>
+
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
+            <a href="#demonstration" className="hover:text-indigo-600 transition-colors">
+              Démonstration
+            </a>
+            <a href="#comment-ca-marche" className="hover:text-indigo-600 transition-colors">
+              Comment ça marche
+            </a>
+            <a href="#tarifs" className="hover:text-indigo-600 transition-colors">
+              Tarifs
+            </a>
+            <a href="#faq" className="hover:text-indigo-600 transition-colors">
+              FAQ
+            </a>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link
+              to="/connexion"
+              className="btn-3d-secondary px-5 py-2 rounded-full text-sm font-semibold cursor-pointer"
+            >
+              Se connecter
+            </Link>
+          </div>
         </div>
-        <a
-          href="/connexion"
-          className="rounded-full bg-[#3b4ef8] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#3b4ef8]/30"
-        >
-          Commencer
-        </a>
       </header>
 
-      {/* Hero clair et bleu */}
-      <section className="relative mx-auto flex w-full max-w-md md:max-w-3xl lg:max-w-5xl flex-col items-center px-5 pb-10 pt-6 text-center">
-        <span className="rounded-full border border-[#3b4ef8]/30 bg-white px-4 py-1.5 text-sm font-medium text-[#3b4ef8]">
-          Création vidéo IA pour les créateurs
-        </span>
-        <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl" style={{ animation: "sfFadeUp 0.8s ease both" }}>
-          {"Transformez une idée en ".split(" ").map((w, i) => (
-            <span key={`a${i}`} style={{ display: "inline-block", animation: `sfWord 0.5s ease both`, animationDelay: `${0.1 + i * 0.08}s` }}>
-              {w}&nbsp;
-            </span>
-          ))}
-          <span className="rounded-xl bg-[#3b4ef8] px-2 text-white" style={{ display: "inline-block", animation: "sfWord 0.5s ease both", animationDelay: "0.6s" }}>vidéo</span>
-          {" prête à publier".split(" ").map((w, i) => (
-            <span key={`b${i}`} style={{ display: "inline-block", animation: `sfWord 0.5s ease both`, animationDelay: `${0.75 + i * 0.08}s` }}>
-              &nbsp;{w}
-            </span>
-          ))}
-        </h1>
-        <p className="mt-5 text-base leading-relaxed text-[#4b5563] md:text-lg" style={{ animation: "sfFadeUp 0.8s ease 1s both" }}>
-          Partagez sur TikTok, YouTube et Facebook, et monétisez vos contenus.
-        </p>
+      {/* Hero Section */}
+      <section className="relative px-4 pt-12 sm:pt-20 pb-16 text-center">
+        <div className="max-w-4xl mx-auto">
+          {/* Badge haut */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-50 border border-indigo-200/70 text-indigo-700 shadow-xs mb-6">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span>Studio de création vidéo & image par IA</span>
+          </div>
 
-        <div className="mt-8 flex w-full flex-col gap-3">
-          <a
-            href="/connexion"
-            className="flex items-center justify-center rounded-full bg-[#3b4ef8] py-4 text-[17px] font-semibold text-white shadow-xl shadow-[#3b4ef8]/30"
-            style={{ animation: "sfFadeUp 0.8s ease 1.2s both, sfBlink 1.6s ease-in-out 2s infinite" }}
-          >
-            Créer mon compte gratuitement →
-          </a>
-          <a
-            href="#presentation"
-            className="flex items-center justify-center rounded-full bg-white py-4 text-[16px] font-semibold text-[#0b1220] shadow"
-          >
-            ▶ Voir la vidéo de présentation
-          </a>
-        </div>
+          {/* Titre Principal H1 */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+            Transformez une idée en vidéo prête à publier
+          </h1>
 
-        <div className="mt-5 rounded-2xl bg-white px-5 py-3 shadow">
-          <p className="text-sm font-semibold">Essai : 2 000 FCFA · 40 crédits</p>
-          <p className="text-xs text-[#4b5563]">Soit 8 vidéos de 5 secondes en 480p</p>
+          {/* Sous-titre */}
+          <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Décrivez votre vision en quelques mots. Sam flash 2.0 génère une vidéo cinématique ou une image haute fidélité en quelques secondes, prête pour vos réseaux sociaux ou vos projets.
+          </p>
+
+          {/* 1 & 2. Boutons d'action centrés avec largeur max ~340px et effet 3D */}
+          <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
+            <Link
+              to="/connexion"
+              className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center"
+            >
+              Créer mon compte gratuitement
+              <ArrowRight className="h-4 w-4 inline" />
+            </Link>
+
+            <a
+              href="#demonstration"
+              onClick={scrollToDemonstration}
+              className="btn-3d-secondary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold text-center cursor-pointer"
+            >
+              Voir les vidéos de démonstration
+            </a>
+          </div>
+
+          {/* Réassurance sous boutons */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-500 font-medium">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              1 vidéo & 2 images offertes
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              Sans carte bancaire
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              Sur mobile & ordinateur
+            </span>
+          </div>
         </div>
-        <p className="mt-3 text-xs text-[#4b5563]">Mobile Money, sans carte bancaire</p>
       </section>
 
-      <div id="presentation" />
-      <LandingSection />
+      {/* Section Vidéos de démonstration */}
+      <section id="demonstration" className="px-4 py-12 sm:py-16">
+        <div className="max-w-5xl mx-auto">
+          {/* En-tête de section */}
+          <div className="max-w-3xl mx-auto text-center mb-10">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+              Démonstration en direct
+            </span>
+            <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Découvrez Sam flash en action
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+              Voyez comment fonctionne la plateforme et explorez les différentes vidéos créées par nos utilisateurs qui défilent et se jouent automatiquement.
+            </p>
+          </div>
 
-      <section className="mx-auto mt-10 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
-        <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Tout ce qu'il faut pour monétiser vos contenus</h2>
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          {[
-            { t: "Vidéos IA", d: "TikTok, YouTube, Facebook et WhatsApp" },
-            { t: "Images IA", d: "Visuels pour vos publications" },
-            { t: "ChatGPT", d: "Idées, scripts et légendes", to: "/chat-ia", search: { p: "gpt" } },
-            { t: "Claude AI", d: "Rédaction et programmation", to: "/chat-ia", search: { p: "claude" } },
-            { t: "Clonage vidéo", d: "Reproduisez un mouvement", to: "/clonage-video", img: "/showcase/clonage-anim.svg" },
-            { t: "Avatar AI", d: "Un avatar qui parle", to: "/avatar-ai", img: "/showcase/avatar-anim.svg" },
-          ].map((f) => {
-            const body = (
-              <>
-                <p className="font-semibold text-[#0b1220]">{f.t}</p>
-                <p className="mt-1 text-xs text-[#4b5563]">{f.d}</p>
-                {f.img && <ExampleTile label={f.t} />}
-              </>
-            );
-            return (
-              <div key={f.t} className="rounded-2xl border border-[#dbe2ff] bg-white p-4 shadow-sm">
-                {f.to ? (
-                  <Link to={f.to} search={f.search} className="block">
-                    {body}
-                  </Link>
-                ) : (
-                  body
-                )}
+          {/* 1. Vidéo de démonstration principale : Comment fonctionne Sam Flash */}
+          {landingContent.introVideo && (
+            <div className="max-w-3xl mx-auto mb-16">
+              <div className="relative rounded-3xl overflow-hidden border border-slate-200/90 bg-slate-950 shadow-2xl">
+                {/* Barre supérieure style application */}
+                <div className="h-10 bg-slate-900/90 border-b border-white/10 px-4 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1 rounded-md">
+                    <Film className="h-3 w-3 text-indigo-400" />
+                    Démonstration vidéo — Fonctionnement de Sam Flash
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                      HD
+                    </span>
+                  </div>
+                </div>
+
+                {/* Vidéo MP4 interactive */}
+                <div className="relative aspect-video w-full bg-black overflow-hidden flex items-center justify-center">
+                  <video
+                    ref={introVideoRef}
+                    src={
+                      landingContent.introVideo.includes("#")
+                        ? landingContent.introVideo
+                        : `${landingContent.introVideo}#t=0.001`
+                    }
+                    muted={!introSound}
+                    loop
+                    autoPlay
+                    playsInline
+                    preload="metadata"
+                    controlsList="nodownload noplaybackrate noremoteplayback"
+                    draggable={false}
+                    className="w-full h-full object-cover"
+                    onClick={() => {
+                      if (introVideoRef.current) {
+                        if (introVideoRef.current.paused) {
+                          void introVideoRef.current.play();
+                          setIntroPlaying(true);
+                        } else {
+                          introVideoRef.current.pause();
+                          setIntroPlaying(false);
+                        }
+                      }
+                    }}
+                  />
+
+                  {/* Boutons de contrôle flottants */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                    <button
+                      type="button"
+                      onClick={() => setIntroSound(!introSound)}
+                      aria-label={introSound ? "Couper le son" : "Activer le son"}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/15 hover:bg-black/80 transition-colors cursor-pointer shadow-md"
+                    >
+                      {introSound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-white/90 bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/15 z-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (introVideoRef.current) {
+                          if (introVideoRef.current.paused) {
+                            void introVideoRef.current.play();
+                            setIntroPlaying(true);
+                          } else {
+                            introVideoRef.current.pause();
+                            setIntroPlaying(false);
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-2 font-medium hover:text-indigo-300 transition-colors cursor-pointer"
+                    >
+                      {introPlaying ? (
+                        <>
+                          <Pause className="h-3.5 w-3.5" />
+                          <span>Pause</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>Lecture</span>
+                        </>
+                      )}
+                    </button>
+                    <span className="text-[11px] font-mono text-white/70">
+                      {introSound ? "Son activé ✓" : "Appuyez pour le son"}
+                    </span>
+                  </div>
+                </div>
               </div>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-center text-xs text-[#4b5563]">
-          Les outils IA avancés sont en cours d'ouverture progressive.
-        </p>
-      </section>
+            </div>
+          )}
 
-      <section className="mx-auto mt-12 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#3b4ef8]">Packs de crédits</p>
-        <h2 className="mt-2 text-center text-3xl font-bold text-[#0b1220]">Payez seulement ce que vous créez</h2>
-        <div className="mt-8 space-y-6">
-          {packsView.map((pk, i) => (
-            <RevealCard key={pk.name} delay={i * 120}>
-              <div
-                className={`relative rounded-3xl border bg-white p-6 shadow-sm ${pk.featured ? "border-[#3b4ef8] shadow-xl shadow-[#3b4ef8]/15" : "border-[#dbe2ff]"}`}
-              >
-                {pk.featured && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#3b4ef8] px-4 py-1 text-xs font-semibold text-white">
-                    Le plus populaire
-                  </span>
-                )}
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#4b5563]">{pk.name}</p>
-                <p className="mt-3 text-4xl font-bold text-[#0b1220]">
-                  {pk.price} {pk.price !== "0" && <span className="text-base font-medium text-[#4b5563]">FCFA</span>}
+          {/* 2. Les différentes vidéos de démonstration qui défilent et se jouent d'elles-mêmes */}
+          <div className="mt-12">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+                  Fait avec Sam flash 2.0
+                </span>
+                <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                  Vidéos de démonstration créées par les utilisateurs
+                </h3>
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                  Ces vidéos ont été générées sur la plateforme. Elles défilent et se jouent automatiquement. Touchez une vidéo pour écouter avec le son.
                 </p>
-                <p className="mt-1 text-sm text-[#4b5563]">
-                  <span className="font-semibold text-[#0b1220]">{pk.credits} crédits</span>
-                  {pk.perCredit > 0 ? ` · ${pk.perCredit} F le crédit` : ""}
-                </p>
-                {(pk as { sub?: string }).sub && <p className="mt-1 text-xs text-[#4b5563]">{(pk as { sub?: string }).sub}</p>}
-                <ul className="mt-5 space-y-2.5 border-t border-[#eef2ff] pt-5">
-                  {pk.items.map((it) => (
-                    <li key={it} className="flex items-start gap-2.5 text-[15px] text-[#374151]">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#3b4ef8]/10 text-xs text-[#3b4ef8]">✓</span>
-                      {it}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href="/connexion"
-                  className={`mt-6 flex items-center justify-center rounded-full py-3.5 text-[16px] font-semibold ${pk.featured ? "bg-[#3b4ef8] text-white shadow-lg shadow-[#3b4ef8]/30" : "border border-[#dbe2ff] bg-white text-[#0b1220]"}`}
+              </div>
+
+              {/* Boutons de contrôle fléchés */}
+              <div className="flex items-center gap-2 self-end">
+                <button
+                  type="button"
+                  onClick={() => scrollCarousel("left")}
+                  aria-label="Vidéos précédentes"
+                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
                 >
-                  {pk.price === "0" ? "Commencer gratuitement" : `Choisir ${pk.name}`}
-                </a>
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollCarousel("right")}
+                  aria-label="Vidéos suivantes"
+                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
-            </RevealCard>
-          ))}
+            </div>
+
+            {/* Piste de défilement horizontal fluide et automatique */}
+            <div
+              ref={carouselRef}
+              onMouseEnter={() => setIsCarouselHovered(true)}
+              onMouseLeave={() => setIsCarouselHovered(false)}
+              onTouchStart={() => setIsCarouselHovered(true)}
+              onTouchEnd={() => setIsCarouselHovered(false)}
+              className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x"
+            >
+              {displayVideos.map((video, idx) => {
+                const isSoundOn = activeSoundUrl === video.url;
+                return (
+                  <div
+                    key={`${video.url}-${idx}`}
+                    className="relative w-48 sm:w-56 shrink-0 aspect-[9/16] rounded-3xl overflow-hidden border-2 border-slate-200/90 bg-black shadow-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-indigo-400 cursor-pointer snap-start"
+                    onClick={() => toggleCarouselSound(video.url)}
+                  >
+                    {/* Vidéo qui se joue d'elle-même en continu */}
+                    <video
+                      src={video.url.includes("#") ? video.url : `${video.url}#t=0.001`}
+                      muted={!isSoundOn}
+                      loop
+                      autoPlay
+                      playsInline
+                      preload="metadata"
+                      controlsList="nodownload noplaybackrate noremoteplayback"
+                      draggable={false}
+                      className="h-full w-full object-cover pointer-events-none"
+                    />
+
+                    {/* Badge son flottant */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCarouselSound(video.url);
+                      }}
+                      aria-label={isSoundOn ? "Couper le son" : "Activer le son"}
+                      className={`absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md border transition-all ${
+                        isSoundOn
+                          ? "bg-indigo-600 text-white border-indigo-400 shadow-md scale-110"
+                          : "bg-black/60 text-white/90 border-white/20 hover:bg-black/80"
+                      }`}
+                    >
+                      {isSoundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    </button>
+
+                    {/* Gradient de superposition sombre en bas pour le texte */}
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end">
+                      <span className="text-[11px] font-medium text-white/90 line-clamp-1">
+                        {video.caption || "Généré avec Sam flash 2.0"}
+                      </span>
+                      <span className="text-[10px] text-indigo-300 font-mono">
+                        {isSoundOn ? "Son actif 🔊" : "Touchez pour le son"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bouton centré pour inciter à la création */}
+            <div className="mt-8 text-center">
+              <Link
+                to="/connexion"
+                className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer mx-auto inline-flex items-center justify-center"
+              >
+                Créer ma première vidéo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="mt-2.5 text-xs text-slate-500">
+                Essayez gratuitement : une vidéo et 2 images offertes à l'inscription.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto mt-12 w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5">
-        <h2 className="text-center text-2xl font-semibold text-[#0b1220]">Ce que les créateurs créent avec Sam flash</h2>
-        <p className="mt-2 text-center text-sm text-[#4b5563]">Tous les modèles inclus, un seul portefeuille de crédits.</p>
-        <ShowcaseGallery />
+      {/* Section Comment ça marche */}
+      <section id="comment-ca-marche" className="px-4 py-16 sm:py-20 border-t border-slate-200/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+              Simplicité absolue
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Comment ça marche
+            </h2>
+            <p className="mt-3 text-base text-slate-600">
+              Trois étapes directes, sans compétences techniques ni montage manuel.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {HOW_IT_WORKS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.step}
+                  className="relative rounded-3xl border border-slate-200/80 bg-white/80 backdrop-blur-md p-6 sm:p-8 shadow-sm transition-all hover:shadow-md hover:border-indigo-200 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <span className="font-mono text-2xl font-black text-slate-300">
+                        {item.step}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
+                    <p className="mt-2 text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
-      <footer className="px-5 pb-10 pt-4 text-center text-xs text-muted-foreground">
-        <a href="/conditions" className="underline">Conditions</a>
-        {" · "}
-        <a href="/confidentialite" className="underline">Confidentialité</a>
-        {" · "}
-        <a href="/contact" className="underline">Contact</a>
+      {/* Section Fonctionnalités */}
+      <section id="fonctionnalites" className="px-4 py-16 sm:py-20 bg-white/40 border-y border-slate-200/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+              Fonctionnalités clés
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Tout ce dont vous avez besoin pour vos contenus
+            </h2>
+            <p className="mt-3 text-base text-slate-600">
+              Un studio complet taillé pour la publication immédiate sur tous les réseaux.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-md p-6 shadow-xs hover:shadow-md transition-shadow"
+                >
+                  <div className="h-11 w-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">{f.title}</h3>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Section Tarifs & Abonnements */}
+      <section id="tarifs" className="px-4 py-16 sm:py-20">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+              Offres flexibles
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Ce que vous recevez selon votre formule
+            </h2>
+            <p className="mt-3 text-base text-slate-600">
+              Commencez gratuitement, puis choisissez la formule adaptée à votre rythme de création.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {PLAN_CARDS.map((p) => (
+              <div
+                key={p.name}
+                className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all ${
+                  p.highlight
+                    ? "border-2 border-indigo-500 bg-white shadow-xl shadow-indigo-100 ring-4 ring-indigo-50"
+                    : "border border-slate-200/90 bg-white/80 backdrop-blur-md shadow-xs hover:shadow-md"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                        p.highlight
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {p.badge}
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-slate-900">{p.name}</h3>
+                  <div className="mt-2 text-xs font-semibold text-indigo-600 bg-indigo-50/80 px-2.5 py-1 rounded-md inline-block">
+                    {p.quota}
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500 leading-relaxed">{p.desc}</p>
+
+                  <ul className="mt-6 space-y-2.5 border-t border-slate-100 pt-5">
+                    {p.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-8 pt-4">
+                  <Link
+                    to="/connexion"
+                    className={`w-full max-w-[260px] mx-auto py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
+                      p.highlight ? "btn-3d-primary" : "btn-3d-secondary"
+                    }`}
+                  >
+                    {p.cta}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section FAQ */}
+      <section id="faq" className="px-4 py-16 sm:py-20 bg-slate-100/50 border-t border-slate-200/60">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+              Aide & Informations
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Questions fréquentes
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {FAQ_ITEMS.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors open:bg-slate-50/80"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-slate-900">
+                  <span>{item.q}</span>
+                  <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold transition-transform duration-200 group-open:rotate-45">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+                  {item.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bannière d'appel à l'action final */}
+      <section className="px-4 py-16 sm:py-20">
+        <div className="max-w-4xl mx-auto rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/90 p-8 sm:p-14 text-center shadow-lg">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            Prêt à donner vie à vos créations ?
+          </h2>
+          <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-xl mx-auto">
+            Rejoignez Sam flash 2.0 dès aujourd'hui et réalisez votre première vidéo avec l'intelligence artificielle en quelques secondes.
+          </p>
+
+          <div className="mt-8 flex justify-center">
+            <Link
+              to="/connexion"
+              className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center"
+            >
+              Créer mon compte gratuitement
+              <ArrowRight className="h-4 w-4 inline ml-2" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white/70 py-10 px-4 text-center text-xs text-slate-500">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>© 2026 Sam flash 2.0 — Tous droits réservés.</p>
+          <div className="flex items-center gap-6 font-medium">
+            <Link to="/conditions" className="hover:text-slate-900 transition-colors underline">
+              Conditions
+            </Link>
+            <Link to="/confidentialite" className="hover:text-slate-900 transition-colors underline">
+              Confidentialité
+            </Link>
+            <Link to="/contact" className="hover:text-slate-900 transition-colors underline">
+              Contact
+            </Link>
+          </div>
+        </div>
       </footer>
-    </main>
-  );
-}
 
-function ShowcaseGallery() {
-  const FILTERS = [
-    { id: "all", label: "Tout" },
-    { id: "pub", label: "Publicité vidéo" },
-    { id: "clone", label: "Clonage vidéo" },
-    { id: "avatar", label: "Avatar vidéo" },
-    { id: "scene", label: "Mise en scène" },
-  ] as const;
-  const PLACEHOLDERS = [
-    { cat: "pub", label: "Publicité vidéo" },
-    { cat: "clone", label: "Clonage vidéo" },
-    { cat: "avatar", label: "Avatar vidéo" },
-    { cat: "scene", label: "Mise en scène" },
-  ];
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
-  const [items, setItems] = useState<LandingContent["showcase"]>([]);
-  const load = useServerFn(getLanding);
-  useEffect(() => {
-    load()
-      .then((c) => setItems(c.showcase ?? []))
-      .catch(() => setItems([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      {/* Modale d'authentification complète si déclenchée */}
+      {authOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl">
+            {/* Bouton de fermeture */}
+            <button
+              type="button"
+              onClick={closeAuth}
+              className="absolute right-4 top-4 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-  const shownReal = items.filter((i) => filter === "all" || i.cat === filter);
-  const shownPlaceholders = PLACEHOLDERS.filter((i) => filter === "all" || i.cat === filter);
-  return (
-    <>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={`rounded-full border px-4 py-2 text-sm ${filter === f.id ? "border-[#0b1220] bg-[#0b1220] text-white" : "border-[#dbe2ff] bg-white text-[#0b1220]"}`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        {shownReal.length > 0
-          ? shownReal.map((i, idx) =>
-              /\.(mp4|mov|webm)(\?|$)/i.test(i.url) ? (
-                <video
-                  key={`${i.url}-${idx}`}
-                  src={i.url}
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  className="aspect-[4/5] w-full rounded-2xl object-cover"
-                  aria-label={i.caption || i.cat}
-                />
-              ) : (
-                <img
-                  key={`${i.url}-${idx}`}
-                  src={i.url}
-                  alt={i.caption || i.cat}
-                  className="aspect-[4/5] w-full rounded-2xl object-cover"
-                />
-              ),
-            )
-          : shownPlaceholders.map((i) => <ExampleTile key={i.label} label={i.label} rounded="rounded-2xl" />)}
-      </div>
-    </>
-  );
-}
+            {/* En-tête modal */}
+            <div className="text-center mb-6">
+              <img
+                src={logoAsset}
+                alt="Logo Sam flash 2.0"
+                className="mx-auto mb-3 h-12 w-12 rounded-full object-cover shadow-xs"
+              />
+              <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+                {signUp ? "Créer un compte gratuit" : "Se connecter"}
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {signUp
+                  ? "1 vidéo et 2 images offertes à l'inscription"
+                  : "Retrouvez vos vidéos et images générées"}
+              </p>
+            </div>
 
-function ExampleTile({ label, rounded = "rounded-xl" }: { label: string; rounded?: string }) {
-  return (
-    <div
-      className={`mt-3 flex aspect-[4/5] w-full flex-col items-center justify-center ${rounded} p-4 text-center`}
-      style={{ background: "linear-gradient(160deg, #1e2a5a 0%, #3b4ef8 100%)" }}
-    >
-      <span className="text-lg font-semibold text-white">{label}</span>
-      <span className="mt-1 text-xs text-white/70">Exemple à remplacer</span>
-    </div>
-  );
-}
+            {/* Mode fournisseurs (Google / Email) */}
+            {authMode === "providers" ? (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleGoogle}
+                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-3 flex items-center justify-center cursor-pointer"
+                >
+                  {busy ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <span className="text-lg font-bold text-slate-800">G</span>
+                  )}
+                  Continuer avec Google
+                </button>
 
-const PACKS = [
-  {
-    name: "Gratuit",
-    price: "0",
-    credits: 10,
-    perCredit: 0,
-    featured: false,
-    sub: "Sans carte bancaire",
-    items: ["10 crédits offerts à l'inscription", "Soit 2 vidéos de 5 secondes en 480p", "Un compte gratuit par appareil"],
-  },
-  {
-    name: "Essai",
-    price: "2 000",
-    credits: 40,
-    perCredit: 50,
-    featured: false,
-    sub: "Pack ponctuel",
-    items: ["8 vidéos de 5 secondes en 480p", "Pour tester sans vous engager", "Paiement par Mobile Money"],
-  },
-  {
-    name: "Sam Flash Light",
-    price: "5 000",
-    credits: 110,
-    perCredit: 45,
-    featured: false,
-    sub: "Par mois",
-    items: ["110 crédits par mois", "22 vidéos de 5 secondes en 480p", "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI"],
-  },
-  {
-    name: "Sam Flash Pro",
-    price: "16 500",
-    credits: 450,
-    perCredit: 37,
-    featured: true,
-    sub: "Par mois · ou 165 000 FCFA par an (2 mois offerts)",
-    items: [
-      "400 crédits payés + 50 crédits offerts chaque mois",
-      "Environ 90 vidéos de 5 secondes en 480p",
-      "Vidéo 1080p, générations prioritaires",
-      "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI",
-      "Paiement par Mobile Money ou carte bancaire",
-    ],
-  },
-];
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("email")}
+                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-2.5 flex items-center justify-center cursor-pointer"
+                >
+                  <Mail className="h-5 w-5 text-slate-600" />
+                  Continuer avec l'e-mail
+                </button>
 
-/** Remplace les prix des forfaits Light et Pro par ceux de la base (modifiables dans l'administration). */
-const FCFA_PER_EUR = 655.957;
-function packsFromPrices(rows: PriceRow[] | null) {
-  const fmt = (n: number) => n.toLocaleString("fr-FR");
-  return PACKS.map((pk) => {
-    const id = pk.name === "Sam Flash Light" ? "base" : pk.name === "Sam Flash Pro" ? "plus" : null;
-    const row = id && rows ? rows.find((r) => r.id === id) : undefined;
-    if (!row) return pk;
-    const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
-    const bonus = Math.round(row.credits_bonus ?? 0);
-    const paid = row.credits_fixed !== null ? row.credits_fixed - bonus : Math.round(row.amount_eur * (row.credits_rate ?? 0));
-    const credits = row.credits_fixed ?? paid + bonus;
-    const yearly = row.amount_eur_yearly !== null ? Math.round(row.amount_eur_yearly * FCFA_PER_EUR) : null;
-    const freeMonths = yearly !== null ? Math.round(12 - yearly / fcfa) : 0;
-    const items = [...pk.items];
-    items[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
-    items[1] = `${id === "pro" ? "Environ " : ""}${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
-    return {
-      ...pk,
-      price: fmt(fcfa),
-      credits,
-      perCredit: Math.round(fcfa / credits),
-      sub:
-        yearly !== null
-          ? `Par mois · ou ${fmt(yearly)} FCFA par an${freeMonths > 0 ? ` (${freeMonths} mois offerts)` : ""}`
-          : "Par mois",
-      items,
-    };
-  });
-}
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setSignUp(!signUp)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    {signUp
+                      ? "Vous avez déjà un compte ? Se connecter"
+                      : "Pas encore de compte ? S'inscrire gratuitement"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Mode formulaire Email */
+              <form onSubmit={submitEmail} className="space-y-3.5">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("providers")}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 mb-1 flex items-center gap-1 cursor-pointer"
+                >
+                  ← Retour aux options
+                </button>
 
-function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === "undefined") {
-      setShown(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setShown(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: shown ? 1 : 0,
-        transform: shown ? "translateY(0)" : "translateY(28px)",
-        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-      }}
-    >
-      {children}
+                {signUp && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Nom complet
+                    </label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Votre nom"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Adresse e-mail
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="nom@exemple.com"
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                  />
+                  {signUp && (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Minimum 8 caractères.
+                    </p>
+                  )}
+                </div>
+
+                {TURNSTILE_SITE_KEY && (
+                  <div className="pt-1">
+                    <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn-3d-primary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-2 flex items-center justify-center cursor-pointer"
+                  >
+                    {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {signUp ? "Créer mon compte" : "Se connecter"}
+                  </button>
+                </div>
+
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignUp(!signUp);
+                      setMessage(null);
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    {signUp
+                      ? "Vous avez déjà un compte ? Se connecter"
+                      : "Pas de compte ? Créer mon compte gratuitement"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Message d'erreur ou d'état */}
+            {message && (
+              <div
+                className={`mt-4 rounded-xl p-3 text-xs text-center font-medium ${
+                  message.startsWith("Compte")
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-rose-50 text-rose-800 border border-rose-200"
+                }`}
+              >
+                {message}
+              </div>
+            )}
+
+            <p className="mt-5 text-center text-[11px] text-slate-400">
+              En continuant, vous acceptez nos{" "}
+              <Link to="/conditions" className="underline hover:text-slate-600">
+                Conditions
+              </Link>{" "}
+              et notre{" "}
+              <Link to="/confidentialite" className="underline hover:text-slate-600">
+                Politique de confidentialité
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

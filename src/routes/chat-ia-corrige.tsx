@@ -8,7 +8,7 @@ import { toast } from "@/lib/toast";
 type Provider = "claude" | "gpt";
 type Mode = "chat" | "code" | "video";
 
-export const Route = createFileRoute("/chat-ia")({
+export const Route = createFileRoute("/chat-ia-corrige")({
   validateSearch: (search: Record<string, unknown>): { p: Provider } => ({
     p: search.p === "gpt" ? "gpt" : "claude",
   }),

@@ -7,7 +7,7 @@ export type LandingContent = {
   introVideo: string;
   videos: { url: string; caption: string }[];
   faq: { q: string; a: string }[];
-  showcase: { cat: string; url: string; caption: string }[];
+  showcase?: { cat: string; url: string; caption: string }[];
 };
 
 export const SHOWCASE_CATEGORIES = ["pub", "clone", "avatar", "scene"] as const;
@@ -34,12 +34,12 @@ function clean(raw: unknown): LandingContent {
       .filter((f) => f.q && f.a),
     showcase: list(r["showcase"])
       .map((v) => ({ cat: str(v?.["cat"], 20), url: url(v?.["url"]), caption: str(v?.["caption"], 80) }))
-      .filter((v) => v.url && (SHOWCASE_CATEGORIES as readonly string[]).includes(v.cat))
+      .filter((v) => v.url && (SHOWCASE_CATEGORIES as readonly string[]).includes(v.cat as (typeof SHOWCASE_CATEGORIES)[number]))
       .slice(0, 24),
   };
 }
 
-/** Contenu public de la page d'accueil. */
+/** Contenu public de la page d'accueil (vidéos de démonstration, intro, etc.). */
 export const getLanding = createServerFn({ method: "GET" }).handler(async (): Promise<LandingContent> => {
   const { publicSupabase } = await import("@/lib/payments/public-client.server");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,7 +63,7 @@ async function assertLandingAdmin(context: {
 
 /** Enregistre le contenu de la page d'accueil (administrateur ou propriétaire). */
 export const setLanding = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => clean(input))
+  .validator((input: unknown) => clean(input))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     await assertLandingAdmin(context);
@@ -79,7 +79,7 @@ const MAX_VIDEO = 20 * 1024 * 1024;
 
 /** Envoie une vidéo depuis la galerie vers Cloudflare R2 et renvoie son lien permanent. */
 export const uploadLandingVideo = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => {
+  .validator((input: unknown) => {
     if (!(input instanceof FormData)) throw new Error("Formulaire invalide");
     return input;
   })
@@ -109,7 +109,7 @@ const MAX_DIRECT = 500 * 1024 * 1024;
 
 /** Prépare un envoi direct (navigateur → Cloudflare R2) pour les grosses vidéos. */
 export const presignLandingUpload = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => {
+  .validator((input: unknown) => {
     const r = (input ?? {}) as Record<string, unknown>;
     return { type: str(r["type"], 60), size: typeof r["size"] === "number" ? r["size"] : 0 };
   })
@@ -124,3 +124,4 @@ export const presignLandingUpload = createServerFn({ method: "POST" })
     const { uploadUrl, publicUrl } = await r2.presignR2Put(`landing/${crypto.randomUUID()}.${ext}`);
     return { ok: true as const, uploadUrl, publicUrl };
   });
+
