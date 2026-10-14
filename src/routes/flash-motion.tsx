@@ -89,18 +89,35 @@ function FlashMotionPage() {
     e.preventDefault();
     setMessage(null);
     setBusy(true);
-    const res = await create({
-      data: { idea, seconds, withVoiceover, format, voicePath: voice?.path, referencePaths: refs.map((r) => r.path), codeModelId: model },
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setMessage(res.message);
-      return;
+    // Délai maximum : sans cela, le bouton reste bloqué si la réponse ne revient jamais (réseau coupé, onglet mis en veille).
+    const timeout = new Promise<{ ok: false; message: string }>((resolve) =>
+      setTimeout(() => resolve({ ok: false, message: "" }), 20000),
+    );
+    try {
+      const res = await Promise.race([
+        create({
+          data: { idea, seconds, withVoiceover, format, voicePath: voice?.path, referencePaths: refs.map((r) => r.path), codeModelId: model },
+        }),
+        timeout,
+      ]);
+      if (!res.ok) {
+        setMessage(
+          res.message ||
+            "La réponse tarde. Vérifiez la liste ci-dessous : votre demande y est peut-être déjà.",
+        );
+        await load();
+        return;
+      }
+      setIdea("");
+      setRefs([]);
+      setVoice(null);
+      await load();
+    } catch {
+      setMessage("Connexion interrompue. Vérifiez la liste ci-dessous avant de relancer.");
+      await load();
+    } finally {
+      setBusy(false);
     }
-    setIdea("");
-    setRefs([]);
-    setVoice(null);
-    load();
   }
 
   const field = { display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 14 };
