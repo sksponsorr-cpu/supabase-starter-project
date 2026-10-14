@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 /**
  * Moteur de rendu Flash Motion AI.
- * Ouvre la composition HTML dans Chromium (sans écran), appelle window.renderAt(t)
- * pour chaque image, envoie les captures à ffmpeg et ajoute la voix off.
- *
- * Usage :
- *   node render.mjs --html scene.html --audio voix.mp3 --out video.mp4 \
- *        --duration 20 --width 1080 --height 1920 --fps 30
+ * Ouvre la composition dans Chromium, vérifie qu'elle bouge, puis rend chaque image
+ * avec window.renderAt(t) et envoie les captures à ffmpeg avec la voix off.
  */
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -36,11 +33,10 @@ if (audioPath && !existsSync(audioPath)) throw new Error(`Audio introuvable : ${
 
 const runtime = await readFile(join(here, "runtime.js"), "utf8");
 const composition = await readFile(htmlPath, "utf8");
-// Le runtime est injecté juste avant la composition.
-const html = composition.replace("<head>", `<head><script>${runtime}</script>`);
-if (!html.includes("window.FM")) {
-  throw new Error("Impossible d'injecter le runtime (balise <head> absente)");
-}
+// Le runtime est injecté juste après la balise <head>, quels que soient ses attributs.
+const headTag = /<head[^>]*>/i;
+if (!headTag.test(composition)) throw new Error("Impossible d'injecter le runtime (balise <head> absente)");
+const html = composition.replace(headTag, (m) => `${m}<script>${runtime}</script>`);
 
 const browser = await chromium.launch({ args: ["--no-sandbox", "--disable-gpu"] });
 const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
@@ -48,6 +44,18 @@ await page.setContent(html, { waitUntil: "load" });
 await page.evaluate(() => document.fonts.ready);
 const hasRender = await page.evaluate(() => typeof window.renderAt === "function");
 if (!hasRender) throw new Error("La composition doit définir window.renderAt(t)");
+
+/** Refuse une composition figée : quatre instants doivent donner quatre images différentes. */
+async function assertMoves() {
+  const hashes = new Set();
+  for (const f of [0.2, 0.4, 0.6, 0.8]) {
+    await page.evaluate((t) => window.renderAt(t), f * duration);
+    const png = await page.screenshot({ type: "png" });
+    hashes.add(createHash("md5").update(png).digest("hex"));
+  }
+  if (hashes.size < 3) throw new Error("Composition statique : aucune animation détectée");
+}
+await assertMoves();
 
 const ffArgs = [
   "-y", "-loglevel", "error",
@@ -59,16 +67,13 @@ ffArgs.push(
   "-movflags", "+faststart",
 );
 if (audioPath) ffArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
-ffArgs.push(outPath);
+ffArgs.push("-threads", "2", outPath);
 
-ffArgs.splice(ffArgs.indexOf(outPath), 0, "-threads", "2");
 const ff = spawn("ffmpeg", ffArgs, { stdio: ["pipe", "inherit", "pipe"] });
-// On garde la fin des messages de ffmpeg pour comprendre une panne.
 let ffErr = "";
 ff.stderr.on("data", (chunk) => {
   ffErr = (ffErr + chunk.toString()).slice(-2000);
 });
-// Si ffmpeg s'arrête, on ne plante pas : on remonte une erreur lisible.
 ff.stdin.on("error", () => {});
 const ffDone = new Promise((resolve, reject) => {
   ff.on("error", (err) => reject(new Error(`ffmpeg introuvable : ${err.message}`)));
@@ -82,10 +87,10 @@ const ffDone = new Promise((resolve, reject) => {
 const totalFrames = Math.round(duration * fps);
 for (let i = 0; i < totalFrames; i++) {
   const t = i / fps;
-  await page.evaluate(time => window.renderAt(time), t);
-  const png = await page.screenshot({ type: "jpeg", quality: 92 });
-  if (ff.exitCode !== null || ff.signalCode !== null) break; // ffmpeg s'est arrêté : inutile de continuer
-  if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once("drain", r));
+  await page.evaluate((time) => window.renderAt(time), t);
+  const jpg = await page.screenshot({ type: "jpeg", quality: 92 });
+  if (ff.exitCode !== null || ff.signalCode !== null) break;
+  if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once("drain", r));
 }
 ff.stdin.end();
 await ffDone;

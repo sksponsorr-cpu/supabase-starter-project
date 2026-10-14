@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Worker Flash Motion AI : prend une demande en file et fait tout le travail.
- *  1. script (GPT via KIE)  2. voix off (ElevenLabs via KIE, si demandée)
- *  3. code de l'animation (modèle choisi)  4. rendu  5. envoi de la vidéo
- * Variables : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KIE_API_KEY, KIE_TTS_VOICE (optionnelle)
+ *  1. script (GPT ou Claude)  2. voix off (KIE ou fal), durée réelle et timings des mots
+ *  3. composition (modèle choisi)  4. rendu avec contrôle de mouvement  5. effets sonores  6. envoi
+ * Variables : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KIE_API_KEY, FAL_KEY, KIE_TTS_VOICE, FAL_TTS_VOICE
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CODE_SYSTEM, SCRIPT_SYSTEM } from "./prompts.mjs";
+import { audioDuration, transcribeWords } from "./voice.mjs";
 
 const exec = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,11 +21,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SUPA = (process.env.SUPABASE_URL ?? "").replace(/\/$/, "");
 const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const KIE_KEY = process.env.KIE_API_KEY ?? "";
+const FAL_KEY = process.env.FAL_KEY ?? "";
 const TTS_MODEL = "elevenlabs/text-to-speech-multilingual-v2";
 const TTS_VOICE = process.env.KIE_TTS_VOICE ?? "EkK5I93UQWFDigLMpZcX";
+const FAL_VOICE = process.env.FAL_TTS_VOICE ?? "Daniel";
 const SCRIPT_MODEL = "claude-haiku-5-5"; // rapide, pour le script
 const FORMATS = { vertical: [540, 960], square: [720, 720], landscape: [960, 540] };
 const FPS = 24;
+const MAX_TAIL = 1; // secondes de fin après la voix
 
 if (!SUPA || !SUPA_KEY || !KIE_KEY) {
   console.error("[flash-motion] variables manquantes : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY ou KIE_API_KEY");
@@ -176,15 +180,14 @@ async function askModel(args) {
   throw lastError;
 }
 
-
-// ---------- Voix off ElevenLabs via KIE ----------
+// ---------- Voix off : KIE ou fal.ai (ElevenLabs), avec timings si disponibles ----------
 async function synthesizeKie(text) {
   const create = await fetch("https://api.kie.ai/api/v1/jobs/createTask", {
     method: "POST",
     headers: { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: TTS_MODEL,
-      input: { text: text.slice(0, 4000), voice: TTS_VOICE, stability: 0.5, similarity_boost: 0.75, style: 0, speed: 1, timestamps: false, previous_text: "", next_text: "" },
+      input: { text: text.slice(0, 4000), voice: TTS_VOICE, stability: 0.5, similarity_boost: 0.75, style: 0, speed: 1, timestamps: true, previous_text: "", next_text: "" },
     }),
   });
   const created = await create.json();
@@ -210,24 +213,12 @@ async function synthesizeKie(text) {
   throw new Error("Voix off : délai dépassé");
 }
 
-const FAL_KEY = process.env.FAL_KEY ?? "";
-const FAL_VOICE = process.env.FAL_TTS_VOICE ?? "Daniel"; // voix ElevenLabs sur fal : Daniel, Brian, Rachel, George, Callum...
-
-/** Voix off via fal.ai (ElevenLabs). Renvoie l'audio ; les timings des mots sont estimés. */
 async function synthesizeFal(text) {
   if (!FAL_KEY) throw new Error("fal.ai : FAL_KEY manquante");
-  const input = {
-    text: text.slice(0, 4000),
-    voice: FAL_VOICE,
-    stability: 0.4,
-    similarity_boost: 0.8,
-    style: 0.35,
-    speed: 1,
-  };
   const res = await fetch("https://fal.run/fal-ai/elevenlabs/tts/multilingual-v2", {
     method: "POST",
     headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ text: text.slice(0, 4000), voice: FAL_VOICE, stability: 0.4, similarity_boost: 0.8, style: 0.35, speed: 1 }),
   });
   const json = await res.json();
   const audioUrl = json?.audio?.url ?? null;
@@ -236,7 +227,7 @@ async function synthesizeFal(text) {
   return { audio: Buffer.from(await file.arrayBuffer()), words: null };
 }
 
-/** Fournisseur choisi dans le bureau d'administration (KIE par défaut). */
+/** Fournisseur de voix choisi dans le bureau d'administration (KIE par défaut). */
 async function voiceProvider() {
   try {
     const rows = await rest("app_settings?id=eq.global&select=voice_provider", { headers: auth });
@@ -268,6 +259,45 @@ function estimateWords(text, duration) {
   return words.map((word, i) => ({ word, start: i * step, end: (i + 1) * step }));
 }
 
+/** Répartit les secondes des scènes pour que leur total égale la durée de la vidéo. */
+function scaleScenes(scenes, total) {
+  const sum = scenes.reduce((a, s) => a + (Number(s.seconds) || 0), 0);
+  if (!sum) return scenes.map((s) => ({ ...s, seconds: total / scenes.length }));
+  const k = total / sum;
+  return scenes.map((s) => ({ ...s, seconds: Math.round((Number(s.seconds) || 0) * k * 10) / 10 }));
+}
+
+// ---------- Composition HTML (modèle choisi) ----------
+async function generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback }) {
+  const userMsg = [
+    `Idée : ${job.idea}`,
+    `Durée totale : ${seconds} secondes`,
+    `Format : ${W} x ${H} pixels`,
+    `Scènes (durées calées sur la voix) : ${JSON.stringify(scenes)}`,
+    withWords
+      ? `Timings des mots (secondes) : ${JSON.stringify(words)}\nDéclare ces mots dans une variable WORDS. Pour chaque mot i, utilise FM.wordProgress(WORDS, t, i) pour son apparition.`
+      : hasVoice
+      ? "Vocal sans timings de mots : synchroniser les scènes sur sa durée totale, sans découper les mots."
+      : "Pas de voix off : ne rien synchroniser avec une voix.",
+    feedback ? `Consigne de correction : ${feedback}` : "",
+  ].filter(Boolean).join("\n");
+
+  const html = stripFences(await askModel({
+    model: job.code_model || "gpt-6-astra",
+    system: CODE_SYSTEM,
+    user: userMsg + refNote,
+    maxTokens: 16000,
+    images,
+  }));
+  if (!/<!doctype|<html/i.test(html) || !html.includes("<head>") || !html.includes("renderAt")) {
+    throw new Error("La composition générée n'est pas valide");
+  }
+  if (/requestAnimationFrame|setTimeout|setInterval|Math\.random|<script[^>]+src=/i.test(html)) {
+    throw new Error("La composition utilise un élément interdit");
+  }
+  return html;
+}
+
 // ---------- Rendu ----------
 async function renderVideo({ html, seconds, audio, w, h }) {
   const dir = await mkdtemp(join(tmpdir(), "fm-"));
@@ -287,19 +317,19 @@ async function renderVideo({ html, seconds, audio, w, h }) {
 
 // ---------- Traitement d'une demande ----------
 async function processJob(job) {
-  const seconds = job.seconds;
+  let seconds = job.seconds;
   const [W, H] = FORMATS[job.format] ?? FORMATS.vertical;
 
-  await updateJob(job.id, { stage: "Écriture du script", progress: 10 });
   // 1. Script
+  await updateJob(job.id, { stage: "Écriture du script", progress: 10 });
   const scriptRaw = stripFences(await askModel({
     model: SCRIPT_MODEL, system: SCRIPT_SYSTEM,
     user: `Idée : ${job.idea}\nDurée : ${seconds} secondes`, maxTokens: 1500,
   }));
   const script = JSON.parse(scriptRaw);
 
+  // 2. Voix off : durée réelle et timings des mots
   await updateJob(job.id, { stage: "Voix off", progress: 25 });
-  // 2. Voix off (si demandée)
   let audio = null;
   let words = [];
   if (job.voice_path) {
@@ -318,60 +348,76 @@ async function processJob(job) {
       }
     }
     audio = voice.audio;
-    words = voice.words ?? estimateWords(script.voiceover, seconds);
+    words = voice.words ?? [];
   }
 
-  await updateJob(job.id, { stage: "Création de l'animation", progress: 45 });
-  // 3. Code de l'animation, par le modèle choisi
-  const userMsg = [
-    `Idée : ${job.idea}`,
-    `Durée totale : ${seconds} secondes`,
-    `Format : ${W} x ${H} pixels`,
-    `Scènes proposées : ${JSON.stringify(script.scenes)}`,
-    job.voice_path
-      ? "Vocal fourni par l'utilisateur : synchroniser les scènes sur sa durée, sans timings de mots."
-      : job.with_voiceover
-      ? `Voix off : ${script.voiceover}\nTimings des mots (secondes) : ${JSON.stringify(words)}\nDéclare ces mots dans une variable WORDS et utilise FM.wordsVisible(WORDS, t).`
-      : "Pas de voix off : ne rien synchroniser avec une voix.",
-  ].join("\n");
+  // La vidéo suit la voix réelle : sa durée remplace la durée demandée.
+  if (audio) {
+    const real = await audioDuration(audio);
+    seconds = Math.min(Math.max(Math.ceil(real * 10) / 10 + MAX_TAIL, 3), 60);
+    if (!words.length) {
+      try {
+        words = (await transcribeWords(audio)) ?? [];
+      } catch (err) {
+        console.error("[flash-motion] transcription échouée :", err.message);
+        words = [];
+      }
+    }
+    // Les mots estimés ne servent que pour la voix générée par nous, dont on connaît le texte.
+    if (!words.length && job.with_voiceover && !job.voice_path) {
+      words = estimateWords(script.voiceover, real);
+    }
+    console.log("[flash-motion] voix", real.toFixed(2), "s, mots :", words.length);
+  }
+
+  const scenes = scaleScenes(script.scenes, seconds);
+  const withWords = words.length > 0;
+  const hasVoice = !!audio;
+
+  // 3 et 4. Composition puis rendu, avec une seconde tentative si la vidéo est statique
   const images = await loadReferences(job.reference_paths);
   const refNote = images.length
     ? "\nImages de référence fournies : reproduire leur style, leurs couleurs et leur ambiance dans l'animation."
     : "";
-  const html = stripFences(await askModel({ model: job.code_model || "gpt-6-astra", system: CODE_SYSTEM, user: userMsg + refNote, maxTokens: 16000, images }));
-  if (!/<!doctype|<html/i.test(html) || !html.includes("<head>") || !html.includes("renderAt")) {
-    throw new Error("La composition générée n'est pas valide");
-  }
-  if (/requestAnimationFrame|setTimeout|setInterval|Math\.random|<script[^>]+src=/i.test(html)) {
-    throw new Error("La composition utilise un élément interdit");
+  let rendered = null;
+  let feedback = "";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await updateJob(job.id, { stage: "Création de l'animation", progress: 45 });
+    const html = await generateComposition({ job, seconds, W, H, scenes, words, withWords, hasVoice, images, refNote, feedback });
+    await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
+    try {
+      rendered = await renderVideo({ html, seconds, audio, w: W, h: H });
+      break;
+    } catch (err) {
+      if (attempt === 2 || !String(err.message).includes("statique")) throw err;
+      console.error("[flash-motion] composition statique, nouvelle tentative");
+      feedback = "La composition précédente était statique. Ajoute un mouvement à chaque scène : zoom ou glissement avec FM.seg et un easing, et fondu d'entrée et de sortie.";
+    }
   }
 
-  await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
-  // 4. Rendu
-  const rendered = await renderVideo({ html, seconds, audio, w: W, h: H });
-  const bytes = await addSoundEffects(rendered, buildCues(script.scenes, seconds), !!audio);
+  // 5. Effets sonores
+  const bytes = await addSoundEffects(rendered, buildCues(scenes, seconds), hasVoice);
 
+  // 6. Envoi et clôture
   await updateJob(job.id, { stage: "Envoi", progress: 92 });
-  // 5. Envoi et clôture
   const videoPath = `${job.user_id}/${job.id}.mp4`;
   await uploadStorage(videoPath, bytes, "video/mp4");
   if (audio) await uploadStorage(`${job.user_id}/${job.id}.mp3`, audio, "audio/mpeg");
   await updateJob(job.id, { status: "ready", video_path: videoPath, html: null, stage: "Terminée", progress: 100 });
 }
 
-// ---------- Effets sonores ----------
-// Fichiers dans worker/sounds/ : bubble.wav, pop.wav, notif.wav
-const SFX = { bubble: "bubble.wav", pop: "pop.wav", notif: "notif.wav" };
+// ---------- Effets sonores (bibliothèque générée, worker/sounds/) ----------
+const SFX = { whoosh: "whoosh.mp3", impact: "impact.mp3", clic: "clic.mp3", montee: "montee.mp3", ding: "ding.mp3" };
 
-/** Place les sons au début de chaque scène : bulle au départ, pop entre les scènes, notification à la fin. */
+/** Impact au premier écran, whoosh à chaque transition, ding sur le dernier écran. */
 function buildCues(scenes, total) {
   const cues = [];
   let t = 0;
   scenes.forEach((sc, i) => {
     const at = Math.max(0, Math.min(t, total - 0.5));
-    if (i === 0) cues.push({ file: SFX.bubble, at, vol: 0.6 });
-    else if (i === scenes.length - 1 && scenes.length > 1) cues.push({ file: SFX.notif, at, vol: 0.7 });
-    else cues.push({ file: SFX.pop, at, vol: 0.8 });
+    if (i === 0) cues.push({ file: SFX.impact, at, vol: 0.7 });
+    else if (i === scenes.length - 1 && scenes.length > 1) cues.push({ file: SFX.ding, at, vol: 0.7 });
+    else cues.push({ file: SFX.whoosh, at, vol: 0.6 });
     t += Number(sc.seconds) || 0;
   });
   return cues.filter((c) => c.at < total);
