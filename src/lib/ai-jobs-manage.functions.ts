@@ -73,3 +73,44 @@ export const deleteAiJob = createServerFn({ method: "POST" })
     await db.from("ai_jobs").delete().eq("id", job.id).eq("user_id", context.userId);
     return { ok: true as const };
   });
+
+const STALE_MINUTES = 30;
+
+/**
+ * Passe en échec les générations restées « en cours » au-delà de 30 minutes,
+ * et rembourse les crédits une seule fois. Appelé à chaque actualisation de la liste.
+ */
+export const expireStaleAiJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({}).parse(input ?? {}))
+  .handler(async ({ context }) => {
+    const db = await getDb();
+    const cutoff = new Date(Date.now() - STALE_MINUTES * 60 * 1000).toISOString();
+    const { data: stale } = await db
+      .from("ai_jobs")
+      .select("id, user_id, cost_charged")
+      .eq("user_id", context.userId)
+      .in("status", ["pending", "processing"])
+      .lt("created_at", cutoff);
+    for (const job of stale ?? []) {
+      const { data: updated } = await db
+        .from("ai_jobs")
+        .update({
+          status: "failed",
+          refunded: true,
+          error: "Délai dépassé : génération annulée automatiquement",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id)
+        .eq("refunded", false)
+        .select("id");
+      if (updated && updated.length > 0) {
+        await db.rpc("refund_ai_credits", {
+          p_user: job.user_id,
+          p_cost: Number(job.cost_charged),
+          p_ref: `refund-stale-${job.id}`,
+        });
+      }
+    }
+    return { ok: true as const, expired: (stale ?? []).length };
+  });
