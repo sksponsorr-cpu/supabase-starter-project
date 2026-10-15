@@ -26,6 +26,8 @@ export function AdminLandingPanel() {
   const [videos, setVideos] = useState("");
   const [faq, setFaq] = useState("");
   const [showcase, setShowcase] = useState("");
+  const [bannerOn, setBannerOn] = useState(true);
+  const [bannerText, setBannerText] = useState("");
   const [pubList, setPubList] = useState("");
   const [cloneList, setCloneList] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +38,8 @@ export function AdminLandingPanel() {
     load()
       .then((d) => {
         setTitle(d.title);
+        setBannerOn(d.banner?.enabled !== false);
+        setBannerText(d.banner?.text ?? "");
         setText(d.text);
         setIntro(d.introVideo);
         setVideos(d.videos.map((v) => `${v.url} | ${v.caption}`).join("\n"));
@@ -121,6 +125,7 @@ export function AdminLandingPanel() {
           title,
           text,
           introVideo: intro,
+          banner: { enabled: bannerOn, text: bannerText },
           videos: lines(videos).map((l) => ({ url: split(l)[0]!, caption: split(l)[1]! })),
           faq: lines(faq).map((l) => ({ q: split(l)[0]!, a: split(l)[1]! })),
           showcase: [...lines(pubList).map((l) => `pub | ${l}`), ...lines(cloneList).map((l) => `clone | ${l}`), ...lines(showcase)].map((l) => {
@@ -146,6 +151,13 @@ export function AdminLandingPanel() {
       </p>
       <input className={box} placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className={box} rows={2} placeholder="Description courte" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="space-y-2 rounded-2xl border border-border p-4">
+        <label className="flex items-center justify-between gap-3 text-sm font-semibold">
+          Afficher le bandeau d'offre (pastille clignotante)
+          <input type="checkbox" className="h-5 w-5" checked={bannerOn} onChange={(e) => setBannerOn(e.target.checked)} />
+        </label>
+        <input className={box} placeholder="Texte du bandeau" value={bannerText} onChange={(e) => setBannerText(e.target.value)} />
+      </div>
 
       <div className="space-y-3 rounded-2xl border-2 border-primary/50 p-4">
         <h3 className="text-base font-semibold">Vitrine de la page de référence</h3>
