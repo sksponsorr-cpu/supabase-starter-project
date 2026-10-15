@@ -138,11 +138,11 @@ const PLAN_CARDS = [
   {
     name: "Gratuit",
     badge: "Sans carte bancaire",
-    quota: "1 vidéo et 1 image offertes",
+    quota: "40 crédits offerts",
     desc: "Pour découvrir Sam flash 2.0 sans rien payer.",
     features: [
-      "1 vidéo de 5 secondes en 480p (10 crédits)",
-      "1 image offerte (gratuite)",
+      "40 crédits offerts à l'inscription",
+      "Utilisables pour vos vidéos et vos images",
       "Offre limitée par appareil",
     ],
     highlight: false,
@@ -151,10 +151,10 @@ const PLAN_CARDS = [
   {
     name: "Essai",
     badge: "Pack ponctuel",
-    quota: "3 000 FCFA · 2 500 crédits",
+    quota: "2 000 FCFA · 40 crédits",
     desc: "Un pack pour tester sans vous engager.",
     features: [
-      "10 vidéos de 5 secondes en 480p",
+      "8 vidéos de 5 secondes en 480p",
       "Pour tester sans vous engager",
       "Paiement par Mobile Money",
     ],
@@ -197,7 +197,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Puis-je essayer gratuitement sans carte bancaire ?",
-    a: "Oui, absolument. Dès votre inscription gratuite, vous recevez immédiatement 5 crédits offerts, utilisables pour vos vidéos et vos images, sans renseigner aucune carte bancaire.",
+    a: "Oui, absolument. Dès votre inscription gratuite, vous recevez immédiatement 40 crédits offerts, soit une vidéo de 5 secondes ; la génération d'images est gratuite, sans renseigner aucune carte bancaire.",
   },
   {
     q: "Combien de temps prend la génération d'une vidéo ?",
@@ -636,7 +636,7 @@ function LandingPage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-700 font-medium">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              5 crédits offerts
+              40 crédits offerts
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -868,7 +868,7 @@ function LandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <p className="mt-2.5 text-xs text-slate-700">
-                Essayez gratuitement : 5 crédits offerts à l'inscription.
+                Essayez gratuitement : 40 crédits offerts à l'inscription.
               </p>
             </div>
           </div>
@@ -1125,7 +1125,7 @@ function LandingPage() {
               </h3>
               <p className="mt-1 text-xs text-slate-700">
                 {signUp
-                  ? "5 crédits offerts à l'inscription"
+                  ? "40 crédits offerts à l'inscription"
                   : "Retrouvez vos vidéos et images générées"}
               </p>
             </div>

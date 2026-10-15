@@ -103,7 +103,7 @@ function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-background pb-16" style={{ background: "var(--gradient-hero)" }}>
-      <header className="sticky top-0 z-30 flex items-center gap-3 bg-background/60 px-4 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 flex items-center gap-3 bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] backdrop-blur-xl">
         <Link
           to="/app"
           aria-label="Retour au studio"
@@ -118,7 +118,7 @@ function GalleryPage() {
         <Sparkles className="ml-auto h-5 w-5 text-primary" />
       </header>
 
-      <main className="px-4 pt-4">
+      <main className="px-4 pt-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}>
         <h1 className="text-2xl font-semibold">Les meilleures créations</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Vidéos et images mises en avant, publiées avec consentement de leurs auteurs.
