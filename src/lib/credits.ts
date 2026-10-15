@@ -74,3 +74,8 @@ export function videosAvailable(
 ): number {
   return Math.floor(balance / creditCostFor("video", seconds, resolution, config));
 }
+
+/** Produits achetés en crédits (recharges et pass), et non en abonnement. */
+export function isCreditProduct(productId: string | null | undefined): boolean {
+  return !!productId && (productId.startsWith("pack_") || productId.startsWith("pass_"));
+}
