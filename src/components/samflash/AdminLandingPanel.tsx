@@ -26,6 +26,8 @@ export function AdminLandingPanel() {
   const [videos, setVideos] = useState("");
   const [faq, setFaq] = useState("");
   const [showcase, setShowcase] = useState("");
+  const [pubList, setPubList] = useState("");
+  const [cloneList, setCloneList] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [gens, setGens] = useState<Gen[]>([]);
@@ -37,7 +39,10 @@ export function AdminLandingPanel() {
         setText(d.text);
         setIntro(d.introVideo);
         setVideos(d.videos.map((v) => `${v.url} | ${v.caption}`).join("\n"));
-        setShowcase((d.showcase ?? []).map((v) => `${v.cat} | ${v.url} | ${v.caption}`).join("\n"));
+        const sc = d.showcase ?? [];
+        setPubList(sc.filter((v) => v.cat === "pub").map((v) => `${v.url} | ${v.caption}`).join("\n"));
+        setCloneList(sc.filter((v) => v.cat === "clone").map((v) => `${v.url} | ${v.caption}`).join("\n"));
+        setShowcase(sc.filter((v) => v.cat !== "pub" && v.cat !== "clone").map((v) => `${v.cat} | ${v.url} | ${v.caption}`).join("\n"));
         setFaq(d.faq.map((f) => `${f.q} | ${f.a}`).join("\n"));
       })
       .catch(() => undefined);
@@ -67,7 +72,7 @@ export function AdminLandingPanel() {
       x.send(file);
     });
 
-  const pickFile = async (file: File | undefined, target: "intro" | "list") => {
+  const pickFile = async (file: File | undefined, target: "intro" | "list" | "pub" | "clone") => {
     if (!file) return;
     setUploading(true);
     setProgress(0);
@@ -89,8 +94,11 @@ export function AdminLandingPanel() {
         }
         link = r.publicUrl;
       }
+      const caption = file.name.replace(/\|/g, " ").slice(0, 40);
       if (target === "intro") setIntro(link);
-      else setVideos((v) => `${v ? v + "\n" : ""}${link} | ${file.name.replace(/\|/g, " ").slice(0, 40)}`);
+      else if (target === "pub") setPubList((v) => `${v ? v + "\n" : ""}${link} | ${caption}`);
+      else if (target === "clone") setCloneList((v) => `${v ? v + "\n" : ""}${link} | ${caption}`);
+      else setVideos((v) => `${v ? v + "\n" : ""}${link} | ${caption}`);
       toast.success("Vidéo envoyée. Pensez à enregistrer.");
     } catch {
       toast.error("Envoi impossible. Réessayez avec une connexion stable.");
@@ -115,7 +123,7 @@ export function AdminLandingPanel() {
           introVideo: intro,
           videos: lines(videos).map((l) => ({ url: split(l)[0]!, caption: split(l)[1]! })),
           faq: lines(faq).map((l) => ({ q: split(l)[0]!, a: split(l)[1]! })),
-          showcase: lines(showcase).map((l) => {
+          showcase: [...lines(pubList).map((l) => `pub | ${l}`), ...lines(cloneList).map((l) => `clone | ${l}`), ...lines(showcase)].map((l) => {
             const parts = l.split("|").map((x) => x.trim());
             return { cat: parts[0] ?? "", url: parts[1] ?? "", caption: parts[2] ?? "" };
           }),
@@ -138,6 +146,28 @@ export function AdminLandingPanel() {
       </p>
       <input className={box} placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea className={box} rows={2} placeholder="Description courte" value={text} onChange={(e) => setText(e.target.value)} />
+
+      <div className="space-y-3 rounded-2xl border-2 border-primary/50 p-4">
+        <h3 className="text-base font-semibold">Vitrine de la page de référence</h3>
+        <p className="text-xs text-muted-foreground">
+          Ces vidéos apparaissent sur la page de référence du parcours choisi par l'utilisateur, et dans sa galerie. La première de la liste devient la vidéo principale.
+        </p>
+
+        <p className="text-sm font-medium">1. Publicité UGC (parcours « Génération de vidéos »)</p>
+        <label className="block w-full cursor-pointer rounded-full bg-primary py-3 text-center text-sm font-semibold text-primary-foreground">
+          {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une vidéo UGC depuis mon appareil"}
+          <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => { void pickFile(e.target.files?.[0], "pub"); e.target.value = ""; }} />
+        </label>
+        <textarea className={box} rows={4} placeholder={"Une vidéo par ligne :\nhttps://…/ugc1.mp4 | Légende"} value={pubList} onChange={(e) => setPubList(e.target.value)} />
+
+        <p className="text-sm font-medium">2. Clonage vidéo (parcours « Clonage vidéo »)</p>
+        <label className="block w-full cursor-pointer rounded-full bg-primary py-3 text-center text-sm font-semibold text-primary-foreground">
+          {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une vidéo de clonage depuis mon appareil"}
+          <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => { void pickFile(e.target.files?.[0], "clone"); e.target.value = ""; }} />
+        </label>
+        <textarea className={box} rows={4} placeholder={"Une vidéo par ligne :\nhttps://…/clone1.mp4 | Légende"} value={cloneList} onChange={(e) => setCloneList(e.target.value)} />
+        <p className="text-[11px] text-muted-foreground">Pensez à cliquer sur « Enregistrer » en bas de la page après chaque ajout.</p>
+      </div>
 
       <button
         type="button"
@@ -209,6 +239,7 @@ export function AdminLandingPanel() {
         value={videos}
         onChange={(e) => setVideos(e.target.value)}
       />
+      <p className="text-xs font-medium text-muted-foreground">Autres catégories (avatar, scène) : une par ligne.</p>
       <textarea
         className={box}
         rows={5}

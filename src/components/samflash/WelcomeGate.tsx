@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { getWelcomeGate } from "@/lib/welcome-gate.functions";
 import { ReferenceShowcase } from "@/components/samflash/ReferenceShowcase";
+import { playClick } from "@/lib/chime";
+import logoAsset from "@/assets/vizuely-logo.png";
 
 const DISMISS_KEY = "sf-welcome-dismissed";
 const CHOICE_KEY = "sf-parcours";
@@ -21,6 +24,7 @@ export function getSessionParcours(): Parcours | null {
 /** Accueil après connexion : message de bienvenue, puis choix du parcours. Une fois par session. */
 export function WelcomeGate() {
   const fetchGate = useServerFn(getWelcomeGate);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [choice, setChoice] = useState<Parcours | null>(null);
@@ -52,42 +56,58 @@ export function WelcomeGate() {
     setOpen(false);
   };
 
+  /** Quitte l'accueil et ouvre directement le modèle choisi. */
+  const goTo = (path: "/app" | "/clonage-video") => {
+    finish(choice);
+    void navigate({ to: path });
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/90 p-6 backdrop-blur-xl">
-      <div key={step} className={`motion-enter w-full max-w-md ${step === 3 ? "" : "text-center"}`}>
+      <div key={step} className={`motion-apple w-full max-w-md ${step === 3 ? "" : "text-center"}`}>
         {step === 1 ? (
           <>
-            <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-500 text-2xl shadow-[0_18px_40px_-12px_rgba(59,130,246,0.6)]">
-              ⚡
-            </div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Sam Flash 2.0</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Bienvenue sur Sam Flash 2.0</h1>
-            <p className="mx-auto mt-4 max-w-sm text-base leading-relaxed text-muted-foreground">
+            <img src={logoAsset} alt="Logo" className="motion-apple mx-auto mb-8 h-20 w-20 object-contain" style={{ animationDelay: "0ms" }} />
+            <p className="motion-apple text-xs font-semibold uppercase tracking-[0.25em] text-primary" style={{ animationDelay: "80ms" }}>
+              Sam Flash 2.0
+            </p>
+            <h1 className="motion-apple mt-3 text-3xl font-semibold tracking-tight sm:text-4xl" style={{ animationDelay: "140ms" }}>
+              Bienvenue sur Sam Flash 2.0
+            </h1>
+            <p className="motion-apple mx-auto mt-4 max-w-sm text-base leading-relaxed text-muted-foreground" style={{ animationDelay: "200ms" }}>
               Créez des vidéos et des images professionnelles en quelques minutes, avec la puissance de l'IA.
             </p>
             <button
               type="button"
-              onClick={() => setStep(2)}
-              className="motion-press mt-10 w-full rounded-full bg-foreground py-4 text-base font-semibold text-background shadow-lg"
+              onClick={() => {
+                playClick();
+                setStep(2);
+              }}
+              className="motion-apple motion-apple-tap mt-10 w-full rounded-full bg-foreground py-4 text-base font-semibold text-background shadow-lg"
+              style={{ animationDelay: "280ms" }}
             >
               Continuer
             </button>
           </>
-        ) : step === 3 ? (
-          <ReferenceShowcase onContinue={() => finish(choice)} />
+        ) : step === 3 && choice ? (
+          <ReferenceShowcase parcours={choice} onGo={goTo} />
         ) : (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Votre point de départ</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Que voulez-vous créer aujourd'hui ?</h2>
+            <p className="motion-apple text-xs font-semibold uppercase tracking-[0.25em] text-primary">Votre point de départ</p>
+            <h2 className="motion-apple mt-3 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ animationDelay: "60ms" }}>
+              Que voulez-vous créer aujourd'hui ?
+            </h2>
 
             <div className="mt-8 space-y-3 text-left">
               <button
                 type="button"
                 onClick={() => {
+                  playClick();
                   setChoice("generation");
                   setStep(3);
                 }}
-                className="motion-press flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
+                className="motion-apple motion-apple-tap flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
+                style={{ animationDelay: "140ms" }}
               >
                 <span className="text-2xl">🎬</span>
                 <span>
@@ -99,10 +119,12 @@ export function WelcomeGate() {
               <button
                 type="button"
                 onClick={() => {
+                  playClick();
                   setChoice("clonage");
                   setStep(3);
                 }}
-                className="motion-press flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
+                className="motion-apple motion-apple-tap flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
+                style={{ animationDelay: "210ms" }}
               >
                 <span className="text-2xl">🧬</span>
                 <span>
@@ -114,8 +136,12 @@ export function WelcomeGate() {
 
             <button
               type="button"
-              onClick={() => finish(null)}
-              className="mt-6 text-sm text-muted-foreground underline-offset-4 hover:underline"
+              onClick={() => {
+                playClick();
+                finish(null);
+              }}
+              className="motion-apple mt-6 text-sm text-muted-foreground underline-offset-4 hover:underline"
+              style={{ animationDelay: "280ms" }}
             >
               Passer pour l'instant
             </button>

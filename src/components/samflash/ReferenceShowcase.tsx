@@ -1,102 +1,248 @@
 /**
- * Vitrine de la vidéo de référence (étape 3 du parcours).
- * Modifiable ici : la vidéo, les captures et les avantages.
- * La vidéo et les captures seront ajoutées depuis le bureau d'administrateur plus tard.
+ * Page de référence affichée après le choix du parcours.
+ * - Vidéo principale, étapes, résultats : gérés depuis le bureau d'administrateur
+ *   (bloc « Vitrine de la page de référence », catégories « pub » et « clone »).
+ * - Galerie : vidéos approuvées de la galerie communautaire, lisibles au clic.
+ * - « Commencer » et « Quitter » ouvrent le modèle choisi.
  */
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { getLanding } from "@/lib/landing.functions";
+import { listCommunityGallery, type CommunityItem } from "@/lib/community.functions";
+import { playClick } from "@/lib/chime";
+import type { Parcours } from "@/components/samflash/WelcomeGate";
 
-export const REFERENCE_VIDEO_URL = ""; // ex. "https://…/video-reference.mp4" (vide = affichage de remplacement)
-export const REFERENCE_CAPTURES: string[] = []; // captures de résultats, ajoutées depuis l'administration
+type ShowcaseItem = { url: string; caption: string };
 
-/** Texte de la section « résultats ». À valider avant publication. */
-export const RESULTATS_TITRE = "Des résultats concrets";
-export const RESULTATS_TEXTE =
-  "Les vidéos créées avec l'IA peuvent vous aider à générer des revenus. Voici des captures de résultats réels, partagées par notre équipe.";
+export type Template = {
+  category: "pub" | "clone";
+  eyebrow: string;
+  title: string;
+  text: string;
+  steps: [string, string, string, string];
+  resultsTitle: string;
+  resultsText: string;
+  cta: string;
+  target: "/app" | "/clonage-video";
+};
 
-export const REFERENCE_BADGE = "Créée à 100 % avec Sam Flash 2.0";
+/** Contenu de chaque parcours. À valider avant publication. */
+export const TEMPLATES: Record<Parcours, Template> = {
+  generation: {
+    category: "pub",
+    eyebrow: "Publicité UGC",
+    title: "Une vraie personne présente ton produit.",
+    text: "Comme un témoignage filmé au téléphone. Le décor ne bouge pas ; des plans de coupe recouvrent la parole pour donner du rythme.",
+    steps: ["La personne", "Ton produit", "L'image, offerte", "Texte et clips"],
+    resultsTitle: "Des résultats concrets",
+    resultsText: "Les vidéos créées avec l'IA peuvent vous aider à générer des revenus. Voici des vidéos réalisées avec Sam Flash 2.0.",
+    cta: "Commencer ma vidéo",
+    target: "/app",
+  },
+  clonage: {
+    category: "clone",
+    eyebrow: "Clonage vidéo",
+    title: "Reproduisez un mouvement à partir d'une vidéo.",
+    text: "Partez d'une vidéo de référence : la gestuelle est reproduite sur la personne de votre choix.",
+    steps: ["Vidéo de référence", "Le mouvement", "La personne", "Le résultat"],
+    resultsTitle: "Des résultats concrets",
+    resultsText: "Voici des clonages réalisés avec Sam Flash 2.0, à partir de vraies vidéos de référence.",
+    cta: "Commencer mon clonage",
+    target: "/clonage-video",
+  },
+};
 
-export const AVANTAGES = [
-  {
-    titre: "Sans compétence technique",
-    texte: "Décrivez votre idée en français, Sam Flash s'occupe du reste.",
-  },
-  {
-    titre: "De 5 secondes à 10 minutes",
-    texte: "Des vidéos courtes pour les réseaux, ou des formats plus longs à partir d'une seule demande.",
-  },
-  {
-    titre: "Clonage vidéo",
-    texte: "Reproduisez une gestuelle ou un mouvement à partir d'une vidéo de référence.",
-  },
-  {
-    titre: "Images et vidéos au même endroit",
-    texte: "Créez vos visuels et vos vidéos sans logiciel de montage.",
-  },
-  {
-    titre: "Prêt pour vos réseaux",
-    texte: "Publiez vos contenus sur TikTok, YouTube ou Instagram, selon les règles de chaque plateforme.",
-  },
-  {
-    titre: "Paiement local",
-    texte: "Payez par Mobile Money, sans carte bancaire.",
-  },
-];
+const ACCENT = "var(--sf-accent, #6d28d9)";
 
-type Props = { onContinue: () => void };
+type Props = {
+  parcours: Parcours;
+  /** Appelé avec la page de destination (le modèle choisi). */
+  onGo: (path: "/app" | "/clonage-video") => void;
+};
 
-export function ReferenceShowcase({ onContinue }: Props) {
+export function ReferenceShowcase({ parcours, onGo }: Props) {
+  const template = TEMPLATES[parcours];
+  const fetchLanding = useServerFn(getLanding);
+  const fetchGallery = useServerFn(listCommunityGallery);
+  const [items, setItems] = useState<ShowcaseItem[]>([]);
+  const [gallery, setGallery] = useState<CommunityItem[] | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
+  const [playing, setPlaying] = useState<CommunityItem | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetchLanding()
+      .then((d) => {
+        if (alive) setItems((d.showcase ?? []).filter((v) => v.cat === template.category));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [fetchLanding, template.category]);
+
+  const openGallery = () => {
+    playClick();
+    setShowGallery(true);
+    if (gallery !== null) return;
+    fetchGallery({})
+      .then((rows) => setGallery(rows as CommunityItem[]))
+      .catch(() => setGallery([]));
+  };
+
+  const main = items[0];
+  const results = items.slice(1);
+
   return (
-    <div className="motion-enter w-full max-w-md text-left">
-      <div className="relative aspect-[9/12] w-full overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500/30 via-indigo-500/20 to-black shadow-[0_30px_60px_-30px_rgba(0,0,0,0.8)]">
-        {REFERENCE_VIDEO_URL ? (
-          <video src={REFERENCE_VIDEO_URL} className="h-full w-full object-cover" autoPlay loop muted playsInline />
-        ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
-            Vidéo de référence à venir
-          </div>
-        )}
-        <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
-          {REFERENCE_BADGE}
-        </span>
+    <>
+      <div className="w-full max-w-md text-left">
+        {/* Vidéo de référence */}
+        <div className="motion-apple-video relative aspect-[9/12] w-full overflow-hidden rounded-[28px] bg-black shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]">
+          {main ? (
+            <video src={main.url} className="h-full w-full object-contain" autoPlay loop muted playsInline />
+          ) : (
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
+              La vidéo de présentation sera ajoutée prochainement.
+            </div>
+          )}
+        </div>
+
+        <p className="motion-apple mt-8 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
+          {template.eyebrow}
+        </p>
+        <h2 className="motion-apple mt-3 text-[30px] font-extrabold leading-[1.08] tracking-tight" style={{ animationDelay: "180ms" }}>
+          {template.title}
+        </h2>
+        <p className="motion-apple mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
+          {template.text}
+        </p>
+
+        {/* Les quatre étapes, en pilules numérotées */}
+        <div className="mt-7 grid grid-cols-2 gap-3">
+          {template.steps.map((label, i) => (
+            <div
+              key={label}
+              className="motion-apple flex items-center gap-3 rounded-full bg-secondary/70 px-5 py-4"
+              style={{ animationDelay: `${300 + i * 70}ms` }}
+            >
+              <span className="text-[15px] font-bold" style={{ color: ACCENT }}>
+                0{i + 1}
+              </span>
+              <span className="text-[15px] font-semibold leading-tight">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Résultats : texte et captures côte à côte */}
+        <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
+          <h3 className="text-[22px] font-bold tracking-tight">{template.resultsTitle}</h3>
+          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{template.resultsText}</p>
+          {results.length > 0 ? (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {results.map((it) => (
+                <figure key={it.url} className="overflow-hidden rounded-2xl bg-black">
+                  <video src={it.url} className="aspect-[9/12] w-full object-cover" muted loop playsInline autoPlay />
+                  {it.caption && <figcaption className="bg-background px-3 py-2 text-xs text-muted-foreground">{it.caption}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+              Les captures de résultats seront ajoutées prochainement.
+            </p>
+          )}
+        </section>
+
+        <button
+          type="button"
+          onClick={openGallery}
+          className="motion-apple-tap motion-apple mt-8 flex w-full items-center justify-between rounded-full border border-border px-5 py-4 text-[15px] font-semibold"
+          style={{ animationDelay: "640ms" }}
+        >
+          <span>Voir la galerie des créations</span>
+          <span aria-hidden>→</span>
+        </button>
+
+        {/* Bouton principal */}
+        <button
+          type="button"
+          onClick={() => {
+            playClick();
+            onGo(template.target);
+          }}
+          className="motion-apple-tap motion-apple mt-4 flex w-full items-center justify-center gap-3 rounded-full bg-foreground py-5 text-[17px] font-semibold text-background shadow-lg"
+          style={{ animationDelay: "700ms" }}
+        >
+          {template.cta}
+          <span aria-hidden>→</span>
+        </button>
       </div>
 
-      <h2 className="mt-6 text-2xl font-semibold tracking-tight">Ce que vous pouvez créer</h2>
-
-      <ul className="mt-4 space-y-3">
-        {AVANTAGES.map((a, i) => (
-          <li
-            key={a.titre}
-            className="motion-enter rounded-2xl border border-border bg-card/60 p-4"
-            style={{ animationDelay: `${80 + i * 60}ms` }}
-          >
-            <p className="text-sm font-semibold">{a.titre}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{a.texte}</p>
-          </li>
-        ))}
-      </ul>
-
-      <section className="mt-8">
-        <h2 className="text-2xl font-semibold tracking-tight">{RESULTATS_TITRE}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{RESULTATS_TEXTE}</p>
-        {REFERENCE_CAPTURES.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {REFERENCE_CAPTURES.map((src) => (
-              <img key={src} src={src} alt="Capture de résultats" className="w-full rounded-2xl border border-border" loading="lazy" />
-            ))}
+      {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
+      {showGallery && (
+        <div className="fixed inset-0 z-[110] flex flex-col bg-background">
+          <div className="flex items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+            <h2 className="text-lg font-bold">Galerie des créations</h2>
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                onGo(template.target);
+              }}
+              className="motion-apple-tap rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background"
+            >
+              Quitter
+            </button>
           </div>
-        ) : (
-          <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-            Captures de résultats à venir
-          </p>
-        )}
-      </section>
 
-      <button
-        type="button"
-        onClick={onContinue}
-        className="motion-press mt-8 w-full rounded-full bg-foreground py-4 text-base font-semibold text-background shadow-lg"
-      >
-        Commencer ma vidéo
-      </button>
-    </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {gallery === null ? (
+              <p className="py-16 text-center text-sm text-muted-foreground">Chargement…</p>
+            ) : gallery.length === 0 ? (
+              <p className="py-16 text-center text-sm text-muted-foreground">Aucune création publiée pour le moment.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {gallery.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => {
+                      playClick();
+                      setPlaying(g);
+                    }}
+                    className="motion-apple-tap relative overflow-hidden rounded-2xl bg-black text-left"
+                  >
+                    {g.media_type === "video" && g.media_url ? (
+                      <video src={`${g.media_url}#t=0.1`} preload="metadata" muted playsInline className="aspect-[9/12] w-full object-cover" />
+                    ) : g.media_url ? (
+                      <img src={g.media_url} alt={g.prompt} className="aspect-[9/12] w-full object-cover" loading="lazy" />
+                    ) : null}
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-[11px] text-white line-clamp-2">
+                      {g.prompt}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Lecteur au clic */}
+          {playing && (
+            <div className="motion-apple fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
+              <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+                {playing.media_type === "video" && playing.media_url ? (
+                  <video src={playing.media_url} controls autoPlay playsInline className="max-h-[75vh] w-full rounded-2xl bg-black" />
+                ) : playing.media_url ? (
+                  <img src={playing.media_url} alt={playing.prompt} className="max-h-[75vh] w-full rounded-2xl object-contain" />
+                ) : null}
+                <button type="button" onClick={() => setPlaying(null)} className="motion-apple-tap mt-4 w-full rounded-full border border-white/30 py-3 text-sm font-semibold text-white">
+                  Fermer
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
