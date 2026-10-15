@@ -165,7 +165,7 @@ export function AdminLandingPanel() {
           Ces vidéos apparaissent sur la page de référence du parcours choisi par l'utilisateur, et dans sa galerie. La première de la liste devient la vidéo principale.
         </p>
 
-        <p className="text-sm font-medium">1. Publicité UGC (parcours « Génération de vidéos »)</p>
+        <p className="text-sm font-medium">1. Témoignage vidéo (parcours « Génération de vidéos »)</p>
         <label className="block w-full cursor-pointer rounded-full bg-primary py-3 text-center text-sm font-semibold text-primary-foreground">
           {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une vidéo UGC depuis mon appareil"}
           <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => { void pickFile(e.target.files?.[0], "pub"); e.target.value = ""; }} />

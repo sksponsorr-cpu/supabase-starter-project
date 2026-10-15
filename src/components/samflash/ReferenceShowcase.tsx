@@ -30,9 +30,9 @@ export type Template = {
 export const TEMPLATES: Record<Parcours, Template> = {
   generation: {
     category: "pub",
-    eyebrow: "Publicité UGC",
+    eyebrow: "Témoignage vidéo",
     title: "Une vraie personne présente ton produit.",
-    text: "Comme un témoignage filmé au téléphone. Le décor ne bouge pas ; des plans de coupe recouvrent la parole pour donner du rythme.",
+    text: "Avec Sam Flash 2.0, créez des vidéos professionnelles, simples à lire et au rendu motion design. Payez facilement avec Mobile Money, sans carte bancaire.",
     steps: ["La personne", "Ton produit", "L'image, offerte", "Texte et clips"],
     resultsTitle: "Des résultats concrets",
     resultsText: "Les vidéos créées avec l'IA peuvent vous aider à générer des revenus. Voici des vidéos réalisées avec Sam Flash 2.0.",
@@ -97,7 +97,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
     <>
       <div className="w-full max-w-md text-left">
         {/* Vidéo de référence */}
-        <div className="motion-apple-video relative aspect-[9/12] w-full overflow-hidden rounded-[28px] bg-black shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]">
+        <div className="motion-apple-video relative aspect-[9/12] w-full overflow-hidden rounded-[28px] bg-black shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)] mb-6">
           {main ? (
             <video src={main.url} className="h-full w-full object-contain" autoPlay loop muted playsInline controls />
           ) : (
