@@ -11,6 +11,7 @@ import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { creditCostFor, DEFAULT_CREDIT_CONFIG, mergeCreditConfig, type CreditConfig } from "@/lib/credits";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
+import { includedCredits } from "@/lib/plan-credits";
 import { detectCountry } from "@/lib/country.functions";
 
 /** Affiche un nombre qui glisse en douceur vers sa nouvelle valeur (ease-out cubique). */
@@ -114,13 +115,6 @@ const PLANS: Plan[] = [
   },
 ];
 
-/** Crédits inclus par mois (même calcul que le serveur). */
-function includedCredits(p: PriceRow, yearly: boolean): number {
-  if (p.id === "custom") return 110;
-  if (p.credits_fixed !== null) return Math.round(p.credits_fixed);
-  const base = yearly && p.amount_eur_yearly !== null ? p.amount_eur_yearly / 12 : p.amount_eur;
-  return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
-}
 
 /** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
 function featuresFor(plan: Plan, total: number, bonus: number, cfg: CreditConfig): Plan["features"] {
