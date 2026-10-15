@@ -20,7 +20,7 @@ export type CreditConfig = {
 
 /** Valeurs de départ, validées avec la propriétaire du site. */
 export const DEFAULT_CREDIT_CONFIG: CreditConfig = {
-  videoPerSecond: { "480p": 40, "720p": 56, "1080p": 84 }, // 1080p : valeur provisoire, à confirmer
+  videoPerSecond: { "480p": 50, "720p": 69, "1080p": 84 }, // 1080p : valeur provisoire, à confirmer
   cloneVideoPerSecond: 101,
   imageCost: 1,
   feeRate: 0.105,
@@ -44,14 +44,15 @@ export function mergeCreditConfig(partial: Partial<CreditConfig> | null | undefi
 export function creditCostFor(
   mediaType: MediaType,
   seconds: number,
-  resolution: Resolution = "720p",
+  resolution: Resolution | string = "720p",
   config: CreditConfig = DEFAULT_CREDIT_CONFIG,
 ): number {
   if (mediaType === "image") return Math.max(1, Math.round(config.imageCost));
   if (mediaType === "clone_video") {
     return Math.max(1, Math.ceil(seconds * config.cloneVideoPerSecond));
   }
-  const rate = config.videoPerSecond[resolution] ?? config.videoPerSecond["720p"];
+  const table = config.videoPerSecond as Record<string, number>;
+  const rate = table[resolution] ?? config.videoPerSecond["720p"];
   return Math.max(1, Math.ceil(seconds * rate));
 }
 
@@ -64,7 +65,7 @@ export function priceWithFees(priceFcfa: number, config: CreditConfig = DEFAULT_
 export function videosAvailable(
   balance: number,
   seconds: number,
-  resolution: Resolution = "480p",
+  resolution: Resolution | string = "480p",
   config: CreditConfig = DEFAULT_CREDIT_CONFIG,
 ): number {
   return Math.floor(balance / creditCostFor("video", seconds, resolution, config));
