@@ -550,7 +550,7 @@ function LandingPage() {
       <RecentSalesToast />
 
       {/* Navigation supérieure */}
-      <header className="sticky top-9 z-30 bg-white/95 border-b border-slate-200/60 transition-all">
+      <header className={`sticky ${bannerOn ? "top-9" : "top-0"} z-30 bg-white border-b border-slate-200/60 transition-all`}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5 group">
             <img

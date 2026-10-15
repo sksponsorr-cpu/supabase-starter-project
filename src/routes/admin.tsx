@@ -108,6 +108,7 @@ import { AdminSupportPanel } from "@/components/samflash/AdminSupportPanel";
 import { AdminReviewsPanel } from "@/components/samflash/AdminReviewsPanel";
 import { AdminSurveyPanel } from "@/components/samflash/AdminSurveyPanel";
 import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
+import { AdminRevenuePanel } from "@/components/samflash/AdminRevenuePanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { getGenerationProvider, setGenerationProvider, type GenerationProvider } from "@/lib/maintenance.functions";
 import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
@@ -1948,6 +1949,7 @@ function AdminPage() {
             {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
 
             {active === "landing" && isAdmin && <AdminLandingPanel />}
+            {active === "landing" && isAdmin && <AdminRevenuePanel />}
 
             {active === "content" && isAdmin && (
               <section className="pt-5">
