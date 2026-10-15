@@ -12,6 +12,7 @@ import { PresencePing } from "@/components/samflash/PresencePing";
 import { Compass, Home, RefreshCw, TriangleAlert } from "lucide-react";
 
 import appCss from "../styles.css?url";
+import "../motion.css";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
