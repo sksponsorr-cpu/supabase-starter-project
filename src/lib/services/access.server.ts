@@ -1,4 +1,5 @@
 import { creditCostFor } from "@/lib/credits";
+import { getCreditConfig } from "@/lib/credits.server";
 /**
  * Contrôle d'accès à la génération : formule active, quota vidéo restant
  * et limitation de l'offre gratuite à un seul compte par appareil.
@@ -160,7 +161,7 @@ export async function checkGenerationAccess(
       .select("credits_balance")
       .eq("id", userId)
       .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < creditCostFor(mediaType, seconds, "480p")) {
+    if ((wallet?.credits_balance ?? 0) < creditCostFor(mediaType, seconds, "480p", await getCreditConfig())) {
       return {
         ...base,
         allowed: false,
@@ -183,7 +184,7 @@ export async function checkGenerationAccess(
 
   // Abonnés : contrôle du solde de crédits
   {
-    const cost = creditCostFor(mediaType, seconds, "480p");
+    const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
       .select("credits_balance")

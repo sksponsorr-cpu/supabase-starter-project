@@ -10,6 +10,7 @@
  */
 
 import { creditCostFor } from "@/lib/credits";
+import { getCreditConfig } from "@/lib/credits.server";
 
 export type GenerationInput = {
   prompt: string;
@@ -251,7 +252,9 @@ export async function runGeneration(
   }
 
   // Abonnés : décompte en crédits. Gratuit : quota existant inchangé.
-  let creditCost: number | null = !isAdmin ? creditCostFor(input.mediaType, seconds, input.resolution) : null;
+  let creditCost: number | null = !isAdmin
+    ? creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
+    : null;
   if (creditCost !== null) {
     const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
       p_user: userId,
