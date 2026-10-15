@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { deleteGeneration } from "@/lib/generation.functions";
 import { toast } from "@/lib/toast";
 import { VideoTile, warmVideo } from "@/components/samflash/VideoTile";
+import { LongVideosPanel } from "@/components/samflash/LongVideosPanel";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -66,6 +67,9 @@ function HistoryPage() {
         </header>
 
         <main className="flex-1 py-4 sm:p-6">
+          <div className="px-2 sm:px-4 mb-6">
+            <LongVideosPanel />
+          </div>
           {feedLoading && items.length === 0 ? (
             <div className="flex justify-center py-20"><span className="animate-pulse text-muted-foreground">Chargement...</span></div>
           ) : items.length === 0 ? (
