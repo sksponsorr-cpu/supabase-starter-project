@@ -26,7 +26,9 @@ type Step = "generate" | "trim_tail" | "extend" | "trim_new" | "merge";
 
 function webhookUrl(): string {
   const base = process.env["PUBLIC_APP_URL"] ?? "";
-  return `${base.replace(/\/$/, "")}/api/public/webhooks/fal`;
+  const secret = process.env["FAL_WEBHOOK_SECRET"];
+  if (!secret) throw new Error("FAL_WEBHOOK_SECRET manquante");
+  return `${base.replace(/\/$/, "")}/api/public/webhooks/fal?s=${encodeURIComponent(secret)}`;
 }
 
 async function submit(model: string, input: Record<string, unknown>): Promise<string> {

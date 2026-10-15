@@ -8,6 +8,7 @@ export type LandingContent = {
   videos: { url: string; caption: string }[];
   faq: { q: string; a: string }[];
   showcase?: { cat: string; url: string; caption: string }[];
+  banner?: { enabled: boolean; text: string };
 };
 
 export const SHOWCASE_CATEGORIES = ["pub", "clone", "avatar", "scene"] as const;
@@ -26,6 +27,10 @@ function clean(raw: unknown): LandingContent {
     title: str(r["title"], 120),
     text: str(r["text"], 400),
     introVideo: url(r["introVideo"]),
+    banner: {
+      enabled: (r["banner"] as Record<string, unknown> | undefined)?.["enabled"] !== false,
+      text: str((r["banner"] as Record<string, unknown> | undefined)?.["text"], 120) || "Offre de lancement : voir les abonnements",
+    },
     videos: list(r["videos"])
       .map((v) => ({ url: url(v?.["url"]), caption: str(v?.["caption"], 80) }))
       .filter((v) => v.url),
