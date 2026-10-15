@@ -86,6 +86,12 @@ export async function activePlan(userId: string): Promise<{ plan: PlanType; expi
  * Vérifie l'accès AVANT tout appel au moteur de génération,
  * afin de ne jamais consommer de crédit pour un utilisateur sans droit.
  */
+/** Coût fixe pour les comptes gratuits : 10 crédits par vidéo, images gratuites. */
+export const FREE_VIDEO_CREDITS = 10;
+export function freeCreditCost(mediaType: "image" | "video"): number {
+  return mediaType === "video" ? FREE_VIDEO_CREDITS : 0;
+}
+
 export async function checkGenerationAccess(
   userId: string,
   mediaType: "image" | "video",
@@ -161,7 +167,7 @@ export async function checkGenerationAccess(
       .select("credits_balance")
       .eq("id", userId)
       .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < creditCostFor(mediaType, seconds, "480p", await getCreditConfig())) {
+    if ((wallet?.credits_balance ?? 0) < freeCreditCost(mediaType)) {
       return {
         ...base,
         allowed: false,

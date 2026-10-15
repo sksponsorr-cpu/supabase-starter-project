@@ -237,7 +237,7 @@ export async function runGeneration(
 
   // Contrôle d'accès préalable : aucun appel au moteur si l'utilisateur n'a
   // ni abonnement actif ni offre gratuite disponible sur cet appareil.
-  const { checkGenerationAccess } = await import("@/lib/services/access.server");
+  const { checkGenerationAccess, freeCreditCost } = await import("@/lib/services/access.server");
   const access = await checkGenerationAccess(userId, input.mediaType, isVideo ? seconds : 0);
   if (!access.allowed) {
     return {
@@ -252,8 +252,11 @@ export async function runGeneration(
   }
 
   // Abonnés : décompte en crédits. Gratuit : quota existant inchangé.
+  const isFreeUser = !isAdmin && access.planType === "free";
   let creditCost: number | null = !isAdmin
-    ? creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
+    ? isFreeUser
+      ? freeCreditCost(input.mediaType)
+      : creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
     : null;
   if (creditCost !== null) {
     const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
