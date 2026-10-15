@@ -134,7 +134,7 @@ function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"]
   };
   const videos = {
     icon: Check,
-    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / 5)} vidéos de 5 secondes en 480p`,
+    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
   };
   return [credits, videos, ...plan.features.slice(2)];
 }
@@ -644,7 +644,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </p>
               <ul className="mt-5 space-y-3">
                 {[
-                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / 5)} vidéos de 5 secondes en 480p`,
+                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
                   "Pour tester sans vous engager",
                   "Paiement par Mobile Money",
                 ].map((t, i) => (
