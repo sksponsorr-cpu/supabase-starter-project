@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { CODE_SYSTEM, SCRIPT_SYSTEM, REVIEW_SYSTEM } from "./prompts.mjs";
 import { audioDuration, transcribeWords } from "./voice.mjs";
 import { inspectComposition } from "./verify.mjs";
+import { ensureSounds } from "./sounds-ensure.mjs";
 
 const exec = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -558,6 +559,11 @@ async function addSoundEffects(videoBytes, cues, hasVoice) {
   return readFile(outPath);
 }
 
+try {
+  await ensureSounds();
+} catch (err) {
+  console.error("[flash-motion] sons :", err.message);
+}
 console.log("[flash-motion] worker démarré, surveillance de la file");
 
 while (true) {
