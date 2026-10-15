@@ -9,6 +9,7 @@ export type LandingContent = {
   faq: { q: string; a: string }[];
   showcase?: { cat: string; url: string; caption: string }[];
   banner?: { enabled: boolean; text: string };
+  revenue?: { referenceVideo: string; images: { url: string; caption: string }[] };
 };
 
 export const SHOWCASE_CATEGORIES = ["pub", "clone", "avatar", "scene"] as const;
@@ -37,6 +38,13 @@ function clean(raw: unknown): LandingContent {
     faq: list(r["faq"])
       .map((f) => ({ q: str(f?.["q"], 160), a: str(f?.["a"], 600) }))
       .filter((f) => f.q && f.a),
+    revenue: {
+      referenceVideo: url((r["revenue"] as Record<string, unknown> | undefined)?.["referenceVideo"]),
+      images: list((r["revenue"] as Record<string, unknown> | undefined)?.["images"])
+        .map((v) => ({ url: url(v?.["url"]), caption: str(v?.["caption"], 80) }))
+        .filter((v) => v.url)
+        .slice(0, 24),
+    },
     showcase: list(r["showcase"])
       .map((v) => ({ cat: str(v?.["cat"], 20), url: url(v?.["url"]), caption: str(v?.["caption"], 80) }))
       .filter((v) => v.url && (SHOWCASE_CATEGORIES as readonly string[]).includes(v.cat as (typeof SHOWCASE_CATEGORIES)[number]))
