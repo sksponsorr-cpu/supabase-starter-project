@@ -331,11 +331,15 @@ function LandingPage() {
 
   const fetchLanding = useServerFn(getLanding);
   const [landingContent, setLandingContent] = useState<LandingContent>(DEFAULT_LANDING);
+  const [bannerOn, setBannerOn] = useState(true);
+  const [bannerText, setBannerText] = useState("Offre de lancement : voir les abonnements");
 
   useEffect(() => {
     fetchLanding()
       .then((data) => {
         if (data) {
+          setBannerOn(data.banner?.enabled !== false);
+          if (data.banner?.text) setBannerText(data.banner.text);
           setLandingContent({
             title: data.title || DEFAULT_LANDING.title,
             text: data.text || DEFAULT_LANDING.text,
@@ -542,7 +546,7 @@ function LandingPage() {
     <div className="relative min-h-screen text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       {/* 3. Arrière-plan 3D animé et discret */}
       <LandingBackground />
-      <OffersTopBanner />
+      {bannerOn && <OffersTopBanner text={bannerText} />}
       <RecentSalesToast />
 
       {/* Navigation supérieure */}

@@ -18,7 +18,7 @@ const credentialsSchema = z.object({
 
 export const Route = createFileRoute("/connexion")({
   validateSearch: (s: Record<string, unknown>): { next?: string } =>
-    typeof s['next'] === "string" && s['next'].startsWith("/") ? { next: s['next'] } : {},
+    typeof s['next'] === "string" && s['next'].startsWith("/") && !s['next'].startsWith("//") && !s['next'].startsWith("/\\") ? { next: s['next'] } : {},
 
   head: () => ({
     meta: [
