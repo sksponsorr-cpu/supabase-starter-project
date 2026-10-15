@@ -41,6 +41,7 @@ const html = composition.replace(headTag, (m) => `${m}<script>${runtime}</script
 const browser = await chromium.launch({ args: ["--no-sandbox", "--disable-gpu"] });
 const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
 await page.setContent(html, { waitUntil: "load" });
+await page.waitForLoadState("networkidle").catch(() => {});
 await page.evaluate(() => document.fonts.ready);
 const hasRender = await page.evaluate(() => typeof window.renderAt === "function");
 if (!hasRender) throw new Error("La composition doit définir window.renderAt(t)");

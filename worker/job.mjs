@@ -12,7 +12,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CODE_SYSTEM, SCRIPT_SYSTEM, REVIEW_SYSTEM } from "./prompts.mjs";
+import { CODE_SYSTEM, SCRIPT_SYSTEM, REVIEW_SYSTEM, TEMPLATE_SLOT_SYSTEM } from "./prompts.mjs";
 import { audioDuration, transcribeWords } from "./voice.mjs";
 import { inspectComposition } from "./verify.mjs";
 import { ensureSounds } from "./sounds-ensure.mjs";
@@ -332,6 +332,15 @@ async function generateComposition({ job, seconds, W, H, scenes, words, withWord
   return html;
 }
 
+// ---------- Images de référence injectées dans la page (window.ASSETS) ----------
+function withAssets(html, refImages) {
+  if (!refImages.length) return html;
+  const uris = refImages.map((img) => `data:${img.mime};base64,${img.data}`);
+  const tag = `<script>window.ASSETS = ${JSON.stringify(uris)};</script>`;
+  const headTag = /<head[^>]*>/i;
+  return headTag.test(html) ? html.replace(headTag, (m) => `${m}${tag}`) : tag + html;
+}
+
 // ---------- Rendu ----------
 async function renderVideo({ html, seconds, audio, w, h }) {
   const dir = await mkdtemp(join(tmpdir(), "fm-"));
@@ -353,6 +362,36 @@ async function renderVideo({ html, seconds, audio, w, h }) {
 async function processJob(job) {
   let seconds = job.seconds;
   const [W, H] = FORMATS[job.format] ?? FORMATS.vertical;
+
+  // Mode « modèle 26 s » : le modèle remplit les textes, le modèle visuel est fixe.
+  if (job.code_model === "template-motion-ia") {
+    await updateJob(job.id, { stage: "Écriture des textes", progress: 15 });
+    const TEMPLATE_SECONDS = 26;
+    let slots = [];
+    try {
+      const raw = stripFences(await askModel({
+        model: SCRIPT_MODEL, system: TEMPLATE_SLOT_SYSTEM,
+        user: `Sujet : ${job.idea}`, maxTokens: 1200,
+      }));
+      const parsed = JSON.parse(raw);
+      slots = Array.isArray(parsed.slots) ? parsed.slots.map((x) => String(x ?? "").slice(0, 120)) : [];
+    } catch (err) {
+      console.error("[flash-motion] textes du modèle illisibles, textes par défaut :", err.message);
+    }
+    const tplPath = join(here, "templates", "motion-ia-26s.html");
+    const tpl = await readFile(tplPath, "utf8");
+    const tag = `<script>window.SLOT_TEXTS = ${JSON.stringify(slots)};</script>`;
+    const html = tpl.replace(/<head[^>]*>/i, (m) => `${m}${tag}`);
+    await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 60 });
+    const rendered = await renderVideo({ html, seconds: TEMPLATE_SECONDS, audio: null, w: W, h: H });
+    const cues = [2.5, 2.5, 2.5, 2.5, 2.5, 2, 2.5, 2.5, 2, 2, 2.5].map((sec) => ({ seconds: sec }));
+    const bytes = await addSoundEffects(rendered, buildCues(cues, TEMPLATE_SECONDS), false);
+    await updateJob(job.id, { stage: "Envoi", progress: 92 });
+    const videoPath = `${job.user_id}/${job.id}.mp4`;
+    await uploadStorage(videoPath, bytes, "video/mp4");
+    await updateJob(job.id, { status: "ready", video_path: videoPath, html: null, stage: "Terminée", progress: 100 });
+    return;
+  }
 
   // Mode « page prête » : la page fournie est rendue telle quelle, sans modèle.
   if (job.code_model === "prebuilt" && job.html) {
@@ -421,8 +460,8 @@ async function processJob(job) {
 
   // 3, 4. Composition, contrôle automatique et correction, puis rendu
   let refImages = await loadReferences(job.reference_paths);
-  const refNote = refImages.length
-    ? "\nImages de référence fournies : reproduire leur style, leurs couleurs et leur ambiance dans l'animation."
+  let refNote = refImages.length
+    ? "\nIMAGE FOURNIE (logo ou visuel) : elle est disponible dans window.ASSETS[0] (data URI). Affiche-la TELLE QUELLE, par exemple avec un <img id=\"ref0\"> dont src est réglé au chargement : document.getElementById('ref0').src = window.ASSETS[0]. Ne la redessine jamais en SVG ou en CSS, ne la déforme pas, respecte son ratio."
     : "";
   const requiredTexts = [...new Set(scenes.flatMap((sc) => [sc.text, sc.keyword]).filter(Boolean))];
   let rendered = null;
@@ -457,7 +496,7 @@ async function processJob(job) {
     await updateJob(job.id, { stage: "Contrôle de la vidéo", progress: 60 });
     let report = { problems: [], frames: [] };
     try {
-      report = await inspectComposition({ html, seconds, width: W, height: H, requiredTexts });
+      report = await inspectComposition({ html: withAssets(html, refImages), seconds, width: W, height: H, requiredTexts });
     } catch (err) {
       console.error("[flash-motion] contrôle impossible :", err.message);
     }
@@ -493,7 +532,7 @@ async function processJob(job) {
 
     await updateJob(job.id, { stage: "Rendu de la vidéo", progress: 70 });
     try {
-      rendered = await renderVideo({ html, seconds, audio, w: W, h: H });
+      rendered = await renderVideo({ html: withAssets(html, refImages), seconds, audio, w: W, h: H });
       break;
     } catch (err) {
       if (attempt === MAX_ATTEMPTS || !String(err.message).includes("statique")) throw err;

@@ -28,14 +28,14 @@ export const CODE_SYSTEM = `Tu écris une vidéo de motion design sous forme de 
 === 1. CONTRAT TECHNIQUE (non négociable) ===
 - Commence par <!doctype html>, puis <head> et <body>.
 - Une seule fonction de mouvement : window.renderAt(t), t en secondes. Pour chaque t, elle met le DOM à jour. Elle ne dépend d'aucun état précédent.
-- Interdits : requestAnimationFrame, setTimeout, setInterval, Date, Math.random, performance.now, @keyframes, transition:, animation:, backdrop-filter, fetch, XMLHttpRequest, toute ressource externe (<link>, <script src>, images distantes).
+- Interdits : requestAnimationFrame, setTimeout, setInterval, Date, Math.random, performance.now, @keyframes, transition:, animation:, backdrop-filter, fetch, XMLHttpRequest, <script src>, images distantes. SEULE exception : la feuille Google Fonts suivante, dans le <head> : <link href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime&display=swap" rel="stylesheet">.
 - Runtime injecté, expose window.FM : clamp(v,a,b), lerp(a,b,p), seg(t,debut,duree) renvoie 0..1, easeOutCubic(p), easeInOutCubic(p), easeOutBack(p), wordProgress(WORDS,t,i) renvoie 0..1 pour le mot i.
 - Tout reste dans le cadre (format donné), marges de 8 % minimum.
 
 === 2. STYLE DE RÉFÉRENCE (à reproduire) ===
 Fond : dégradé radial, centre blanc (#ffffff), bords gris (#d9d9d9). Pas de couleur vive en fond sauf écran de rupture.
-Sous-titres : une seule ligne, centrée horizontalement, à environ 38 % de la hauteur (au-dessus du milieu, jamais en bas). Police à chasse fixe : "Courier New", "Liberation Mono", monospace. MAJUSCULES, espacement 0,15 em, taille environ 3 % de la hauteur, couleur #222. Chaque mot apparaît d'un coup via FM.wordProgress(WORDS,t,i), sans glissement.
-Titres : sans-serif très grasse et condensée : "Arial Black", "Liberation Sans", sans-serif, poids 900, MAJUSCULES. Noir (#111), mot clé en rouge (#E53935) ou dans une boîte rouge.
+Sous-titres : une seule ligne, centrée horizontalement, à environ 38 % de la hauteur (au-dessus du milieu, jamais en bas). Police : Courier Prime, repli "Courier New", monospace. MAJUSCULES, espacement 0,15 em, taille environ 3 % de la hauteur, couleur #222. Chaque mot apparaît d'un coup via FM.wordProgress(WORDS,t,i), sans glissement.
+Titres : Anton (très grasse et condensée), repli "Arial Black", sans-serif. MAJUSCULES. Noir (#111), mot clé en rouge (#E53935) ou dans une boîte rouge.
 Accent unique : #E53935. Ne pas en mettre plus d'un par écran.
 Objets : panneaux plats gris ou noirs, en perspective (rotateX 15 à 25 degrés, rotateY -15 à 15 degrés), ombre douce et large, trois panneaux superposés au maximum.
 Interfaces : petites maquettes de téléphone ou de fenêtre avec des barres et des pastilles, pas de texte lisible à moins de 4 % de la hauteur.
@@ -84,6 +84,16 @@ STYLE B « éditorial pastel » (vidéo tendance, aérée) :
 
 Dans les deux styles : un logo ou un mot de marque en fin, sur fond uni, avec la carte finale d'une seule action.
 
+=== 6 ter. RECETTE 3D STYLE APPLE ===
+- Parent : perspective: 1400px ; transform-style: preserve-3d.
+- Objet principal : transform: rotateX(18deg) rotateY(-24deg) translateZ(0) ; il se redresse vers rotateX(0) rotateY(0) pendant l'entrée (easeOutBack, 0,8 s).
+- Épaisseur : superpose deux ou trois couches décalées de 6 à 10 px en translateZ, de couleurs de plus en plus sombres, pour donner du volume.
+- Éclairage : un dégradé linéaire clair en haut à gauche, sombre en bas à droite, sur chaque panneau. Reflet : une bande blanche semi-transparente, opacité 0,25.
+- Ombre : box-shadow large et douce (0 40px 80px rgba(0,0,0,.18)), jamais dure.
+- Mouvement d'entrée style Apple : grand et flou (filter: blur(12px)) qui se pose en net, en 0,8 à 1 seconde, avec un léger dépassement (easeOutBack).
+- Parallaxe : trois plans, déplacés de 0,5x, 1x et 1,6x pendant la caméra.
+- Typographie : très grande, serrée (letter-spacing: -0.02em), graisse 700 à 900, beaucoup d'espace blanc autour.
+
 === 7. CONTRÔLE AVANT DE RÉPONDRE ===
 Avant de répondre, vérifie mentalement :
 - aucun mot interdit de la section 1 n'apparaît ;
@@ -107,3 +117,20 @@ Règles :
 - Chaque problème doit être précis : quel élément, quelle zone, quelle correction. Pas de jugement vague.
 - Au maximum 6 problèmes, les plus visibles d'abord.
 - Si tout est correct, issues est une liste vide.`;
+
+
+export const TEMPLATE_SLOT_SYSTEM = `Tu remplis les textes d'un modèle de vidéo motion design verticale de 26 secondes, en français.
+Réponds UNIQUEMENT avec un JSON valide, sans markdown : {"slots": ["...", ...]} avec exactement 12 chaînes, dans cet ordre :
+0 titre d'ouverture (court, 4 à 7 mots, il introduit le sujet)
+1 accroche (ex. "Aujourd'hui, c'est pour ceux qui osent.")
+2 problème (court, ex. "Des logiciels compliqués.")
+3 action (ex. "Tu écris ton idée…")
+4 phrase tapée dans la barre de saisie (une phrase concrète sur le sujet)
+5 bénéfice (ex. "Et l'IA anime pour toi")
+6 économie (ex. "Sans logiciel de montage")
+7 promesse (ex. "Motion IA t'apprend la méthode")
+8 ne pas utiliser : mettre une chaîne vide ""
+9 accroche de fin (ex. "C'est notre tour")
+10 urgence (ex. "L'offre de lancement ne durera pas.")
+11 appel à l'action court (ex. "Clique.")
+Règles : phrases courtes, majuscules gérées par le modèle, aucun texte hors du JSON, rien d'inventé qui ne soit lié au sujet demandé.`;

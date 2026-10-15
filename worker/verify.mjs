@@ -36,6 +36,7 @@ export async function inspectComposition({ html, seconds, width, height, require
   try {
     const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
     await page.setContent(page_html, { waitUntil: "load" });
+    await page.waitForLoadState("networkidle").catch(() => {});
     await page.evaluate(() => document.fonts.ready);
     if (!(await page.evaluate(() => typeof window.renderAt === "function"))) {
       return { problems: ["window.renderAt(t) est absent"], frames: [] };
