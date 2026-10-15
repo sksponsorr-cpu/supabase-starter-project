@@ -86,6 +86,17 @@ export function AdminCreditsPanel() {
           />
         </div>
         <div>
+          <label className={label}>Moteur du clonage vidéo</label>
+          <select
+            className={field}
+            value={config.cloneProvider}
+            onChange={(e) => setConfig({ ...config, cloneProvider: e.target.value as "kie" | "fal" })}
+          >
+            <option value="kie">Kie (ancien)</option>
+            <option value="fal">fal.ai (Kling motion control)</option>
+          </select>
+        </div>
+        <div>
           <label className={label}>Crédits par image</label>
           <input
             className={field}

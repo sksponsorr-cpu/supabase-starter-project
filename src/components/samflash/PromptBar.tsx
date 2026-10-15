@@ -3,6 +3,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
+import { launchLongVideo } from "@/lib/long-jobs.functions";
+import { getPublicCreditConfig } from "@/lib/credits-public.functions";
+import { DEFAULT_CREDIT_CONFIG, type CreditConfig, type Resolution } from "@/lib/credits";
+import { DurationSlider } from "@/components/samflash/DurationSlider";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
 import { enhancePrompt } from "@/lib/prompt.functions";
@@ -96,6 +100,16 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const allowVideo = optionOn(prefs, "skillVideo", true) || !optionOn(prefs, "skillImage", true);
   const [res, setRes] = useState("720p");
   const [dur, setDur] = useState("5s");
+  const [longSec, setLongSec] = useState(5);
+  const [showSlider, setShowSlider] = useState(false);
+  const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
+  const fetchCreditCfg = useServerFn(getPublicCreditConfig);
+  const launchLong = useServerFn(launchLongVideo);
+  useEffect(() => {
+    fetchCreditCfg()
+      .then((c) => setCreditCfg({ ...DEFAULT_CREDIT_CONFIG, ...c }))
+      .catch(() => {});
+  }, [fetchCreditCfg]);
   const [userPlan, setUserPlan] = useState<string>("free");
   const [ratio, setRatio] = useState("2:3");
   const [mode, setMode] = useState<"image" | "video">("video");
@@ -370,6 +384,21 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         ? `${t("video")} ${res} · ${dur} · ${ratio}…`
         : `${t("image")} ${res} · ${ratio}…`,
     );
+
+    if (mode === "video" && longSec > 15) {
+      const r = await launchLong({
+        data: { prompt: finalPrompt, seconds: longSec, resolution: (res === "480p" ? "480p" : "720p") as Resolution },
+      });
+      setBusy(false);
+      setSent(null);
+      if (r.ok) {
+        toast.success("Vidéo longue lancée. Suivez la progression dans Mes créations.");
+        onGenerated?.();
+      } else {
+        toast.error(r.message);
+      }
+      return;
+    }
 
     let isDone = false;
     try {
@@ -672,6 +701,17 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             </button>
           ))}
         </div>
+        {mode === "video" && showSlider && (
+          <DurationSlider
+            value={longSec}
+            resolution={(res === "480p" ? "480p" : "720p") as Resolution}
+            config={creditCfg}
+            onChange={(sec) => {
+              setLongSec(sec);
+              setDur(`${sec}s`);
+            }}
+          />
+        )}
         {mode === "video" && (() => {
           const isFree = userPlan === "free";
           const isPlus = userPlan === "super_grok_plus";
@@ -683,10 +723,17 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           return (
             <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
               {activeDurations.map((d) => (
-                <button key={d} type="button" onClick={() => setDur(d)} className={chip(dur === d)}>
+                <button key={d} type="button" onClick={() => { setDur(d); setLongSec(parseInt(d, 10)); setShowSlider(false); }} className={chip(dur === d && !showSlider)}>
                   {d}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowSlider((v) => !v)}
+                className={chip(showSlider)}
+              >
+                Long
+              </button>
               {upcomingDurations.map((d) => (
                 <span
                   key={d}
