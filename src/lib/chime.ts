@@ -1,6 +1,6 @@
 /** Sons « Apple motion » joués via WebAudio (aucun fichier requis). */
 
-export type ChimeKind = "send" | "success" | "error" | "notify";
+export type ChimeKind = "send" | "success" | "error" | "notify" | "click";
 
 type Note = { f: number; t: number };
 
@@ -18,6 +18,8 @@ const PRESETS: Record<ChimeKind, { notes: Note[]; type: OscillatorType; gain: nu
   error: { notes: [{ f: 392, t: 0 }, { f: 293.66, t: 0.12 }], type: "triangle", gain: 0.18, tail: 0.6 },
   // Notification (réponse support)
   notify: { notes: [{ f: 659.25, t: 0 }, { f: 987.77, t: 0.12 }], type: "sine", gain: 0.22, tail: 0.9 },
+  // Clic doux, bref et brillant (à chaque bouton)
+  click: { notes: [{ f: 1318.51, t: 0 }, { f: 1975.53, t: 0.035 }], type: "sine", gain: 0.1, tail: 0.14 },
 };
 
 export function playChime(kind: ChimeKind = "notify") {
@@ -55,6 +57,11 @@ export function playChime(kind: ChimeKind = "notify") {
   } catch {
     /* audio indisponible */
   }
+}
+
+/** Son de clic motion design, joué à chaque bouton de l'accueil. */
+export function playClick() {
+  playChime("click");
 }
 
 /** Compat : carillon de notification. */
