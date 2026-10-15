@@ -7,6 +7,7 @@ import { launchLongVideo } from "@/lib/long-jobs.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
 import { DEFAULT_CREDIT_CONFIG, type CreditConfig, type Resolution } from "@/lib/credits";
 import { DurationSlider } from "@/components/samflash/DurationSlider";
+import { clipMaxSeconds } from "@/lib/plans";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
 import { enhancePrompt } from "@/lib/prompt.functions";
@@ -112,7 +113,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   }, [fetchCreditCfg]);
   const [userPlan, setUserPlan] = useState<string>("free");
   // Gratuit : 1 minute maximum. Au-delà, un cadenas invite à passer à un abonnement.
-  const lockedMaxSec = userPlan === "free" ? 60 : 180;
+  const lockedMaxSec = clipMaxSeconds(userPlan);
   const [ratio, setRatio] = useState("2:3");
   const [mode, setMode] = useState<"image" | "video">("video");
   const [text, setText] = useState("");
