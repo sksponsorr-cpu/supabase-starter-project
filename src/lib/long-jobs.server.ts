@@ -1,3 +1,4 @@
+import { clipMaxSeconds } from "@/lib/plans";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { creditCostFor, type Resolution } from "@/lib/credits";
 import { getCreditConfig } from "@/lib/credits.server";
@@ -76,7 +77,7 @@ export async function startLongJob(input: {
   // Vérification serveur (le curseur côté interface ne suffit pas) :
   // sans abonnement 60 s maximum, avec un abonnement 180 s maximum.
   const { plan } = await activePlan(input.userId);
-  const maxSeconds = plan === "free" ? 60 : 180;
+  const maxSeconds = clipMaxSeconds(plan);
   if (input.seconds > maxSeconds) {
     return {
       ok: false,

@@ -62,6 +62,12 @@ export function planTypeFor(productId: string, period: "monthly" | "yearly"): Pl
   return period === "yearly" ? "super_grok_annuel" : "super_grok_monthly";
 }
 
+/** Durée maximale d'UNE vidéo, en secondes. Gratuit et Sam Flash Light : 1 minute. Les autres formules : 3 minutes. */
+export function clipMaxSeconds(plan: string | null | undefined): number {
+  const p = toPlanType(plan);
+  return p === "free" || p === "sam_flash_light" ? 60 : 180;
+}
+
 /** Normalise une valeur venue de la base en formule connue. */
 export function toPlanType(value: string | null | undefined): PlanType {
   if (value && value in PLAN_VIDEO_SECONDS) return value as PlanType;
