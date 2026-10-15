@@ -10,7 +10,7 @@ import {
   startAiJob,
   type AiJobRow,
 } from "@/lib/ai-tools.functions";
-import { cancelAiJob, deleteAiJob } from "@/lib/ai-jobs-manage.functions";
+import { cancelAiJob, deleteAiJob, expireStaleAiJobs } from "@/lib/ai-jobs-manage.functions";
 import {
   AVATAR_MAX_SECONDS,
   CLONE_MAX_SECONDS,
@@ -61,6 +61,23 @@ const STATUS_LABEL: Record<string, string> = {
   failed: "Échouée (remboursée)",
 };
 
+const MOTION_CSS = `
+@keyframes fm-rise { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fm-zoom { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes fm-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.fm-rise { animation: fm-rise .6s cubic-bezier(.2,.8,.2,1) both; }
+.fm-zoom { animation: fm-zoom .7s cubic-bezier(.2,.8,.2,1) both; }
+.fm-card { animation: fm-rise .6s cubic-bezier(.2,.8,.2,1) both; transition: transform .25s ease, box-shadow .25s ease; }
+.fm-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0,0,0,.55); }
+.fm-press { transition: transform .15s ease, opacity .15s ease; }
+.fm-press:active:not(:disabled) { transform: scale(.97); }
+.fm-shimmer { background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); background-size: 200% 100%; animation: fm-shimmer 1.6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-rise, .fm-zoom, .fm-card, .fm-shimmer { animation: none !important; transition: none !important; }
+  .fm-card:hover { transform: none; }
+}
+`;
+
 export function AiToolPage({
   tool,
   title,
@@ -101,13 +118,16 @@ export function AiToolPage({
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const cancel = useServerFn(cancelAiJob);
   const remove = useServerFn(deleteAiJob);
+  const expire = useServerFn(expireStaleAiJobs);
 
   const variant = variants.find((v) => v.id === variantId) ?? variants[0];
   const estimate = seconds > 0 ? jobCost(variant, seconds) : null;
   const busy = phase === "uploading" || phase === "starting" || phase === "processing";
 
   const refreshJobs = () =>
-    list({ data: { tool } })
+    expire({ data: {} })
+      .catch(() => undefined)
+      .then(() => list({ data: { tool } }))
       .then(setJobs)
       .catch(() => undefined);
 
@@ -269,11 +289,12 @@ export function AiToolPage({
 
   return (
     <main className="min-h-screen bg-background px-5 pb-16 pt-6 text-foreground">
+      <style>{MOTION_CSS}</style>
       <div className="mx-auto max-w-xl">
         <Link to="/outils-ai" className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <ArrowLeft className="h-4 w-4" /> Plus outils AI
         </Link>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="fm-rise mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 text-[15px] text-muted-foreground">{description}</p>
 
         <div className="mt-6 space-y-4">
@@ -348,7 +369,7 @@ export function AiToolPage({
             />
           </label>
 
-          <div className="rounded-2xl border border-border bg-card/40 p-4">
+          <div className="fm-card rounded-2xl border border-border bg-card/40 p-4" style={{ animationDelay: "120ms" }}>
             <p className="text-sm text-muted-foreground">Coût estimé</p>
             <p className="mt-1 text-2xl font-semibold">{estimate !== null ? `${estimate.toFixed(1)} crédits` : "—"}</p>
             <p className="mt-1 text-xs text-muted-foreground">Le coût exact est réglé à la fin. Remboursement automatique en cas d'échec.</p>
@@ -358,7 +379,7 @@ export function AiToolPage({
             type="button"
             disabled={!image || !media || busy}
             onClick={() => void submit()}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background disabled:opacity-40"
+            className="fm-press flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background disabled:opacity-40"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {phase === "uploading"
@@ -374,7 +395,7 @@ export function AiToolPage({
             <div className="space-y-3">
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-foreground transition-[width] duration-700 ease-out"
+                  className="fm-shimmer h-full rounded-full bg-foreground transition-[width] duration-700 ease-out"
                   style={{ width: `${Math.max(progress, 4)}%` }}
                 />
               </div>
@@ -395,8 +416,8 @@ export function AiToolPage({
         </div>
 
         {resultUrl && (
-          <div className="mt-6 space-y-3 rounded-2xl border border-border bg-card/40 p-4">
-            <video src={resultUrl} controls playsInline className="mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl" />
+          <div className="fm-card mt-6 space-y-3 rounded-2xl border border-border bg-card/40 p-4">
+            <video src={resultUrl} controls playsInline className="fm-zoom mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl" />
             <a
               href={resultUrl}
               target="_blank"
@@ -412,10 +433,10 @@ export function AiToolPage({
 
         {jobs.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-semibold">Mes générations</h2>
+            <h2 className="fm-rise text-lg font-semibold">Mes générations</h2>
             <ul className="mt-3 space-y-2">
-              {jobs.map((j) => (
-                <li key={j.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 p-3">
+              {jobs.map((j, idx) => (
+                <li key={j.id} className="fm-card flex items-center gap-3 rounded-2xl border border-border bg-card/40 p-3" style={{ animationDelay: `${idx * 80}ms` }}>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{STATUS_LABEL[j.status] ?? j.status}</p>
                     <p className="text-xs text-muted-foreground">
