@@ -16,6 +16,8 @@ export type CreditConfig = {
   imageCost: number;
   /** Taux des frais affichés au client (ex. 0.105). */
   feeRate: number;
+  /** Moteur du clonage vidéo : « kie » (ancien) ou « fal » (Kling motion control). */
+  cloneProvider: "kie" | "fal";
 };
 
 /** Valeurs de départ, validées avec la propriétaire du site. */
@@ -24,6 +26,7 @@ export const DEFAULT_CREDIT_CONFIG: CreditConfig = {
   cloneVideoPerSecond: 101,
   imageCost: 1,
   feeRate: 0.105,
+  cloneProvider: "kie",
 };
 
 /** Fusionne une configuration partielle (venant de la base) avec les valeurs par défaut. */
@@ -34,6 +37,7 @@ export function mergeCreditConfig(partial: Partial<CreditConfig> | null | undefi
     cloneVideoPerSecond: partial.cloneVideoPerSecond ?? DEFAULT_CREDIT_CONFIG.cloneVideoPerSecond,
     imageCost: partial.imageCost ?? DEFAULT_CREDIT_CONFIG.imageCost,
     feeRate: partial.feeRate ?? DEFAULT_CREDIT_CONFIG.feeRate,
+    cloneProvider: partial.cloneProvider === "fal" ? "fal" : partial.cloneProvider === "kie" ? "kie" : DEFAULT_CREDIT_CONFIG.cloneProvider,
   };
 }
 

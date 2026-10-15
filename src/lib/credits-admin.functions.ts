@@ -36,6 +36,7 @@ function clean(raw: unknown): CreditConfig {
     cloneVideoPerSecond: num(r["cloneVideoPerSecond"], 1, 1000, DEFAULT_CREDIT_CONFIG.cloneVideoPerSecond),
     imageCost: num(r["imageCost"], 1, 100, DEFAULT_CREDIT_CONFIG.imageCost),
     feeRate: num(r["feeRate"], 0, 0.5, DEFAULT_CREDIT_CONFIG.feeRate),
+    cloneProvider: r["cloneProvider"] === "fal" ? "fal" : "kie",
   };
 }
 

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OWNER_EMAILS } from "@/lib/owners";
 import { kieCreditsToSamCredits } from "@/lib/ai-pricing";
+import { getCreditConfig } from "@/lib/credits.server";
+import { submitCloneFal, checkCloneFal } from "@/lib/clone-fal.server";
 import {
   AVATAR_MAX_SECONDS,
   CLONE_MAX_SECONDS,
@@ -149,7 +151,10 @@ export const startAiJob = createServerFn({ method: "POST" })
     }
 
     const db = await getDb();
-    const cost = jobCost(variant, data.seconds);
+    const creditCfg = await getCreditConfig();
+    const provider = tool === "clone" ? creditCfg.cloneProvider : "kie";
+    const cost =
+      provider === "fal" ? Math.ceil(data.seconds * creditCfg.cloneVideoPerSecond) : jobCost(variant, data.seconds);
 
     const { data: profile } = await db.from("profiles").select("credits_balance").eq("id", context.userId).maybeSingle();
     if (!profile || Number(profile.credits_balance) < Math.ceil(cost)) {
@@ -189,6 +194,19 @@ export const startAiJob = createServerFn({ method: "POST" })
           };
 
     try {
+      if (provider === "fal") {
+        const requestId = await submitCloneFal({
+          imageUrl: data.imageUrl,
+          videoUrl: data.mediaUrl,
+          prompt: data.prompt ?? "",
+          orientation: data.orientation,
+        });
+        await db
+          .from("ai_jobs")
+          .update({ kie_task_id: `fal:${requestId}`, status: "processing", updated_at: new Date().toISOString() })
+          .eq("id", jobId);
+        return { ok: true as const, jobId, cost };
+      }
       const res = await fetch("https://api.kie.ai/api/v1/jobs/createTask", {
         method: "POST",
         headers: { Authorization: `Bearer ${KIE_KEY()}`, "Content-Type": "application/json" },
@@ -235,6 +253,9 @@ export const getAiJob = createServerFn({ method: "POST" })
       return { ok: true as const, status: "failed" as const, resultUrl: null, progress: 0, message: "La génération a échoué. Vos crédits ont été remboursés." };
     }
     if (!job.kie_task_id) return { ok: true as const, status: "processing" as const, resultUrl: null, progress: 0 };
+    if (String(job.kie_task_id).startsWith("fal:")) {
+      return checkCloneFal(db, job, String(job.kie_task_id).slice(4), failAndRefund);
+    }
 
     try {
       const res = await fetch(
