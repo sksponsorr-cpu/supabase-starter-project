@@ -158,7 +158,7 @@ export const quotePrice = createServerFn({ method: "POST" })
         productId: z.string().min(1),
         countryCode: z.string().length(2),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        credits: z.number().int().min(0).max(100000).optional(),
         promoCode: z.string().max(40).optional(),
       })
       .parse(input),
@@ -223,7 +223,7 @@ export const startPayment = createServerFn({ method: "POST" })
         mobile: z.string().min(6).max(20),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        credits: z.number().int().min(0).max(100000).optional(),
         promoCode: z.string().max(40).optional(),
       })
       .parse(input),
@@ -382,7 +382,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
         productId: z.string().min(1).max(40),
         fullName: z.string().min(2).max(80),
         period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(CREDIT_MIN).max(CREDIT_MAX).optional(),
+        credits: z.number().int().min(0).max(100000).optional(),
         promoCode: z.string().max(40).optional(),
       })
       .parse(input),
