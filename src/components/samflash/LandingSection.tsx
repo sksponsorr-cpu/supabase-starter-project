@@ -234,7 +234,7 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Puis-je essayer gratuitement ?",
-    a: "Oui. À l'inscription, tu reçois 5 crédits offerts, utilisables pour tes vidéos et tes images, sans abonnement. L'offre d'essai est limitée par appareil.",
+    a: "Oui. À l'inscription, tu reçois 40 crédits offerts, soit une vidéo de 5 secondes (la génération d'images est gratuite), sans abonnement. L'offre d'essai est limitée par appareil.",
   },
   {
     q: "Combien de vidéo puis-je créer par jour ?",
@@ -324,7 +324,7 @@ export function LandingSection() {
             >
               Créer ma première vidéo
             </button>
-            <p className="mt-3 text-xs text-muted-foreground">Essaie gratuitement : 5 crédits offerts.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Essaie gratuitement : 40 crédits offerts.</p>
           </Reveal>
         </div>
       )}
