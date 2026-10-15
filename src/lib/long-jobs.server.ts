@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { creditCostFor, type Resolution } from "@/lib/credits";
 import { getCreditConfig } from "@/lib/credits.server";
+import { activePlan } from "@/lib/services/access.server";
 
 /**
  * Vidéos longues, entièrement sur fal.ai.
@@ -70,6 +71,19 @@ export async function startLongJob(input: {
   resolution: Resolution;
   seconds: number;
 }): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
+  // Vérification serveur (le curseur côté interface ne suffit pas) :
+  // sans abonnement 60 s maximum, avec un abonnement 180 s maximum.
+  const { plan } = await activePlan(input.userId);
+  const maxSeconds = plan === "free" ? 60 : 180;
+  if (input.seconds > maxSeconds) {
+    return {
+      ok: false,
+      message: plan === "free"
+        ? "Sans abonnement, la durée est limitée à 1 minute. Passez à un abonnement pour aller plus loin."
+        : "La durée maximale est de 3 minutes.",
+    };
+  }
+
   const config = await getCreditConfig();
   const cost = creditCostFor("video", input.seconds, input.resolution, config);
 
