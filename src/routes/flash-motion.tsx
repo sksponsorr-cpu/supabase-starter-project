@@ -5,6 +5,23 @@ import { createMotionVideo, listMotionVideos, uploadMotionReference, uploadMotio
 import { DEFAULT_CODE_MODEL, FLASH_MOTION } from "@/lib/flash-motion/config";
 import { ModelPicker } from "@/components/flash-motion/ModelPicker";
 
+const MOTION_CSS = `
+@keyframes fm-rise { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fm-zoom { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes fm-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.fm-rise { animation: fm-rise .6s cubic-bezier(.2,.8,.2,1) both; }
+.fm-zoom { animation: fm-zoom .7s cubic-bezier(.2,.8,.2,1) both; }
+.fm-card { animation: fm-rise .6s cubic-bezier(.2,.8,.2,1) both; transition: transform .25s ease, box-shadow .25s ease; }
+.fm-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0,0,0,.25); }
+.fm-press { transition: transform .15s ease, opacity .15s ease; }
+.fm-press:active:not(:disabled) { transform: scale(.97); }
+.fm-shimmer { background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); background-size: 200% 100%; animation: fm-shimmer 1.6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-rise, .fm-zoom, .fm-card, .fm-shimmer { animation: none !important; transition: none !important; }
+  .fm-card:hover { transform: none; }
+}
+`;
+
 export const Route = createFileRoute("/flash-motion")({
   component: FlashMotionPage,
 });
@@ -126,7 +143,8 @@ function FlashMotionPage() {
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 700 }}>Motion AI</h1>
+      <style>{MOTION_CSS}</style>
+      <h1 className="fm-rise" style={{ fontSize: 26, fontWeight: 700 }}>Motion AI</h1>
       <p style={{ color: "#52525b", fontSize: 15 }}>Décrivez votre vidéo, l'IA la fabrique pour vous.</p>
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -224,6 +242,7 @@ function FlashMotionPage() {
         <button
           type="submit"
           disabled={busy || idea.trim().length < 5}
+          className="fm-press"
           style={{
             padding: "12px 16px",
             borderRadius: 12,
@@ -241,12 +260,12 @@ function FlashMotionPage() {
 
       {message && <p style={{ color: "#b91c1c", fontSize: 15 }}>{message}</p>}
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>Mes vidéos</h2>
+      <h2 className="fm-rise" style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>Mes vidéos</h2>
 
       {rows.length === 0 && <p style={{ color: "#71717a", fontSize: 14 }}>Aucune vidéo pour le moment.</p>}
 
-      {rows.map((r) => (
-        <section key={r.id} style={{ border: "1px solid #e4e4e7", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      {rows.map((r, idx) => (
+        <section key={r.id} className="fm-card" style={{ animationDelay: `${idx * 90}ms`,  border: "1px solid #e4e4e7", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14 }}>
             <strong style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{r.idea}</strong>
             <span style={{ whiteSpace: "nowrap", color: r.status === "failed" ? "#b91c1c" : "#52525b" }}>
@@ -257,7 +276,7 @@ function FlashMotionPage() {
           {(r.status === "queued" || r.status === "rendering") && (
             <>
               <div style={{ height: 8, borderRadius: 999, background: "#e4e4e7", overflow: "hidden" }}>
-                <div style={{ width: `${r.progress}%`, height: "100%", background: "#111827", transition: "width 0.5s" }} />
+                <div className="fm-shimmer" style={{ width: `${r.progress}%`, height: "100%", background: "#111827", transition: "width 0.5s" }} />
               </div>
               <span style={{ fontSize: 13, color: "#52525b" }}>
                 {r.stage ?? "En attente du worker…"} · {r.progress} %
@@ -269,7 +288,7 @@ function FlashMotionPage() {
 
           {r.status === "ready" && r.videoUrl && (
             <>
-              <video src={r.videoUrl} controls playsInline style={{ width: "100%", maxWidth: 260, maxHeight: 420, margin: "0 auto", display: "block", borderRadius: 12, background: "#000" }} />
+              <video className="fm-zoom" src={r.videoUrl} controls playsInline style={{ width: "100%", maxWidth: 260, maxHeight: 420, margin: "0 auto", display: "block", borderRadius: 12, background: "#000" }} />
               <a href={r.videoUrl} download="motion-ai.mp4" style={{ color: "#111827", fontWeight: 600 }}>
                 Télécharger la vidéo
               </a>
