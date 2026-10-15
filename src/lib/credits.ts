@@ -1,39 +1,71 @@
 /**
- * Coût des générations en crédits (abonnés uniquement).
- * Les valeurs de base correspondent à la qualité 480p.
- * La qualité supérieure multiplie le coût.
+ * Coût des générations en crédits. Fichier partagé client + serveur (sans accès base).
+ * Les valeurs par défaut ci-dessous sont utilisées tant que l'administrateur
+ * n'a pas enregistré d'autres valeurs (voir credits.server.ts).
  */
 
-/** Crédits pour une image en 480p. */
-export const IMAGE_CREDIT_COST = 1;
+export type MediaType = "image" | "video" | "clone_video";
+export type Resolution = "480p" | "720p" | "1080p";
 
-/** Crédits par seconde de vidéo en 480p. */
-export const VIDEO_CREDITS_PER_SECOND = 1;
-
-/** Multiplicateur selon la qualité. */
-export const RESOLUTION_MULTIPLIER: Record<string, number> = {
-  "480p": 1,
-  "720p": 2,
-  "1080p": 3,
+export type CreditConfig = {
+  /** Crédits par seconde de vidéo générée, par résolution. */
+  videoPerSecond: Record<Resolution, number>;
+  /** Crédits par seconde de vidéo de référence pour le clonage vidéo. */
+  cloneVideoPerSecond: number;
+  /** Crédits par image. */
+  imageCost: number;
+  /** Taux des frais affichés au client (ex. 0.105). */
+  feeRate: number;
 };
 
-export function creditCostFor(
-  mediaType: "image" | "video",
-  seconds: number,
-  resolution: string = "720p",
-): number {
-  const mult = RESOLUTION_MULTIPLIER[resolution] ?? 2;
-  if (mediaType === "image") return Math.max(1, Math.round(IMAGE_CREDIT_COST * mult));
-  return Math.max(1, Math.ceil(seconds * VIDEO_CREDITS_PER_SECOND * mult));
-}
+/** Valeurs de départ, validées avec la propriétaire du site. */
+export const DEFAULT_CREDIT_CONFIG: CreditConfig = {
+  videoPerSecond: { "480p": 40, "720p": 56, "1080p": 84 }, // 1080p : valeur provisoire, à confirmer
+  cloneVideoPerSecond: 101,
+  imageCost: 1,
+  feeRate: 0.105,
+};
 
-/** Produits achetés en crédits (recharges et pass), et non en abonnement. */
-export function isCreditProduct(productId: string | null | undefined): boolean {
-  return !!productId && (productId.startsWith("pack_") || productId.startsWith("pass_"));
+/** Fusionne une configuration partielle (venant de la base) avec les valeurs par défaut. */
+export function mergeCreditConfig(partial: Partial<CreditConfig> | null | undefined): CreditConfig {
+  if (!partial) return DEFAULT_CREDIT_CONFIG;
+  return {
+    videoPerSecond: { ...DEFAULT_CREDIT_CONFIG.videoPerSecond, ...(partial.videoPerSecond ?? {}) },
+    cloneVideoPerSecond: partial.cloneVideoPerSecond ?? DEFAULT_CREDIT_CONFIG.cloneVideoPerSecond,
+    imageCost: partial.imageCost ?? DEFAULT_CREDIT_CONFIG.imageCost,
+    feeRate: partial.feeRate ?? DEFAULT_CREDIT_CONFIG.feeRate,
+  };
 }
 
 /**
- * Fin de l'offre de lancement (heure de Paris).
- * Modifie cette date pour changer le compteur affiché sur les abonnements.
+ * Nombre de crédits retirés pour une génération.
+ * Compatible avec l'ancienne signature : creditCostFor(mediaType, seconds, resolution).
  */
-export const OFFER_END_ISO = "2026-10-15T23:59:59+02:00";
+export function creditCostFor(
+  mediaType: MediaType,
+  seconds: number,
+  resolution: Resolution = "720p",
+  config: CreditConfig = DEFAULT_CREDIT_CONFIG,
+): number {
+  if (mediaType === "image") return Math.max(1, Math.round(config.imageCost));
+  if (mediaType === "clone_video") {
+    return Math.max(1, Math.ceil(seconds * config.cloneVideoPerSecond));
+  }
+  const rate = config.videoPerSecond[resolution] ?? config.videoPerSecond["720p"];
+  return Math.max(1, Math.ceil(seconds * rate));
+}
+
+/** Prix affiché au client : le nombre de crédits est la seule valeur visible. Les frais s'ajoutent au prix du pack. */
+export function priceWithFees(priceFcfa: number, config: CreditConfig = DEFAULT_CREDIT_CONFIG): number {
+  return Math.round(priceFcfa * (1 + config.feeRate));
+}
+
+/** Nombre de vidéos de N secondes qu'un solde permet d'obtenir. */
+export function videosAvailable(
+  balance: number,
+  seconds: number,
+  resolution: Resolution = "480p",
+  config: CreditConfig = DEFAULT_CREDIT_CONFIG,
+): number {
+  return Math.floor(balance / creditCostFor("video", seconds, resolution, config));
+}
