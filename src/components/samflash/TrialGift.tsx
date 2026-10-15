@@ -4,11 +4,13 @@ import { Check, Gift, MousePointerClick, X } from "lucide-react";
 import { detectCountry } from "@/lib/country.functions";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Cadeau flottant « Offre d'essai Grok » : présente le pack d'essai puis mène au paiement. */
 export function TrialGift({ visible = true }: { visible?: boolean }) {
   const fetchPrices = useServerFn(listPrices);
   const [trialRow, setTrialRow] = useState<PriceRow | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const detect = useServerFn(detectCountry);
@@ -21,14 +23,36 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
       .catch(() => undefined);
   }, [detect, visible]);
 
+  // Prix mis à jour en direct depuis le bureau d'administration (même mécanisme que la fiche des offres).
   useEffect(() => {
     if (!visible) return;
-    fetchPrices({})
-      .then((rows) => setTrialRow((rows as PriceRow[]).find((r) => r.id === "pack_essai") ?? null))
-      .catch(() => undefined);
+    let cancelled = false;
+    const refresh = () =>
+      fetchPrices({})
+        .then((rows) => {
+          if (cancelled) return;
+          setTrialRow((rows as PriceRow[]).find((r) => r.id === "pack_essai") ?? null);
+          setLoaded(true);
+        })
+        .catch(() => {
+          if (!cancelled) setLoaded(true);
+        });
+    void refresh();
+    const channel = supabase
+      .channel("trial_gift_prices_live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_prices" }, () => {
+        void refresh();
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
   }, [fetchPrices, visible]);
 
   if (!visible) return null;
+  // Offre désactivée ou supprimée : le cadeau disparaît.
+  if (loaded && !trialRow) return null;
 
   const amount =
     (trialRow as { amount_fcfa?: number | null } | null)?.amount_fcfa ??

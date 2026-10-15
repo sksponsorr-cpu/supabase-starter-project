@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import { creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
 
-const MIN = 5;
-const MAX = 600;
+/** Bornes de la durée vidéo : 10 secondes à 3 minutes. */
+export const DURATION_MIN = 10;
+export const DURATION_MAX = 180;
 
 export function formatDuration(s: number) {
   if (s < 60) return `${s} s`;
@@ -47,10 +48,10 @@ type Props = {
   config: CreditConfig;
 };
 
+/** Curseur compact en une ligne : durée, piste et coût, pour rester discret dans la barre d'outils. */
 export function DurationSlider({ value, onChange, resolution, config }: Props) {
   const cost = creditCostFor("video", value, resolution, config);
-  const isLong = value > 15;
-  const pct = ((value - MIN) / (MAX - MIN)) * 100;
+  const pct = ((value - DURATION_MIN) / (DURATION_MAX - DURATION_MIN)) * 100;
   const lastStep = useRef(value);
 
   const handle = (next: number) => {
@@ -61,51 +62,23 @@ export function DurationSlider({ value, onChange, resolution, config }: Props) {
   };
 
   return (
-    <div className="w-full rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 backdrop-blur-xl motion-enter">
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Durée</p>
-          <p className="motion-value text-2xl font-semibold tabular-nums" key={value}>
-            {formatDuration(value)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Coût</p>
-          <p className="motion-value text-lg font-semibold tabular-nums" key={`c${cost}`}>
-            {cost.toLocaleString("fr-FR")} <span className="text-xs font-normal text-muted-foreground">crédits</span>
-          </p>
-        </div>
-      </div>
+    <div className="flex h-11 w-64 shrink-0 items-center gap-2 rounded-full bg-secondary/80 py-1 pl-1 pr-3 backdrop-blur-xl">
+      <span className="flex h-9 min-w-[4rem] shrink-0 items-center justify-center rounded-full bg-white px-3 text-xs font-semibold tabular-nums text-black">
+        {formatDuration(value)}
+      </span>
 
-      <div className="relative h-10 select-none">
-        {/* Piste */}
-        <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-200 ease-out"
-            style={{ width: `${pct}%` }}
-          />
+      <div className="relative h-full flex-1 select-none">
+        <div className="absolute inset-x-2 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/15">
+          <div className="h-full rounded-full bg-white transition-[width] duration-150 ease-out" style={{ width: `${pct}%` }} />
         </div>
-
-        {/* Repères 5 s · 1 min · 10 min */}
-        {[0, 9.9, 100].map((p) => (
-          <span
-            key={p}
-            className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-white/25"
-            style={{ left: `${p}%` }}
-          />
-        ))}
-
-        {/* Pouce lumineux */}
         <div
-          className="pointer-events-none absolute top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_4px_rgba(59,130,246,0.25),0_8px_20px_-6px_rgba(0,0,0,0.6)] transition-[left,transform] duration-200 ease-out active:scale-110"
-          style={{ left: `${pct}%` }}
+          className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.2)] transition-[left] duration-150 ease-out"
+          style={{ left: `calc(0.5rem + (100% - 1rem) * ${pct / 100})` }}
         />
-
-        {/* Entrée réelle, transparente, pour le tactile et le clavier */}
         <input
           type="range"
-          min={MIN}
-          max={MAX}
+          min={DURATION_MIN}
+          max={DURATION_MAX}
           step={1}
           value={value}
           onChange={(e) => handle(Number(e.target.value))}
@@ -114,17 +87,9 @@ export function DurationSlider({ value, onChange, resolution, config }: Props) {
         />
       </div>
 
-      <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-        <span>5 s</span>
-        <span>1 min</span>
-        <span>10 min</span>
-      </div>
-
-      {isLong && (
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          Au-delà de 15 secondes, la vidéo est produite en plusieurs parties, puis assemblée.
-        </p>
-      )}
+      <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">
+        {cost.toLocaleString("fr-FR")} cr
+      </span>
     </div>
   );
 }

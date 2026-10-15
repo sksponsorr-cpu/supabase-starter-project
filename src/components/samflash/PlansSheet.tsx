@@ -403,7 +403,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
           <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
         </div>
-        {(
+        {(!pricesLoaded || trialRow) && (
           <button
             type="button"
             onClick={() => setTrialOpen(true)}

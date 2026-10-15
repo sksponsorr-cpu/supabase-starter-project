@@ -100,7 +100,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const allowVideo = optionOn(prefs, "skillVideo", true) || !optionOn(prefs, "skillImage", true);
   const [res, setRes] = useState("720p");
   const [dur, setDur] = useState("5s");
-  const [longSec, setLongSec] = useState(5);
+  const [longSec, setLongSec] = useState(10);
   const [showSlider, setShowSlider] = useState(false);
   const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
   const fetchCreditCfg = useServerFn(getPublicCreditConfig);
@@ -703,7 +703,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         </div>
         {mode === "video" && showSlider && (
           <DurationSlider
-            value={longSec}
+            value={Math.min(180, Math.max(10, longSec))}
             resolution={(res === "480p" ? "480p" : "720p") as Resolution}
             config={creditCfg}
             onChange={(sec) => {
