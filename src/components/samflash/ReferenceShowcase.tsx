@@ -5,7 +5,12 @@
  */
 
 export const REFERENCE_VIDEO_URL = ""; // ex. "https://…/video-reference.mp4" (vide = affichage de remplacement)
-export const REFERENCE_CAPTURES: string[] = []; // captures de monétisation, ajoutées depuis l'administration
+export const REFERENCE_CAPTURES: string[] = []; // captures de résultats, ajoutées depuis l'administration
+
+/** Texte de la section « résultats ». À valider avant publication. */
+export const RESULTATS_TITRE = "Des résultats concrets";
+export const RESULTATS_TEXTE =
+  "Les vidéos créées avec l'IA peuvent vous aider à générer des revenus. Voici des captures de résultats réels, partagées par notre équipe.";
 
 export const REFERENCE_BADGE = "Créée à 100 % avec Sam Flash 2.0";
 
@@ -69,13 +74,21 @@ export function ReferenceShowcase({ onContinue }: Props) {
         ))}
       </ul>
 
-      {REFERENCE_CAPTURES.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          {REFERENCE_CAPTURES.map((src) => (
-            <img key={src} src={src} alt="" className="w-full rounded-2xl border border-border" loading="lazy" />
-          ))}
-        </div>
-      )}
+      <section className="mt-8">
+        <h2 className="text-2xl font-semibold tracking-tight">{RESULTATS_TITRE}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{RESULTATS_TEXTE}</p>
+        {REFERENCE_CAPTURES.length > 0 ? (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {REFERENCE_CAPTURES.map((src) => (
+              <img key={src} src={src} alt="Capture de résultats" className="w-full rounded-2xl border border-border" loading="lazy" />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+            Captures de résultats à venir
+          </p>
+        )}
+      </section>
 
       <button
         type="button"
