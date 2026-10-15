@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getWelcomeGate } from "@/lib/welcome-gate.functions";
+import { ReferenceShowcase } from "@/components/samflash/ReferenceShowcase";
 
 const DISMISS_KEY = "sf-welcome-dismissed";
 const CHOICE_KEY = "sf-parcours";
@@ -21,7 +22,8 @@ export function getSessionParcours(): Parcours | null {
 export function WelcomeGate() {
   const fetchGate = useServerFn(getWelcomeGate);
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [choice, setChoice] = useState<Parcours | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -52,7 +54,7 @@ export function WelcomeGate() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/90 p-6 backdrop-blur-xl">
-      <div key={step} className="motion-enter w-full max-w-md text-center">
+      <div key={step} className={`motion-enter w-full max-w-md ${step === 3 ? "" : "text-center"}`}>
         {step === 1 ? (
           <>
             <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-500 text-2xl shadow-[0_18px_40px_-12px_rgba(59,130,246,0.6)]">
@@ -71,6 +73,8 @@ export function WelcomeGate() {
               Continuer
             </button>
           </>
+        ) : step === 3 ? (
+          <ReferenceShowcase onContinue={() => finish(choice)} />
         ) : (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Votre point de départ</p>
@@ -79,7 +83,10 @@ export function WelcomeGate() {
             <div className="mt-8 space-y-3 text-left">
               <button
                 type="button"
-                onClick={() => finish("generation")}
+                onClick={() => {
+                  setChoice("generation");
+                  setStep(3);
+                }}
                 className="motion-press flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
               >
                 <span className="text-2xl">🎬</span>
@@ -91,7 +98,10 @@ export function WelcomeGate() {
 
               <button
                 type="button"
-                onClick={() => finish("clonage")}
+                onClick={() => {
+                  setChoice("clonage");
+                  setStep(3);
+                }}
                 className="motion-press flex w-full items-start gap-4 rounded-3xl border border-border bg-card/60 p-5 transition hover:border-primary"
               >
                 <span className="text-2xl">🧬</span>
