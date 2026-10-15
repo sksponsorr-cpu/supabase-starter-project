@@ -94,7 +94,35 @@ export const listGenerations = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(50);
     // Les URL signées expirent : on les régénère à chaque lecture depuis storage_path.
-    return await withFreshUrls(data ?? []);
+    const gens = await withFreshUrls(data ?? []);
+
+    // Clonages vidéo et avatars (table ai_jobs) : affichés aussi dans « Mes créations ».
+    const { data: jobs } = await context.supabase
+      .from("ai_jobs")
+      .select("id, tool, seconds, status, result_url, created_at")
+      .eq("user_id", context.userId)
+      .eq("status", "success")
+      .not("result_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const extra = (jobs ?? []).map((j) => ({
+      id: `ai-${j.id}`,
+      prompt: j.tool === "clone" ? "Clonage vidéo" : "Avatar AI",
+      media_type: "video",
+      resolution: null,
+      duration: `${Number(j.seconds)} s`,
+      aspect_ratio: null,
+      media_url: j.result_url as string,
+      storage_path: null,
+      status: "ready",
+      duration_seconds: Number(j.seconds),
+      error_message: null,
+      created_at: j.created_at as string,
+    }));
+
+    return [...gens, ...extra]
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+      .slice(0, 50);
   });
 
 export const generateMedia = createServerFn({ method: "POST" })
