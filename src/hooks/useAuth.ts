@@ -13,6 +13,16 @@ export type Preferences = {
   rating?: number;
 };
 
+/** Réinitialise l'accueil de parcours : il s'affichera de nouveau à la prochaine connexion ou inscription. */
+function resetWelcomeGate() {
+  try {
+    window.sessionStorage.removeItem("sf-welcome-dismissed");
+    window.sessionStorage.removeItem("sf-parcours");
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
 export type Profile = {
   id: string;
   email: string | null;
@@ -40,6 +50,7 @@ export function useAuth() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, s: Session | null) => {
+        if (_event === "SIGNED_OUT") resetWelcomeGate();
         setSession(s);
         setUser(s?.user ?? null);
         if (s?.user) {
@@ -65,6 +76,7 @@ export function useAuth() {
   }, [user, loadProfile]);
 
   const signOut = useCallback(async () => {
+    resetWelcomeGate();
     await supabase.auth.signOut();
   }, []);
 
