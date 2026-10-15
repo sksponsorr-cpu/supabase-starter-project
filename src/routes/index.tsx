@@ -30,6 +30,9 @@ import { RecentSalesToast } from "@/components/samflash/RecentSalesToast";
 import { getLanding, type LandingContent } from "@/lib/landing.functions";
 import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
+import { getPublicCreditConfig } from "@/lib/credits-public.functions";
+import { DEFAULT_CREDIT_CONFIG, mergeCreditConfig, type CreditConfig } from "@/lib/credits";
+import { includedCredits, videosFor } from "@/lib/plan-credits";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -166,7 +169,7 @@ const PLAN_CARDS = [
     features: [
       "110 crédits par mois",
       "22 vidéos de 5 secondes en 480p",
-      "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI",
+      "Images et clonage vidéo",
     ],
     highlight: false,
     cta: "Choisir Sam Flash Light",
@@ -180,7 +183,7 @@ const PLAN_CARDS = [
       "400 crédits payés + 50 crédits offerts chaque mois",
       "Environ 90 vidéos de 5 secondes en 480p",
       "Vidéo 1080p, générations prioritaires",
-      "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI",
+      "Images et clonage vidéo",
     ],
     highlight: true,
     cta: "Choisir Sam Flash Pro",
@@ -270,7 +273,7 @@ const PLAN_CARD_PRICE_ID: Record<string, string> = {
  * Une offre absente de la liste active (désactivée ou supprimée) n'est plus affichée.
  * Tant que les prix ne sont pas chargés, on affiche les valeurs de départ.
  */
-function planCardsFromPrices(rows: PriceRow[] | null) {
+function planCardsFromPrices(rows: PriceRow[] | null, cfg: CreditConfig) {
   if (!rows) return PLAN_CARDS;
   const fmt = (n: number) => n.toLocaleString("fr-FR");
   return PLAN_CARDS.flatMap((pk) => {
@@ -284,16 +287,16 @@ function planCardsFromPrices(rows: PriceRow[] | null) {
       const credits = row.credits_fixed ?? pkCredits(pk);
       const features = [...pk.features];
       features[0] = `${credits} crédits, sans abonnement`;
-      features[1] = `${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
+      features[1] = `${videosFor(credits, cfg)} vidéos de 5 secondes en 480p`;
       return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits`, features }];
     }
 
     const bonus = Math.round(row.credits_bonus ?? 0);
-    const paid = row.credits_fixed !== null ? row.credits_fixed - bonus : Math.round(row.amount_eur * (row.credits_rate ?? 0));
-    const credits = row.credits_fixed ?? paid + bonus;
+    const credits = includedCredits(row, false);
+    const paid = credits - bonus;
     const features = [...pk.features];
     features[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
-    features[1] = `${id === "plus" ? "Environ " : ""}${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
+    features[1] = `${id === "plus" ? "Environ " : ""}${videosFor(credits, cfg)} vidéos de 5 secondes en 480p`;
     return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features }];
   });
 }
@@ -317,7 +320,14 @@ function LandingPage() {
       .then((rows) => setDbPrices(rows as PriceRow[]))
       .catch(() => setDbPrices(null));
   }, [fetchListPrices]);
-  const planCards = planCardsFromPrices(dbPrices);
+  const fetchCreditCfg = useServerFn(getPublicCreditConfig);
+  const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
+  useEffect(() => {
+    fetchCreditCfg({})
+      .then((c) => setCreditCfg(mergeCreditConfig(c as Partial<CreditConfig>)))
+      .catch(() => undefined);
+  }, [fetchCreditCfg]);
+  const planCards = planCardsFromPrices(dbPrices, creditCfg);
 
   const fetchLanding = useServerFn(getLanding);
   const [landingContent, setLandingContent] = useState<LandingContent>(DEFAULT_LANDING);
@@ -393,6 +403,8 @@ function LandingPage() {
   const hoverRef = useRef(false);
   const visibleRef = useRef(true);
   const [activeSoundUrl, setActiveSoundUrl] = useState<string | null>(null);
+  const soundOnRef = useRef(false);
+  soundOnRef.current = activeSoundUrl !== null;
 
   // Défilement automatique continu du carrousel, uniquement quand il est affiché
   useEffect(() => {
@@ -407,7 +419,7 @@ function LandingPage() {
     const STEP_MS = 50;
     const PX_PER_STEP = 0.035 * STEP_MS; // même vitesse qu'avant : ~35 px par seconde
     const timer = window.setInterval(() => {
-      if (document.hidden || !visibleRef.current || hoverRef.current) return;
+      if (document.hidden || !visibleRef.current || hoverRef.current || soundOnRef.current) return;
       el.scrollLeft += PX_PER_STEP;
       if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) {
         el.scrollLeft = 0;
