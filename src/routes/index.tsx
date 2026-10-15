@@ -258,22 +258,50 @@ function LazyVideo({ src, muted, className }: { src: string; muted: boolean; cla
 
 const FCFA_PER_EUR = 655.957;
 
-/** Remplace prix, crédits et textes des forfaits Light et Pro par ceux de la base (bureau d'administration). */
+/** Correspondance entre les cartes d'accueil et les lignes de la table product_prices. */
+const PLAN_CARD_PRICE_ID: Record<string, string> = {
+  "Sam Flash Light": "base",
+  "Sam Flash Pro": "plus",
+  Essai: "pack_essai",
+};
+
+/**
+ * Remplace prix, crédits et textes des cartes par ceux de la base (bureau d'administration).
+ * Une offre absente de la liste active (désactivée ou supprimée) n'est plus affichée.
+ * Tant que les prix ne sont pas chargés, on affiche les valeurs de départ.
+ */
 function planCardsFromPrices(rows: PriceRow[] | null) {
+  if (!rows) return PLAN_CARDS;
   const fmt = (n: number) => n.toLocaleString("fr-FR");
-  return PLAN_CARDS.map((pk) => {
-    const id = pk.name === "Sam Flash Light" ? "base" : pk.name === "Sam Flash Pro" ? "plus" : null;
-    const row = id && rows ? rows.find((r) => r.id === id) : undefined;
-    if (!row) return pk;
+  return PLAN_CARDS.flatMap((pk) => {
+    const id = PLAN_CARD_PRICE_ID[pk.name];
+    if (!id) return [pk];
+    const row = rows.find((r) => r.id === id);
+    if (!row) return [];
     const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
+
+    if (id === "pack_essai") {
+      const credits = row.credits_fixed ?? pkCredits(pk);
+      const features = [...pk.features];
+      features[0] = `${credits} crédits, sans abonnement`;
+      features[1] = `${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
+      return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits`, features }];
+    }
+
     const bonus = Math.round(row.credits_bonus ?? 0);
     const paid = row.credits_fixed !== null ? row.credits_fixed - bonus : Math.round(row.amount_eur * (row.credits_rate ?? 0));
     const credits = row.credits_fixed ?? paid + bonus;
     const features = [...pk.features];
     features[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
     features[1] = `${id === "plus" ? "Environ " : ""}${Math.floor(credits / 5)} vidéos de 5 secondes en 480p`;
-    return { ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features };
+    return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features }];
   });
+}
+
+/** Crédits écrits dans la carte de départ (repli si la base n'a pas de valeur). */
+function pkCredits(pk: (typeof PLAN_CARDS)[number]): number {
+  const m = pk.quota.match(/(\d[\d\s\u00a0]*)\s*crédits/);
+  return m ? Number(m[1].replace(/\D/g, "")) : 0;
 }
 
 function LandingPage() {
