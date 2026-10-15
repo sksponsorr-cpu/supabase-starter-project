@@ -111,6 +111,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       .catch(() => {});
   }, [fetchCreditCfg]);
   const [userPlan, setUserPlan] = useState<string>("free");
+  // Gratuit : 1 minute maximum. Au-delà, un cadenas invite à passer à un abonnement.
+  const lockedMaxSec = userPlan === "free" ? 60 : 180;
   const [ratio, setRatio] = useState("2:3");
   const [mode, setMode] = useState<"image" | "video">("video");
   const [text, setText] = useState("");
@@ -701,17 +703,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             </button>
           ))}
         </div>
-        {mode === "video" && showSlider && (
-          <DurationSlider
-            value={Math.min(180, Math.max(10, longSec))}
-            resolution={(res === "480p" ? "480p" : "720p") as Resolution}
-            config={creditCfg}
-            onChange={(sec) => {
-              setLongSec(sec);
-              setDur(`${sec}s`);
-            }}
-          />
-        )}
         {mode === "video" && (() => {
           const isFree = userPlan === "free";
           const isPlus = userPlan === "super_grok_plus";
@@ -755,6 +746,21 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           ))}
         </div>
       </div>
+      {mode === "video" && showSlider && (
+        <div className="mt-2 px-1">
+          <DurationSlider
+            value={Math.min(lockedMaxSec, Math.max(10, longSec))}
+            maxAllowed={lockedMaxSec}
+            resolution={(res === "480p" ? "480p" : "720p") as Resolution}
+            config={creditCfg}
+            onLocked={() => toast.error("Passez à un abonnement supérieur pour générer plus d'une minute.")}
+            onChange={(sec) => {
+              setLongSec(sec);
+              setDur(`${sec}s`);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

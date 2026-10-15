@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Lock } from "lucide-react";
 import { creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
 
 /** Bornes de la durée vidéo : 10 secondes à 3 minutes. */
@@ -46,15 +47,26 @@ type Props = {
   onChange: (seconds: number) => void;
   resolution: Resolution;
   config: CreditConfig;
+  /** Durée maximale autorisée pour la formule (ex. 60 s en gratuit). Au-delà : cadenas. */
+  maxAllowed?: number;
+  /** Appelé quand l'utilisateur tente de dépasser la limite de sa formule. */
+  onLocked?: () => void;
 };
 
-/** Curseur compact en une ligne : durée, piste et coût, pour rester discret dans la barre d'outils. */
-export function DurationSlider({ value, onChange, resolution, config }: Props) {
+/** Curseur pleine largeur : durée, piste, zone verrouillée (hachurée) et coût. */
+export function DurationSlider({ value, onChange, resolution, config, maxAllowed = DURATION_MAX, onLocked }: Props) {
   const cost = creditCostFor("video", value, resolution, config);
   const pct = ((value - DURATION_MIN) / (DURATION_MAX - DURATION_MIN)) * 100;
+  const lockPct = ((maxAllowed - DURATION_MIN) / (DURATION_MAX - DURATION_MIN)) * 100;
+  const locked = maxAllowed < DURATION_MAX;
   const lastStep = useRef(value);
 
-  const handle = (next: number) => {
+  const handle = (raw: number) => {
+    let next = raw;
+    if (raw > maxAllowed) {
+      next = maxAllowed;
+      onLocked?.();
+    }
     // Tic sonore à chaque palier de 5 secondes
     if (Math.floor(next / 5) !== Math.floor(lastStep.current / 5)) playTick();
     lastStep.current = next;
@@ -62,7 +74,7 @@ export function DurationSlider({ value, onChange, resolution, config }: Props) {
   };
 
   return (
-    <div className="flex h-11 w-64 shrink-0 items-center gap-2 rounded-full bg-secondary/80 py-1 pl-1 pr-3 backdrop-blur-xl">
+    <div className="flex h-11 w-full items-center gap-2 rounded-full bg-secondary/80 py-1 pl-1 pr-3 backdrop-blur-xl">
       <span className="flex h-9 min-w-[4rem] shrink-0 items-center justify-center rounded-full bg-white px-3 text-xs font-semibold tabular-nums text-black">
         {formatDuration(value)}
       </span>
@@ -71,10 +83,31 @@ export function DurationSlider({ value, onChange, resolution, config }: Props) {
         <div className="absolute inset-x-2 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/15">
           <div className="h-full rounded-full bg-white transition-[width] duration-150 ease-out" style={{ width: `${pct}%` }} />
         </div>
+
+        {locked && (
+          <div
+            className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-r-full"
+            style={{
+              left: `calc(0.5rem + (100% - 1rem) * ${lockPct / 100})`,
+              right: "0.5rem",
+              backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)",
+            }}
+          />
+        )}
+
         <div
           className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.2)] transition-[left] duration-150 ease-out"
           style={{ left: `calc(0.5rem + (100% - 1rem) * ${pct / 100})` }}
         />
+
+        {locked && (
+          <Lock
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/70"
+            style={{ left: `calc(0.5rem + (100% - 1rem) * ${lockPct / 100} + 0.5rem)` }}
+          />
+        )}
+
         <input
           type="range"
           min={DURATION_MIN}
