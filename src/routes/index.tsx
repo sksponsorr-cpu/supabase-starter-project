@@ -138,10 +138,10 @@ const PLAN_CARDS = [
   {
     name: "Gratuit",
     badge: "Sans carte bancaire",
-    quota: "40 crédits offerts",
+    quota: "250 crédits offerts",
     desc: "Pour découvrir Sam flash 2.0 sans rien payer.",
     features: [
-      "40 crédits offerts à l'inscription",
+      "250 crédits offerts à l'inscription",
       "Utilisables pour vos vidéos et vos images",
       "Offre limitée par appareil",
     ],
@@ -197,7 +197,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Puis-je essayer gratuitement sans carte bancaire ?",
-    a: "Oui, absolument. Dès votre inscription gratuite, vous recevez immédiatement 40 crédits offerts, soit une vidéo de 5 secondes ; la génération d'images est gratuite, sans renseigner aucune carte bancaire.",
+    a: "Oui, absolument. Dès votre inscription gratuite, vous recevez immédiatement 250 crédits offerts, soit une vidéo de 5 secondes ; la génération d'images est gratuite, sans renseigner aucune carte bancaire.",
   },
   {
     q: "Combien de temps prend la génération d'une vidéo ?",
@@ -636,7 +636,7 @@ function LandingPage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-700 font-medium">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              40 crédits offerts
+              250 crédits offerts
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -868,7 +868,7 @@ function LandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <p className="mt-2.5 text-xs text-slate-700">
-                Essayez gratuitement : 40 crédits offerts à l'inscription.
+                Essayez gratuitement : 250 crédits offerts à l'inscription.
               </p>
             </div>
           </div>
@@ -1125,7 +1125,7 @@ function LandingPage() {
               </h3>
               <p className="mt-1 text-xs text-slate-700">
                 {signUp
-                  ? "40 crédits offerts à l'inscription"
+                  ? "250 crédits offerts à l'inscription"
                   : "Retrouvez vos vidéos et images générées"}
               </p>
             </div>
