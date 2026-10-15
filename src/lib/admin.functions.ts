@@ -323,7 +323,7 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { data: updated, error } = await context.supabase
       .from("product_prices")
       .update({
         amount_fcfa: data.amountFcfa,
@@ -335,8 +335,13 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
         credits_bonus: data.creditsBonus ?? 0,
         credits_fixed: data.creditsFixed,
       })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .select("id");
     if (error) return { ok: false as const, message: "Mise à jour impossible." };
+    // Sans ligne modifiée (droits RLS insuffisants ou offre introuvable), on le signale.
+    if (!updated || updated.length === 0) {
+      return { ok: false as const, message: "Aucune offre modifiée. Vérifiez vos droits d'administration." };
+    }
     return { ok: true as const };
   });
 

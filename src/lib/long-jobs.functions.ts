@@ -13,7 +13,7 @@ export const launchLongVideo = createServerFn({ method: "POST" })
     const seconds = Number(r["seconds"]);
     const resolution = RESOLUTIONS.includes(r["resolution"] as Resolution) ? (r["resolution"] as Resolution) : "480p";
     if (!prompt) throw new Error("Décrivez la vidéo.");
-    if (!Number.isInteger(seconds) || seconds < 5 || seconds > 600) throw new Error("Durée invalide.");
+    if (!Number.isInteger(seconds) || seconds < 10 || seconds > 180) throw new Error("Durée invalide.");
     return { prompt, seconds, resolution };
   })
   .middleware([requireSupabaseAuth])

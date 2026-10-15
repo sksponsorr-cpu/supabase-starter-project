@@ -169,7 +169,7 @@ export const quotePrice = createServerFn({ method: "POST" })
 
     const { data: priceRaw } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
@@ -238,7 +238,7 @@ export const startPayment = createServerFn({ method: "POST" })
 
     const { data: priceRaw } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
@@ -393,7 +393,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
 
     const { data: priceRaw } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
       .eq("id", data.productId)
       .eq("active", true)
       .maybeSingle();
