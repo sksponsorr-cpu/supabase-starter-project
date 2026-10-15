@@ -9,9 +9,7 @@ import { formatLocalAmount } from "@/lib/payments/countries";
 import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check, Gift } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
-import { creditCostFor, DEFAULT_CREDIT_CONFIG, mergeCreditConfig, type CreditConfig } from "@/lib/credits";
-import { getPublicCreditConfig } from "@/lib/credits-public.functions";
-import { includedCredits } from "@/lib/plan-credits";
+import { creditCostFor } from "@/lib/credits";
 import { detectCountry } from "@/lib/country.functions";
 
 /** Affiche un nombre qui glisse en douceur vers sa nouvelle valeur (ease-out cubique). */
@@ -80,7 +78,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
-      { icon: Check, title: "Images et clonage vidéo" },
+      { icon: Check, title: "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI" },
     ],
     cta: "Choisir Sam Flash Light",
     footnote: "Facturation mensuelle, annulez à tout moment",
@@ -94,7 +92,7 @@ const PLANS: Plan[] = [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
-      { icon: Check, title: "Images et clonage vidéo" },
+      { icon: Check, title: "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI" },
       { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
     ],
     cta: "Choisir Sam Flash Pro",
@@ -107,7 +105,10 @@ const PLANS: Plan[] = [
     tagline: <>Choisissez vous-même votre nombre de crédits</>,
     features: [
       { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p de 6 secondes" },
+      { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Discussion et programmation" },
+      { icon: Brain, title: "Claude AI", sub: "Discussion et programmation" },
       { icon: MonitorPlay, title: "Clonage vidéo", sub: "Reproduisez les mouvements d'une vidéo" },
+      { icon: Sparkles, title: "Avatar AI", sub: "Un avatar qui parle à partir d'une photo" },
       { icon: Zap, title: "Paiement par Mobile Money", sub: "Sans carte bancaire" },
     ],
     cta: "Passer à Sur mesure",
@@ -115,9 +116,16 @@ const PLANS: Plan[] = [
   },
 ];
 
+/** Crédits inclus par mois (même calcul que le serveur). */
+function includedCredits(p: PriceRow, yearly: boolean): number {
+  if (p.id === "custom") return 110;
+  if (p.credits_fixed !== null) return Math.round(p.credits_fixed);
+  const base = yearly && p.amount_eur_yearly !== null ? p.amount_eur_yearly / 12 : p.amount_eur;
+  return Math.round(base * (p.credits_rate ?? 0)) + Math.round(p.credits_bonus ?? 0);
+}
 
 /** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
-function featuresFor(plan: Plan, total: number, bonus: number, cfg: CreditConfig): Plan["features"] {
+function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"] {
   if (plan.id === "custom") return plan.features;
   const paid = bonus > 0 ? total - bonus : total;
   const credits = {
@@ -126,7 +134,7 @@ function featuresFor(plan: Plan, total: number, bonus: number, cfg: CreditConfig
   };
   const videos = {
     icon: Check,
-    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p", cfg))} vidéos de 5 secondes en 480p`,
+    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
   };
   return [credits, videos, ...plan.features.slice(2)];
 }
@@ -192,14 +200,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const { profile } = useAuth();
 
   const fetchPrices = useServerFn(listPrices);
-  const fetchCreditCfg = useServerFn(getPublicCreditConfig);
-  // Coûts réels (base de données) pour que les « vidéos incluses » correspondent au curseur.
-  const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
-  useEffect(() => {
-    fetchCreditCfg({})
-      .then((c) => setCreditCfg(mergeCreditConfig(c as Partial<CreditConfig>)))
-      .catch(() => undefined);
-  }, [fetchCreditCfg]);
   const fetchCountries = useServerFn(listCountries);
   const fetchQuote = useServerFn(quotePrice);
   const fetchPromo = useServerFn(getPromoSettings);
@@ -362,7 +362,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   };
 
   const videosPossible = useMemo(() => {
-    const cost = creditCostFor("video", 5, "480p", creditCfg);
+    const cost = creditCostFor("video", 5, "480p");
     return Math.floor(sliderValue / cost);
   }, [sliderValue]);
 
@@ -403,7 +403,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
           <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
         </div>
-        {(!pricesLoaded || trialRow) && (
+        {(
           <button
             type="button"
             onClick={() => setTrialOpen(true)}
@@ -557,7 +557,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
           )}
           {(showFeatures || plan.id !== "custom") &&
-            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0), creditCfg).map((f, i) => (
+            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0)).map((f, i) => (
               <div
                 key={f.title}
                 style={{ animationDelay: `${i * 80}ms` }}
@@ -644,7 +644,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </p>
               <ul className="mt-5 space-y-3">
                 {[
-                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p", creditCfg))} vidéos de 5 secondes en 480p`,
+                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
                   "Pour tester sans vous engager",
                   "Paiement par Mobile Money",
                 ].map((t, i) => (
