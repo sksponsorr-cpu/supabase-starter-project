@@ -138,11 +138,11 @@ const PLAN_CARDS = [
   {
     name: "Gratuit",
     badge: "Sans carte bancaire",
-    quota: "5 crédits offerts",
+    quota: "1 vidéo et 1 image offertes",
     desc: "Pour découvrir Sam flash 2.0 sans rien payer.",
     features: [
-      "5 crédits offerts à l'inscription",
-      "Utilisables pour vos vidéos et vos images",
+      "1 vidéo de 5 secondes en 480p (10 crédits)",
+      "1 image offerte (gratuite)",
       "Offre limitée par appareil",
     ],
     highlight: false,
@@ -151,10 +151,10 @@ const PLAN_CARDS = [
   {
     name: "Essai",
     badge: "Pack ponctuel",
-    quota: "2 000 FCFA · 40 crédits",
+    quota: "3 000 FCFA · 2 500 crédits",
     desc: "Un pack pour tester sans vous engager.",
     features: [
-      "8 vidéos de 5 secondes en 480p",
+      "10 vidéos de 5 secondes en 480p",
       "Pour tester sans vous engager",
       "Paiement par Mobile Money",
     ],
