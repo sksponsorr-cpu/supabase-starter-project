@@ -63,8 +63,12 @@ export function WelcomeGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/90 p-6 backdrop-blur-xl">
-      <div key={step} className={`motion-apple w-full max-w-md ${step === 3 ? "" : "text-center"}`}>
+    <div
+      className={`fixed inset-0 z-[100] flex justify-center overflow-y-auto p-5 ${
+        step === 3 ? "items-start bg-background" : "items-center bg-background/90 backdrop-blur-xl"
+      }`}
+    >
+      <div key={step} className={`w-full max-w-md ${step === 3 ? "" : "motion-apple text-center"}`}>
         {step === 1 ? (
           <>
             <img src={logoAsset} alt="Logo" className="motion-apple mx-auto mb-8 h-20 w-20 object-contain" style={{ animationDelay: "0ms" }} />

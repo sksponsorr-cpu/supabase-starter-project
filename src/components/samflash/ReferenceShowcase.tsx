@@ -62,10 +62,28 @@ type Props = {
 };
 
 
-/** Vidéo de référence muette, en boucle, avec bouton pause / lecture. */
-function PausableVideo({ src }: { src: string }) {
+/** Vidéo de référence muette, en boucle, avec bouton pause / lecture.
+ *  Se met en pause toute seule hors écran ou quand la galerie est ouverte (fluidité). */
+function PausableVideo({ src, hold }: { src: string; hold?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const [paused, setPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+  const [inView, setInView] = useState(true);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (userPaused || hold || !inView) v.pause();
+    else void v.play().catch(() => {});
+  }, [userPaused, hold, inView]);
+
   return (
     <div className="relative h-full w-full">
       <video
@@ -83,15 +101,11 @@ function PausableVideo({ src }: { src: string }) {
       />
       <button
         type="button"
-        aria-label={paused ? "Lire la vidéo" : "Mettre en pause"}
-        onClick={() => {
-          const v = ref.current;
-          if (!v) return;
-          if (v.paused) { void v.play(); setPaused(false); } else { v.pause(); setPaused(true); }
-        }}
+        aria-label={userPaused ? "Lire la vidéo" : "Mettre en pause"}
+        onClick={() => setUserPaused((p) => !p)}
         className="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
       >
-        {paused ? "▶ Lire" : "❚❚ Pause"}
+        {userPaused ? "▶ Lire" : "❚❚ Pause"}
       </button>
     </div>
   );
@@ -138,21 +152,21 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
   return (
     <>
-      <div className="w-full max-w-md text-left pt-6">
-        <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
+      <div className="w-full max-w-md text-left pt-1">
+        <p className="sf-reveal text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ ["--d" as string]: "60ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
-        <h2 className="mt-3 text-[24px] font-extrabold leading-[1.1] tracking-tight" style={{ animationDelay: "180ms" }}>
+        <h2 className="sf-reveal mt-1.5 text-[20px] font-extrabold leading-[1.15] tracking-tight" style={{ ["--d" as string]: "120ms" }}>
           {template.title}
         </h2>
-        <p className="mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
+        <p className="sf-reveal mt-2 text-[14px] leading-snug text-muted-foreground" style={{ ["--d" as string]: "180ms" }}>
           {template.text}
         </p>
 
         {/* Vidéo de référence */}
-        <div className="motion-apple-video relative aspect-video w-full overflow-hidden rounded-[24px] bg-black mt-6">
+        <div className="sf-reveal relative mt-4 aspect-video w-full overflow-hidden rounded-[20px] bg-black" style={{ ["--d" as string]: "240ms" }}>
           {refVideo ? (
-            <PausableVideo src={refVideo} />
+            <PausableVideo src={refVideo} hold={showGallery} />
           ) : (
             <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
               La vidéo de présentation sera ajoutée prochainement.
@@ -161,18 +175,22 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         </div>
 
         {/* Les quatre étapes, en pilules numérotées */}
-        <div className="mt-7 grid grid-cols-2 gap-3">
-          <style>{`@keyframes sfFloat{0%,100%{transform:translateY(0);box-shadow:0 0 0 rgba(124,58,237,0)}50%{transform:translateY(-4px);box-shadow:0 10px 24px -12px rgba(124,58,237,.55)}}`}</style>
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
           {template.steps.map((label, i) => (
             <div
               key={label}
-              className="flex items-center gap-3 rounded-full bg-secondary/70 px-5 py-4"
-              style={{ animation: `sfFloat 3.6s ease-in-out ${i * 0.45}s infinite` }}
+              className="sf-reveal"
+              style={{ ["--d" as string]: `${320 + i * 70}ms` }}
             >
-              <span className="text-[15px] font-bold" style={{ color: ACCENT }}>
-                0{i + 1}
-              </span>
-              <span className="text-[15px] font-semibold leading-tight">{label}</span>
+              <div
+                className="sf-float flex items-center gap-2.5 rounded-full bg-secondary/70 px-4 py-3"
+                style={{ ["--f" as string]: `${i * 0.45}s` }}
+              >
+                <span className="text-[13px] font-bold" style={{ color: ACCENT }}>
+                  0{i + 1}
+                </span>
+                <span className="text-[13px] font-semibold leading-tight">{label}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -181,16 +199,16 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
 
         {revenue && revenue.images.length === 0 && (
-          <section className="mt-10">
-            <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
+          <section className="mt-6">
+            <h3 className="text-[18px] font-bold tracking-tight">Revenus générés</h3>
             <p className="mt-2 text-sm text-muted-foreground">Les revenus seront ajoutés prochainement.</p>
           </section>
         )}
         {revenue && revenue.images.length > 0 && (
-          <section className="mt-10" style={{ animationDelay: "560ms" }}>
-            <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Des revenus réellement générés avec la monétisation de vidéos IA.</p>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+          <section className="sf-reveal mt-6" style={{ ["--d" as string]: "560ms" }}>
+            <h3 className="text-[18px] font-bold tracking-tight">Revenus générés</h3>
+            <p className="mt-1 text-[13px] text-muted-foreground">Des revenus réellement générés avec la monétisation de vidéos IA.</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
               {revenue.images.map((img) => (
                 <figure key={img.url} className="overflow-hidden rounded-2xl bg-secondary/50">
                   <img src={img.url} alt={img.caption || "Revenu"} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
@@ -211,8 +229,8 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             if (template.cta === "Continuer") openGallery();
             else onGo(template.target);
           }}
-          className="motion-apple-tap motion-apple mt-4 flex w-full items-center justify-center gap-3 rounded-full bg-foreground py-5 text-[17px] font-semibold text-background shadow-lg"
-          style={{ animationDelay: "700ms" }}
+          className="sf-reveal motion-apple-tap mt-5 mb-4 flex w-full items-center justify-center gap-3 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background shadow-lg"
+          style={{ ["--d" as string]: "700ms" }}
         >
           {template.cta}
           <span aria-hidden>→</span>
@@ -221,36 +239,35 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
       {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
       {showGallery && (
-        <div className="fixed inset-0 z-[110] flex flex-col bg-background overflow-hidden pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
-        
-          <div className="flex items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] bg-background sticky top-0 z-10">
-            <h2 className="text-lg font-bold">Galerie des créations</h2>
+        <div className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background">
+          <div className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+            <h2 className="text-[15px] font-bold">Galerie des créations</h2>
             <button
               type="button"
               onClick={() => {
                 playClick();
                 onGo(template.target);
               }}
-              className="motion-apple-tap rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background"
+              className="motion-apple-tap rounded-full bg-foreground px-3.5 py-1.5 text-[13px] font-semibold text-background"
             >
               Quitter
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-28 pt-2 [overscroll-behavior:contain]">
             {gallery === null ? (
               <p className="py-16 text-center text-sm text-muted-foreground">Chargement…</p>
             ) : gallery.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">Aucune création publiée pour le moment.</p>
             ) : (
               <>
-              <div className="px-5 pt-5 pb-2 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>Créations de la communauté</p>
-            <h3 className="mt-2 text-[18px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Créées par nos utilisateurs déjà inscrits.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-                {(galleryAll ? gallery : gallery.slice(0, 6)).map((g) => (
+              <div className="sf-reveal px-2 pb-3 pt-1 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: ACCENT }}>Créations de la communauté</p>
+                <h3 className="mt-1 text-[15px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
+                <p className="mt-1 text-[12px] text-muted-foreground">Créées par nos utilisateurs déjà inscrits.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {(galleryAll ? gallery : gallery.slice(0, 6)).map((g, i) => (
                   <button
                     key={g.id}
                     type="button"
@@ -258,7 +275,8 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
                       playClick();
                       setPlaying(g);
                     }}
-                    className="motion-apple-tap relative overflow-hidden rounded-2xl bg-black text-left"
+                    className="sf-reveal motion-apple-tap relative overflow-hidden rounded-2xl bg-black text-left [contain:layout_paint]"
+                    style={{ ["--d" as string]: `${Math.min(i, 5) * 60}ms` }}
                   >
                     {g.media_type === "video" && g.media_url ? (
                       <VideoTile src={g.media_url} className="aspect-[9/12] w-full object-cover" />
@@ -287,15 +305,15 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             )}
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-[125] bg-background/95 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] backdrop-blur">
-            <button type="button" onClick={() => { playClick(); onGo(template.target); }} className="w-full rounded-full bg-foreground py-4 text-[16px] font-semibold text-background">
+          <div className="fixed inset-x-0 bottom-0 z-[125] border-t border-border bg-background p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
+            <button type="button" onClick={() => { playClick(); onGo(template.target); }} className="w-full rounded-full bg-foreground py-3.5 text-[15px] font-semibold text-background">
               Quitter la galerie
             </button>
           </div>
 
           {/* Lecteur au clic */}
           {playing && (
-            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
+            <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 {playing.media_type === "video" && playing.media_url ? (
                   <video src={playing.media_url} autoPlay loop playsInline className="max-h-[75vh] w-full rounded-2xl bg-black" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
