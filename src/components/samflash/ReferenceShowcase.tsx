@@ -68,6 +68,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
   const [revenue, setRevenue] = useState<{ referenceVideo: string; images: { url: string; caption: string }[] } | null>(null);
   const [gallery, setGallery] = useState<CommunityItem[] | null>(null);
   const [showGallery, setShowGallery] = useState(false);
+  const [galleryAll, setGalleryAll] = useState(false);
   const [playing, setPlaying] = useState<CommunityItem | null>(null);
 
   useEffect(() => {
@@ -100,8 +101,8 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
   return (
     <>
-      <div className="w-full max-w-md text-left">
-        <p className="motion-apple mt-8 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
+      <div className="w-full max-w-md text-left pt-6">
+        <p className="motion-apple mt-16 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
         <h2 className="motion-apple mt-3 text-[30px] font-extrabold leading-[1.08] tracking-tight" style={{ animationDelay: "180ms" }}>
@@ -128,11 +129,12 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
         {/* Les quatre étapes, en pilules numérotées */}
         <div className="mt-7 grid grid-cols-2 gap-3">
+          <style>{`@keyframes sfFloat{0%,100%{transform:translateY(0);box-shadow:0 0 0 rgba(124,58,237,0)}50%{transform:translateY(-4px);box-shadow:0 10px 24px -12px rgba(124,58,237,.55)}}`}</style>
           {template.steps.map((label, i) => (
             <div
               key={label}
-              className="motion-apple flex items-center gap-3 rounded-full bg-secondary/70 px-5 py-4"
-              style={{ animationDelay: `${300 + i * 70}ms` }}
+              className="flex items-center gap-3 rounded-full bg-secondary/70 px-5 py-4"
+              style={{ animation: `sfFloat 3.6s ease-in-out ${i * 0.45}s infinite` }}
             >
               <span className="text-[15px] font-bold" style={{ color: ACCENT }}>
                 0{i + 1}
@@ -181,6 +183,13 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
       {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
       {showGallery && (
         <div className="fixed inset-0 z-[110] flex flex-col bg-background overflow-hidden">
+        <button
+          type="button"
+          onClick={() => { playClick(); setShowGallery(false); setGalleryAll(false); }}
+          className="fixed left-4 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-[130] rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-lg"
+        >
+          ← Retour
+        </button>
           <div className="flex items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] bg-background sticky top-0 z-10">
             <h2 className="text-lg font-bold">Galerie des créations</h2>
             <button
@@ -201,8 +210,14 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             ) : gallery.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">Aucune création publiée pour le moment.</p>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {gallery.map((g) => (
+              <>
+              <div className="px-5 pt-5 pb-2 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: ACCENT }}>Créations de la communauté</p>
+            <h3 className="mt-2 text-[22px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Créées par nos utilisateurs déjà inscrits.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+                {(galleryAll ? gallery : gallery.slice(0, 6)).map((g) => (
                   <button
                     key={g.id}
                     type="button"
@@ -222,7 +237,17 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
                     </span>
                   </button>
                 ))}
+              {!galleryAll && gallery.length > 6 && (
+                <button
+                  type="button"
+                  onClick={() => setGalleryAll(true)}
+                  className="col-span-full mt-2 w-full rounded-full border border-border py-3 text-sm font-semibold"
+                >
+                  Voir plus ({gallery.length - 6} autres)
+                </button>
+              )}
               </div>
+              </>
             )}
           </div>
 

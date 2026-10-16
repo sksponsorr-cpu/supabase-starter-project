@@ -17,7 +17,7 @@ export function warmVideo(url?: string | null) {
  * Pause automatique des vignettes pendant qu'une vidéo est ouverte en grand.
  * Les vignettes reprennent toutes seules à la fermeture.
  */
-const MAX_PLAYING = 1;
+const MAX_PLAYING = 3;
 const playing = new Set<HTMLVideoElement>();
 let pauseCount = 0;
 const listeners = new Set<() => void>();
@@ -59,7 +59,7 @@ export function VideoTile({ src, className }: { src: string; className?: string 
         visible = entry.isIntersecting;
         sync();
       },
-      { threshold: 0.6 },
+      { threshold: 0.25 },
     );
     io.observe(el);
     listeners.add(sync);
@@ -78,6 +78,7 @@ export function VideoTile({ src, className }: { src: string; className?: string 
       src={src.includes("#") ? src : `${src}#t=0.001`}
       muted
       loop
+      autoPlay
       playsInline
       preload="metadata"
       className={className}
