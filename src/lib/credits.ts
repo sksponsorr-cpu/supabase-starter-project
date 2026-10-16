@@ -23,7 +23,7 @@ export type CreditConfig = {
 /** Valeurs de départ, validées avec la propriétaire du site. */
 export const DEFAULT_CREDIT_CONFIG: CreditConfig = {
   videoPerSecond: { "480p": 50, "720p": 69, "1080p": 84 }, // 1080p : valeur provisoire, à confirmer
-  cloneVideoPerSecond: 101,
+  cloneVideoPerSecond: 100,
   imageCost: 1,
   feeRate: 0.105,
   cloneProvider: "kie",
