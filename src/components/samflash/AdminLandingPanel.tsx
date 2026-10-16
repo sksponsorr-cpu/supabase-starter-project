@@ -177,6 +177,10 @@ export function AdminLandingPanel() {
           {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une vidéo de clonage depuis mon appareil"}
           <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => { void pickFile(e.target.files?.[0], "clone"); e.target.value = ""; }} />
         </label>
+        <label className="block w-full cursor-pointer rounded-full border border-primary/60 py-3 text-center text-sm font-medium">
+          {uploading ? `Envoi en cours… ${progress}%` : "Ajouter une autre vidéo de clonage depuis ma galerie"}
+          <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => { void pickFile(e.target.files?.[0], "clone"); e.target.value = ""; }} />
+        </label>
         <textarea className={box} rows={4} placeholder={"Une vidéo par ligne :\nhttps://…/clone1.mp4 | Légende"} value={cloneList} onChange={(e) => setCloneList(e.target.value)} />
         <p className="text-[11px] text-muted-foreground">Pensez à cliquer sur « Enregistrer » en bas de la page après chaque ajout.</p>
       </div>

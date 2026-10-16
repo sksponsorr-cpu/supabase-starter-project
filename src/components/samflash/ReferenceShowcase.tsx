@@ -122,6 +122,10 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           )}
         </div>
 
+        <p className="mt-7 text-center text-[17px] font-semibold leading-snug">
+          Avec Sam Flash 2.0, réalisez ce genre de vidéo très facilement et rapidement.
+        </p>
+
         {/* Les quatre étapes, en pilules numérotées */}
         <div className="mt-7 grid grid-cols-2 gap-3">
           {template.steps.map((label, i) => (
@@ -139,24 +143,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         </div>
 
         {/* Résultats : texte et captures côte à côte */}
-        <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
-          <h3 className="text-[22px] font-bold tracking-tight">{template.resultsTitle}</h3>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{template.resultsText}</p>
-          {results.length > 0 ? (
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {results.map((it) => (
-                <figure key={it.url} className="overflow-hidden rounded-2xl bg-black">
-                  <video src={it.url} className="aspect-[9/12] w-full object-cover" muted loop playsInline autoPlay />
-                  {it.caption && <figcaption className="bg-background px-3 py-2 text-xs text-muted-foreground">{it.caption}</figcaption>}
-                </figure>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-              Les captures de résultats seront ajoutées prochainement.
-            </p>
-          )}
-        </section>
+
 
         {revenue && revenue.images.length > 0 && (
           <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
@@ -180,7 +167,8 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           type="button"
           onClick={() => {
             playClick();
-            onGo(template.target);
+            if (template.cta === "Continuer") openGallery();
+            else onGo(template.target);
           }}
           className="motion-apple-tap motion-apple mt-4 flex w-full items-center justify-center gap-3 rounded-full bg-foreground py-5 text-[17px] font-semibold text-background shadow-lg"
           style={{ animationDelay: "700ms" }}
