@@ -5,6 +5,7 @@
  * - Galerie : vidéos approuvées de la galerie communautaire, lisibles au clic.
  * - « Commencer » et « Quitter » ouvrent le modèle choisi.
  */
+import { VideoTile } from "./VideoTile";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getLanding } from "@/lib/landing.functions";
@@ -147,6 +148,12 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         {/* Résultats : texte et captures côte à côte */}
 
 
+        {revenue && revenue.images.length === 0 && (
+          <section className="mt-10">
+            <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Les revenus seront ajoutés prochainement.</p>
+          </section>
+        )}
         {revenue && revenue.images.length > 0 && (
           <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
             <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
@@ -228,7 +235,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
                     className="motion-apple-tap relative overflow-hidden rounded-2xl bg-black text-left"
                   >
                     {g.media_type === "video" && g.media_url ? (
-                      <video src={`${g.media_url}#t=0.1`} preload="metadata" muted playsInline className="aspect-[9/12] w-full object-cover" />
+                      <VideoTile src={g.media_url} className="aspect-[9/12] w-full object-cover" />
                     ) : g.media_url ? (
                       <img src={g.media_url} alt={g.prompt} className="aspect-[9/12] w-full object-cover" loading="lazy" />
                     ) : null}
@@ -249,6 +256,12 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
               </div>
               </>
             )}
+          </div>
+
+          <div className="fixed inset-x-0 bottom-0 z-[125] bg-background/95 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] backdrop-blur">
+            <button type="button" onClick={() => { playClick(); setShowGallery(false); setGalleryAll(false); }} className="w-full rounded-full bg-foreground py-4 text-[16px] font-semibold text-background">
+              Quitter la galerie
+            </button>
           </div>
 
           {/* Lecteur au clic */}

@@ -282,7 +282,7 @@ export function LandingSection() {
         <span className="inline-block rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
           Sam flash 2.0
         </span>
-        <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-[#0b1220]">
+        <h2 className="motion-apple mt-4 text-3xl font-semibold leading-tight tracking-tight text-[#0b1220]">
           {title}
         </h2>
         <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-[#4b5563]">{text}</p>

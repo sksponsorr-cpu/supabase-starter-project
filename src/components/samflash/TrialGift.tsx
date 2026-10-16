@@ -93,6 +93,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
             <ul className="mt-5 space-y-3">
               {[
                 `Soit ${Math.floor(credits / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
+                `Jusqu'à ${Math.floor(credits / 5).toLocaleString("fr-FR")} images gratuites`,
                 "Pour tester sans vous engager",
                 "Paiement par Mobile Money",
               ].map((t, i) => (

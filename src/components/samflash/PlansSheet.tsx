@@ -78,6 +78,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "Jusqu'à 1 200 images gratuites" },
       { icon: Check, title: "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI" },
     ],
     cta: "Choisir Sam Flash Light",
@@ -91,6 +92,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "Jusqu'à 3 000 images gratuites" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
       { icon: Check, title: "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI" },
       { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
@@ -136,7 +138,8 @@ function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"]
     icon: Check,
     title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
   };
-  return [credits, videos, ...plan.features.slice(2)];
+  const images = { icon: Check, title: `Jusqu'à ${Math.floor(total / 5).toLocaleString("fr-FR")} images gratuites` };
+  return [credits, videos, images, ...plan.features.slice(2)];
 }
 
 /** Fuseaux horaires et régions des pays pris en charge (détection sur l'appareil). */
@@ -415,7 +418,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
-          <h2 className="inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
+          <h2 className="motion-apple inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
             Sam flash
             {plan.badge && (
               <span className="rounded-xl bg-secondary px-3 py-1 text-lg font-medium">{plan.badge}</span>
