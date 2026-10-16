@@ -24,6 +24,8 @@ type Tool = {
   logo2?: string;
   description: string;
   price: string;
+  /** Ouvert à tous les utilisateurs (sinon réservé à l'admin, « Bientôt disponible » pour les autres). */
+  openToAll?: boolean;
 };
 
 const TOOLS: Tool[] = [
@@ -41,6 +43,7 @@ const TOOLS: Tool[] = [
     logo: "/tools/clonage-video.png",
     description: "Donnez les mouvements d'une vidéo à un autre personnage.",
     price: "À partir de 0,9 crédit / seconde",
+    openToAll: true,
   },
 ];
 
@@ -91,6 +94,7 @@ function ToolsPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TOOLS.map((tool) => {
+            const open = tool.openToAll === true || enabled;
             const body = (
               <>
                 <div className="flex h-36 items-center justify-center bg-zinc-100">
@@ -106,10 +110,10 @@ function ToolsPage() {
                     <span className="text-xs font-medium text-zinc-500">{tool.price}</span>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium ${
-                        enabled ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-500"
+                        open ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-500"
                       }`}
                     >
-                      {enabled ? "Ouvrir" : "Bientôt"} <ArrowRight className="h-4 w-4" />
+                      {open ? "Ouvrir" : "Bientôt disponible"} {open && <ArrowRight className="h-4 w-4" />}
                     </span>
                   </div>
                 </div>
@@ -117,7 +121,7 @@ function ToolsPage() {
             );
             return (
               <article key={tool.id} className="flex flex-col overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm">
-                {enabled ? (
+                {open ? (
                   <OpenLink id={tool.id} className="flex flex-1 flex-col">
                     {body}
                   </OpenLink>

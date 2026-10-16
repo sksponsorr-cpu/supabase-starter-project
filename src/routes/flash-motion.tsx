@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createMotionVideo, listMotionVideos, uploadMotionReference, uploadMotionVoice } from "@/lib/flash-motion.functions";
 import { DEFAULT_CODE_MODEL, FLASH_MOTION } from "@/lib/flash-motion/config";
 import { ModelPicker } from "@/components/flash-motion/ModelPicker";
+import { aiAccess } from "@/lib/chat.functions";
 
 const MOTION_CSS = `
 @keyframes fm-rise { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -50,6 +51,15 @@ function FlashMotionPage() {
   const list = useServerFn(listMotionVideos);
   const upload = useServerFn(uploadMotionReference);
   const uploadVoice = useServerFn(uploadMotionVoice);
+  const checkAccess = useServerFn(aiAccess);
+  // null = vérification en cours ; false = pas encore ouvert au public.
+  const [access, setAccess] = useState<boolean | null>(null);
+  useEffect(() => {
+    checkAccess({})
+      .then((r) => setAccess(r.enabled))
+      .catch(() => setAccess(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [model, setModel] = useState<string>(DEFAULT_CODE_MODEL);
   const [format, setFormat] = useState<"vertical" | "square" | "landscape">("vertical");
   const [voice, setVoice] = useState<{ path: string; name: string } | null>(null);
@@ -140,6 +150,23 @@ function FlashMotionPage() {
   const field = { display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 14 };
   const input = { padding: "10px 12px", borderRadius: 10, border: "1px solid #d4d4d8", fontSize: 15 };
   const fileStyle = { padding: "10px", borderRadius: 10, border: "1px dashed #3f3f46", background: "#09090b", color: "#e4e4e7", fontSize: 14, width: "100%" };
+
+  if (access === null) {
+    return <main style={{ maxWidth: 560, margin: "0 auto", padding: "48px 16px", textAlign: "center", color: "#71717a" }}>Chargement…</main>;
+  }
+
+  if (access === false) {
+    return (
+      <main style={{ maxWidth: 560, margin: "0 auto", padding: "64px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700 }}>Motion AI</h1>
+        <p style={{ fontSize: 17, fontWeight: 600 }}>Bientôt disponible</p>
+        <p style={{ color: "#71717a", fontSize: 15 }}>Cet outil n'est pas encore ouvert. Le clonage vidéo, lui, est disponible dès maintenant.</p>
+        <Link to="/outils-ai" style={{ marginTop: 8, padding: "12px 22px", borderRadius: 999, background: "#18181b", color: "#fff", fontWeight: 600, fontSize: 15 }}>
+          Retour aux outils
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
