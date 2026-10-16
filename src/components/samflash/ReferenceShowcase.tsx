@@ -106,7 +106,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         <p className="mt-16 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
-        <h2 className="mt-3 text-[30px] font-extrabold leading-[1.08] tracking-tight" style={{ animationDelay: "180ms" }}>
+        <h2 className="mt-3 text-[24px] font-extrabold leading-[1.1] tracking-tight" style={{ animationDelay: "180ms" }}>
           {template.title}
         </h2>
         <p className="mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
@@ -209,8 +209,8 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             ) : (
               <>
               <div className="px-5 pt-5 pb-2 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: ACCENT }}>Créations de la communauté</p>
-            <h3 className="mt-2 text-[22px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>Créations de la communauté</p>
+            <h3 className="mt-2 text-[18px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
             <p className="mt-2 text-sm text-muted-foreground">Créées par nos utilisateurs déjà inscrits.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">

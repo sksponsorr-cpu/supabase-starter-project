@@ -78,7 +78,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
-      { icon: Check, title: "Images, ChatGPT, Claude AI, clonage vidéo, avatar AI" },
+      { icon: Check, title: "Images, ChatGPT, Claude AI (bientôt disponible), clonage vidéo, avatar AI" },
     ],
     cta: "Choisir Sam Flash Light",
     footnote: "Facturation mensuelle, annulez à tout moment",
@@ -92,7 +92,7 @@ const PLANS: Plan[] = [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
-      { icon: Check, title: "Images, ChatGPT (GPT 6 Astra), Claude AI, clonage vidéo, avatar AI" },
+      { icon: Check, title: "Images, ChatGPT (GPT 6 Astra, bientôt disponible), Claude AI (bientôt disponible), clonage vidéo, avatar AI" },
       { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
     ],
     cta: "Choisir Sam Flash Pro",
@@ -105,8 +105,8 @@ const PLANS: Plan[] = [
     tagline: <>Choisissez vous-même votre nombre de crédits</>,
     features: [
       { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p de 6 secondes" },
-      { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Discussion et programmation" },
-      { icon: Brain, title: "Claude AI", sub: "Discussion et programmation" },
+      { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Bientôt disponible" },
+      { icon: Brain, title: "Claude AI", sub: "Bientôt disponible" },
       { icon: MonitorPlay, title: "Clonage vidéo", sub: "Reproduisez les mouvements d'une vidéo" },
       { icon: Sparkles, title: "Avatar AI", sub: "Un avatar qui parle à partir d'une photo" },
       { icon: Zap, title: "Paiement par Mobile Money", sub: "Sans carte bancaire" },
