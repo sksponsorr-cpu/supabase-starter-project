@@ -116,7 +116,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         {/* Vidéo de référence */}
         <div className="motion-apple-video relative aspect-video w-full overflow-hidden rounded-[24px] bg-black mt-6">
           {refVideo ? (
-            <video src={refVideo} className="h-full w-full object-contain" autoPlay loop muted playsInline controls preload="auto" disablePictureInPicture />
+            <video src={refVideo} className="pointer-events-none h-full w-full object-contain" autoPlay loop muted playsInline preload="metadata" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
           ) : (
             <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
               La vidéo de présentation sera ajoutée prochainement.
@@ -190,13 +190,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
       {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
       {showGallery && (
         <div className="fixed inset-0 z-[110] flex flex-col bg-background overflow-hidden">
-        <button
-          type="button"
-          onClick={() => { playClick(); setShowGallery(false); setGalleryAll(false); }}
-          className="fixed left-4 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-[130] rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-lg"
-        >
-          ← Retour
-        </button>
+        
           <div className="flex items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] bg-background sticky top-0 z-10">
             <h2 className="text-lg font-bold">Galerie des créations</h2>
             <button
@@ -259,7 +253,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           </div>
 
           <div className="fixed inset-x-0 bottom-0 z-[125] bg-background/95 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] backdrop-blur">
-            <button type="button" onClick={() => { playClick(); setShowGallery(false); setGalleryAll(false); }} className="w-full rounded-full bg-foreground py-4 text-[16px] font-semibold text-background">
+            <button type="button" onClick={() => { playClick(); onGo(template.target); }} className="w-full rounded-full bg-foreground py-4 text-[16px] font-semibold text-background">
               Quitter la galerie
             </button>
           </div>
@@ -269,7 +263,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 {playing.media_type === "video" && playing.media_url ? (
-                  <video src={playing.media_url} controls autoPlay loop playsInline className="max-h-[75vh] w-full rounded-2xl bg-black" />
+                  <video src={playing.media_url} autoPlay loop muted playsInline className="pointer-events-none max-h-[75vh] w-full rounded-2xl bg-black" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
                 ) : playing.media_url ? (
                   <img src={playing.media_url} alt={playing.prompt} className="max-h-[75vh] w-full rounded-2xl object-contain" />
                 ) : null}

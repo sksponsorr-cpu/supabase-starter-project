@@ -81,6 +81,10 @@ export function VideoTile({ src, className }: { src: string; className?: string 
       autoPlay
       playsInline
       preload="metadata"
+      disablePictureInPicture
+      disableRemotePlayback
+      controlsList="nodownload nofullscreen noremoteplayback"
+      onContextMenu={(e) => e.preventDefault()}
       className={className}
     />
   );
