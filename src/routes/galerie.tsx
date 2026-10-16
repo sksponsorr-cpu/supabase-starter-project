@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, Play, ShieldCheck, Sparkles, X } from "lucide-react";
@@ -104,13 +104,18 @@ function GalleryPage() {
   return (
     <div className="min-h-screen bg-background pb-16" style={{ background: "var(--gradient-hero)" }}>
       <header className="sticky top-0 z-30 flex items-center gap-3 bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] backdrop-blur-xl">
-        <Link
-          to="/app"
-          aria-label="Retour au studio"
+        <button
+          type="button"
+          aria-label="Retour"
+          onClick={() => {
+            // Revient à la page d'où l'on vient (le modèle choisi), sinon au studio.
+            if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
+            else window.location.assign("/app");
+          }}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary"
         >
           <ArrowLeft className="h-5 w-5" />
-        </Link>
+        </button>
         <div>
           <span className="block text-lg font-semibold tracking-tight">Galerie communautaire</span>
           <span className="block text-[11px] text-muted-foreground">Créations IA</span>

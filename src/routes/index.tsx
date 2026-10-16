@@ -33,6 +33,7 @@ import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
 import { DEFAULT_CREDIT_CONFIG, mergeCreditConfig, type CreditConfig } from "@/lib/credits";
 import { includedCredits, videosFor } from "@/lib/plan-credits";
+import { addPaymentFees } from "@/lib/payments/fees";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Adresse e-mail invalide."),
@@ -295,7 +296,8 @@ function planCardsFromPrices(rows: PriceRow[] | null, cfg: CreditConfig) {
     if (!id) return [pk];
     const row = rows.find((r) => r.id === id);
     if (!row) return [];
-    const fcfa = Math.round(row.amount_eur * FCFA_PER_EUR);
+    // Même montant que la fiche des abonnements : prix de base + frais de paiement.
+    const fcfa = addPaymentFees(Math.round(row.amount_eur * FCFA_PER_EUR), true).total;
 
     if (id === "pack_essai") {
       const credits = row.credits_fixed ?? pkCredits(pk);
