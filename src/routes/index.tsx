@@ -277,6 +277,16 @@ const PLAN_CARD_PRICE_ID: Record<string, string> = {
  * Une offre absente de la liste active (désactivée ou supprimée) n'est plus affichée.
  * Tant que les prix ne sont pas chargés, on affiche les valeurs de départ.
  */
+/** Met à jour la ligne « Jusqu'à N images gratuites » avec la valeur de la base (ou crédits ÷ 5). */
+function setImagesLine(features: string[], row: PriceRow, credits: number): string[] {
+  const n = row.images_free ?? Math.floor(credits / 5);
+  const line = `Jusqu'à ${n.toLocaleString("fr-FR")} images gratuites`;
+  const i = features.findIndex((f) => f.startsWith("Jusqu'à") && f.includes("images"));
+  if (i >= 0) features[i] = line;
+  else features.push(line);
+  return features;
+}
+
 function planCardsFromPrices(rows: PriceRow[] | null, cfg: CreditConfig) {
   if (!rows) return PLAN_CARDS;
   const fmt = (n: number) => n.toLocaleString("fr-FR");
@@ -292,7 +302,7 @@ function planCardsFromPrices(rows: PriceRow[] | null, cfg: CreditConfig) {
       const features = [...pk.features];
       features[0] = `${credits} crédits, sans abonnement`;
       features[1] = `${videosFor(credits, cfg)} vidéos de 5 secondes en 480p`;
-      return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits`, features }];
+      return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits`, features: setImagesLine(features, row, credits) }];
     }
 
     const bonus = Math.round(row.credits_bonus ?? 0);
@@ -301,7 +311,7 @@ function planCardsFromPrices(rows: PriceRow[] | null, cfg: CreditConfig) {
     const features = [...pk.features];
     features[0] = bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${credits} crédits par mois`;
     features[1] = `${id === "plus" ? "Environ " : ""}${videosFor(credits, cfg)} vidéos de 5 secondes en 480p`;
-    return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features }];
+    return [{ ...pk, quota: `${fmt(fcfa)} FCFA · ${credits} crédits / mois`, features: setImagesLine(features, row, credits) }];
   });
 }
 
