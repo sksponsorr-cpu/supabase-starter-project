@@ -124,10 +124,6 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           )}
         </div>
 
-        <p className="mt-7 text-center text-[17px] font-semibold leading-snug">
-          Avec Sam Flash 2.0, réalisez ce genre de vidéo très facilement et rapidement.
-        </p>
-
         {/* Les quatre étapes, en pilules numérotées */}
         <div className="mt-7 grid grid-cols-2 gap-3">
           <style>{`@keyframes sfFloat{0%,100%{transform:translateY(0);box-shadow:0 0 0 rgba(124,58,237,0)}50%{transform:translateY(-4px);box-shadow:0 10px 24px -12px rgba(124,58,237,.55)}}`}</style>
@@ -189,7 +185,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
       {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
       {showGallery && (
-        <div className="fixed inset-0 z-[110] flex flex-col bg-background overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex flex-col bg-background overflow-hidden pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
         
           <div className="flex items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] bg-background sticky top-0 z-10">
             <h2 className="text-lg font-bold">Galerie des créations</h2>
@@ -233,6 +229,9 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
                     ) : g.media_url ? (
                       <img src={g.media_url} alt={g.prompt} className="aspect-[9/12] w-full object-cover" loading="lazy" />
                     ) : null}
+                    {g.media_type === "video" && (
+                      <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white">▶ Vidéo</span>
+                    )}
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-[11px] text-white line-clamp-2">
                       {g.prompt}
                     </span>
@@ -263,7 +262,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 {playing.media_type === "video" && playing.media_url ? (
-                  <video src={playing.media_url} autoPlay loop muted playsInline className="pointer-events-none max-h-[75vh] w-full rounded-2xl bg-black" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
+                  <video src={playing.media_url} autoPlay loop playsInline className="max-h-[75vh] w-full rounded-2xl bg-black" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
                 ) : playing.media_url ? (
                   <img src={playing.media_url} alt={playing.prompt} className="max-h-[75vh] w-full rounded-2xl object-contain" />
                 ) : null}

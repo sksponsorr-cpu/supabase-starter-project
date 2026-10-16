@@ -79,6 +79,7 @@ const MOTION_CSS = `
 `;
 
 export function AiToolPage({
+  openToAll = false,
   tool,
   title,
   description,
@@ -87,6 +88,7 @@ export function AiToolPage({
   imageLabel,
   promptPlaceholder,
 }: {
+  openToAll?: boolean;
   tool: AiTool;
   title: string;
   description: string;
@@ -133,7 +135,7 @@ export function AiToolPage({
 
   useEffect(() => {
     checkAccess({})
-      .then((r) => setEnabled(r.enabled))
+      .then((r) => setEnabled(openToAll || r.enabled))
       .catch(() => setEnabled(false));
     void refreshJobs();
     return () => {
@@ -294,7 +296,7 @@ export function AiToolPage({
         <Link to="/outils-ai" className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <ArrowLeft className="h-4 w-4" /> Plus outils AI
         </Link>
-        <h1 className="fm-rise mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="motion-apple mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 text-[15px] text-muted-foreground">{description}</p>
 
         <div className="mt-6 space-y-4">
