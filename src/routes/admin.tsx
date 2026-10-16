@@ -115,6 +115,7 @@ import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
 import { Loader2 as GenLoader } from "lucide-react";
 import { ImageIcon as GenerationIcon } from "lucide-react";
 import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
+import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { formatSeconds } from "@/lib/quota";
 
@@ -1792,6 +1793,7 @@ function AdminPage() {
             {active === "generation" && isAdmin && <AdminGenerationPanel />}
             {active === "generation" && isAdmin && <AdminVoicePanel />}
             {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
+            {active === "credits_gratuits" && isAdmin && <AdminFreeVideoPanel />}
             {active === "promos" && isAdmin && <AdminPromoPanel />}
 
             {active === "subscriptions" && isAdmin && (
