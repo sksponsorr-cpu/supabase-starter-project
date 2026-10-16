@@ -235,14 +235,11 @@ function LazyVideo({ src, muted, className }: { src: string; muted: boolean; cla
     if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting) {
-          setNear(true);
-          void el.play().catch(() => {});
-        } else {
-          el.pause();
-        }
+        if (entry?.isIntersecting) setNear(true);
+        if (entry && entry.intersectionRatio >= 0.6) void el.play().catch(() => {});
+        else el.pause();
       },
-      { rootMargin: "200px", threshold: 0.2 },
+      { rootMargin: "120px", threshold: [0, 0.6] },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -256,8 +253,10 @@ function LazyVideo({ src, muted, className }: { src: string; muted: boolean; cla
       loop
       autoPlay
       playsInline
-      preload="none"
-      controlsList="nodownload noplaybackrate noremoteplayback"
+      preload="metadata"
+      disablePictureInPicture
+      controlsList="nodownload nofullscreen noplaybackrate noremoteplayback"
+      onContextMenu={(e) => e.preventDefault()}
       draggable={false}
       className={className}
     />
