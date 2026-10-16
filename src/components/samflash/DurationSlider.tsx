@@ -56,8 +56,9 @@ type Props = {
 /** Curseur pleine largeur : durée, piste, zone verrouillée (hachurée) et coût. */
 export function DurationSlider({ value, onChange, resolution, config, maxAllowed = DURATION_MAX, onLocked }: Props) {
   const cost = creditCostFor("video", value, resolution, config);
-  const pct = ((value - DURATION_MIN) / (DURATION_MAX - DURATION_MIN)) * 100;
-  const lockPct = ((maxAllowed - DURATION_MIN) / (DURATION_MAX - DURATION_MIN)) * 100;
+  const min = Math.min(DURATION_MIN, maxAllowed);
+  const pct = ((value - min) / (DURATION_MAX - min)) * 100;
+  const lockPct = ((maxAllowed - min) / (DURATION_MAX - min)) * 100;
   const locked = maxAllowed < DURATION_MAX;
   const lastStep = useRef(value);
 
@@ -110,8 +111,8 @@ export function DurationSlider({ value, onChange, resolution, config, maxAllowed
 
         <input
           type="range"
-          min={DURATION_MIN}
-          max={DURATION_MAX}
+          min={min}
+          max={maxAllowed}
           step={1}
           value={value}
           onChange={(e) => handle(Number(e.target.value))}

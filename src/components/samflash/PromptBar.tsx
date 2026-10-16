@@ -750,11 +750,11 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       {mode === "video" && showSlider && (
         <div className="mt-2 px-1">
           <DurationSlider
-            value={Math.min(lockedMaxSec, Math.max(10, longSec))}
+            value={Math.min(lockedMaxSec, Math.max(Math.min(10, lockedMaxSec), longSec))}
             maxAllowed={lockedMaxSec}
             resolution={(res === "480p" ? "480p" : "720p") as Resolution}
             config={creditCfg}
-            onLocked={() => toast.error("Passez à un abonnement supérieur pour générer plus d'une minute.")}
+            onLocked={() => toast.error(`Votre offre permet des vidéos jusqu'à ${lockedMaxSec} secondes. Passez à une offre supérieure pour aller plus loin.`)}
             onChange={(sec) => {
               setLongSec(sec);
               setDur(`${sec}s`);
