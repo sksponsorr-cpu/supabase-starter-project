@@ -1530,7 +1530,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Mensuel (FCFA)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             step="1"
                             aria-label={`Prix mensuel en FCFA pour ${p.label}`}
@@ -1548,7 +1548,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Annuel (FCFA)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             step="1"
                             aria-label={`Prix annuel en FCFA pour ${p.label}`}
@@ -1574,7 +1574,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Crédits par € (taux)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             step="0.01"
                             aria-label={`Taux de crédits pour ${p.label}`}
@@ -1594,7 +1594,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Bonus (crédits)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             aria-label={`Bonus de crédits pour ${p.label}`}
                             value={p.credits_bonus ?? ""}
@@ -1613,7 +1613,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Crédits fixes (vide = calcul)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             aria-label={`Crédits fixes pour ${p.label}`}
                             value={p.credits_fixed ?? ""}
@@ -1634,7 +1634,7 @@ function AdminPage() {
                         <label className="block text-[11px] text-muted-foreground">
                           Images gratuites (vide = calcul : crédits ÷ 5)
                           <input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             aria-label={`Images gratuites pour ${p.label}`}
                             value={p.images_free ?? ""}

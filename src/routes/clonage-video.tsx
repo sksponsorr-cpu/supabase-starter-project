@@ -5,6 +5,7 @@ export const Route = createFileRoute("/clonage-video")({
   head: () => ({ meta: [{ title: "Clonage vidéo — Sam flash 2.0" }] }),
   component: () => (
     <AiToolPage
+      openToAll
       tool="clone"
       title="Clonage vidéo"
       description="Donnez les mouvements d'une vidéo à un autre personnage à partir d'une image."
