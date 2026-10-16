@@ -16,15 +16,15 @@ export type PlanType =
 
 /** Limite quotidienne (période glissante de 24 h) en secondes de vidéo. */
 export const PLAN_VIDEO_SECONDS: Record<PlanType, number> = {
-  free: 30,
-  super_grok_monthly: 200, // 3 min 20 s
-  superhearly_monthly: 1200, // 20 min
-  super_grok_annuel: 200, // 3 min 20 s
-  super_grok_plus: 400, // 6 min 40 s
-  sam_flash_light: 200,
-  sam_flash_pro: 400,
-  sam_flash_pro_annuel: 400,
-  sam_flash_custom: 200,
+  free: 5,
+  super_grok_monthly: 60,
+  super_grok_annuel: 60,
+  sam_flash_light: 60,
+  sam_flash_custom: 60,
+  sam_flash_pro: 180,
+  sam_flash_pro_annuel: 180,
+  superhearly_monthly: 10,
+  super_grok_plus: 10,
 };
 
 /** Durée de l'abonnement en mois. */
@@ -65,7 +65,7 @@ export function planTypeFor(productId: string, period: "monthly" | "yearly"): Pl
 /** Durée maximale d'UNE vidéo, en secondes. Gratuit et Sam Flash Light : 1 minute. Les autres formules : 3 minutes. */
 export function clipMaxSeconds(plan: string | null | undefined): number {
   const p = toPlanType(plan);
-  return p === "free" || p === "sam_flash_light" ? 60 : 180;
+  return PLAN_VIDEO_SECONDS[p];
 }
 
 /** Normalise une valeur venue de la base en formule connue. */
