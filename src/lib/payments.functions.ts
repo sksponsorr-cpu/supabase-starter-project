@@ -41,6 +41,7 @@ export type PriceRow = {
   credits_rate: number | null;
   credits_bonus: number;
   credits_fixed: number | null;
+  images_free: number | null;
 };
 
 export type BillingPeriod = "monthly" | "yearly";
@@ -108,7 +109,7 @@ export const listPrices = createServerFn({ method: "GET" }).handler(async (): Pr
   const { publicSupabase } = await import("@/lib/payments/public-client.server");
   const { data } = await publicSupabase()
     .from("product_prices")
-    .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed")
+    .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed, images_free")
     .eq("active", true)
     .order("sort_order", { ascending: true });
   return (data ?? []).map((row) => toEurOffer(row)).map((row) => ({
@@ -118,6 +119,7 @@ export const listPrices = createServerFn({ method: "GET" }).handler(async (): Pr
     credits_rate: row.credits_rate === null || row.credits_rate === undefined ? null : Number(row.credits_rate),
     credits_bonus: Number(row.credits_bonus ?? 0),
     credits_fixed: row.credits_fixed === null || row.credits_fixed === undefined ? null : Number(row.credits_fixed),
+    images_free: row.images_free === null || row.images_free === undefined ? null : Number(row.images_free),
   }));
 });
 

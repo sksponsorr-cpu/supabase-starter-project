@@ -257,6 +257,7 @@ export type AdminPrice = {
   credits_rate: number | null;
   credits_bonus: number | null;
   credits_fixed: number | null;
+  images_free: number | null;
 };
 
 /** Liste des offres et de leur prix EUR (admin ou finance). */
@@ -265,7 +266,7 @@ export const listAdminPrices = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AdminPrice[]> => {
     const { data } = await context.supabase
       .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed")
+      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed, images_free")
       .order("sort_order", { ascending: true });
     return (data ?? []).map((row) => ({
       ...row,
@@ -276,6 +277,7 @@ export const listAdminPrices = createServerFn({ method: "GET" })
       credits_rate: row.credits_rate === null ? null : Number(row.credits_rate),
       credits_bonus: row.credits_bonus === null ? null : Number(row.credits_bonus),
       credits_fixed: row.credits_fixed === null ? null : Number(row.credits_fixed),
+      images_free: row.images_free === null || row.images_free === undefined ? null : Number(row.images_free),
     }));
   });
 
@@ -290,6 +292,7 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
     creditsRate?: number | null;
     creditsBonus?: number | null;
     creditsFixed?: number | null;
+    imagesFree?: number | null;
   }) => {
     if (typeof input?.id !== "string" || input.id.length === 0) throw new Error("Offre invalide");
     const amount = Number(input.amountFcfa);
@@ -312,8 +315,13 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
     if (fixed !== null && (!Number.isFinite(Number(fixed)) || Number(fixed) < 0 || Number(fixed) > 1000000)) {
       throw new Error("Crédits fixes invalides");
     }
+    const images = input.imagesFree ?? null;
+    if (images !== null && (!Number.isFinite(Number(images)) || Number(images) < 0 || Number(images) > 10000000)) {
+      throw new Error("Nombre d'images invalide");
+    }
     return {
       id: input.id,
+      imagesFree: images === null ? null : Math.round(Number(images)),
       amountFcfa: Math.round(amount),
       amountFcfaYearly: yearly,
       active: Boolean(input.active),
@@ -334,6 +342,7 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
         credits_rate: data.creditsRate,
         credits_bonus: data.creditsBonus ?? 0,
         credits_fixed: data.creditsFixed,
+        images_free: data.imagesFree,
       })
       .eq("id", data.id)
       .select("id");
