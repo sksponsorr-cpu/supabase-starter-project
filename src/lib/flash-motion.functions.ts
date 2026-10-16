@@ -1,7 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { OWNER_EMAILS } from "@/lib/owners";
 import { CODE_MODELS, DEFAULT_CODE_MODEL, FLASH_MOTION } from "@/lib/flash-motion/config";
+
+/** Motion AI n'est pas encore ouvert au public : réservé au propriétaire et aux administrateurs. */
+async function isAdminUser(context: {
+  claims: unknown;
+  supabase: { rpc: (f: string, a: object) => Promise<{ data: unknown }> };
+  userId: string;
+}): Promise<boolean> {
+  const claims = context.claims as { email?: unknown } | null;
+  const email = typeof claims?.email === "string" ? claims.email.toLowerCase().trim() : "";
+  if (email && OWNER_EMAILS.includes(email)) return true;
+  const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+  return data === true;
+}
+
+const SOON = "Motion AI sera bientôt disponible.";
 
 const REF_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_REF_BYTES = 4 * 1024 * 1024;
@@ -25,6 +41,7 @@ export const createMotionVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => briefSchema.parse(input))
   .handler(async ({ data, context }) => {
+    if (!(await isAdminUser(context))) return { ok: false as const, message: SOON };
     const jobId = crypto.randomUUID();
     // Seules les références de l'utilisateur connecté sont acceptées.
     const refs = data.referencePaths.filter((p) => p.startsWith(`${context.userId}/refs/`));
@@ -112,6 +129,7 @@ export const uploadMotionReference = createServerFn({ method: "POST" })
     z.object({ mime: z.string().max(40), dataBase64: z.string().min(10).max(6_000_000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (!(await isAdminUser(context))) return { ok: false as const, message: SOON };
     const ext = REF_TYPES[data.mime];
     if (!ext) return { ok: false as const, message: "Format non accepté. Utilisez JPG, PNG ou WebP." };
     const bytes = Buffer.from(data.dataBase64, "base64");
@@ -142,6 +160,7 @@ export const uploadMotionVoice = createServerFn({ method: "POST" })
     z.object({ mime: z.string().max(40), dataBase64: z.string().min(10).max(6_000_000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (!(await isAdminUser(context))) return { ok: false as const, message: SOON };
     const ext = AUDIO_TYPES[data.mime];
     if (!ext) return { ok: false as const, message: "Format audio non accepté. Utilisez MP3, M4A ou WAV." };
     const bytes = Buffer.from(data.dataBase64, "base64");
