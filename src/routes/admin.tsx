@@ -433,6 +433,7 @@ function AdminPage() {
           creditsRate: row.credits_rate,
           creditsBonus: row.credits_bonus,
           creditsFixed: row.credits_fixed,
+          imagesFree: row.images_free,
         },
       });
       setPriceNotice(res.ok ? `Prix de « ${row.label} » enregistré.` : res.message);
@@ -1621,6 +1622,27 @@ function AdminPage() {
                                 prev.map((r) =>
                                   r.id === p.id
                                     ? { ...r, credits_fixed: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-3">
+                        <label className="block text-[11px] text-muted-foreground">
+                          Images gratuites (vide = calcul : crédits ÷ 5)
+                          <input
+                            type="number"
+                            min={0}
+                            aria-label={`Images gratuites pour ${p.label}`}
+                            value={p.images_free ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, images_free: e.target.value === "" ? null : Number(e.target.value) }
                                     : r,
                                 ),
                               )

@@ -142,6 +142,7 @@ const PLAN_CARDS = [
     desc: "Pour découvrir Sam flash 2.0 sans rien payer.",
     features: [
       "250 crédits offerts à l'inscription",
+      "Jusqu'à 50 images gratuites",
       "Utilisables pour vos vidéos et vos images",
       "Offre limitée par appareil",
     ],
@@ -155,6 +156,7 @@ const PLAN_CARDS = [
     desc: "Un pack pour tester sans vous engager.",
     features: [
       "8 vidéos de 5 secondes en 480p",
+      "Jusqu'à 500 images gratuites",
       "Pour tester sans vous engager",
       "Paiement par Mobile Money",
     ],
@@ -169,6 +171,7 @@ const PLAN_CARDS = [
     features: [
       "110 crédits par mois",
       "22 vidéos de 5 secondes en 480p",
+      "Jusqu'à 1 200 images gratuites",
       "Images et clonage vidéo",
     ],
     highlight: false,
@@ -182,6 +185,7 @@ const PLAN_CARDS = [
     features: [
       "400 crédits payés + 50 crédits offerts chaque mois",
       "Environ 90 vidéos de 5 secondes en 480p",
+      "Jusqu'à 3 000 images gratuites",
       "Vidéo 1080p, générations prioritaires",
       "Images et clonage vidéo",
     ],
@@ -604,7 +608,7 @@ function LandingPage() {
           </div>
 
           {/* Titre Principal H1 */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+          <h1 className="motion-apple text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
             Transformez une idée en vidéo prête à publier
           </h1>
 
@@ -658,7 +662,7 @@ function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
               Démonstration en direct
             </span>
-            <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="motion-apple mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Découvrez Sam flash en action
             </h2>
             <p className="mt-3 text-sm sm:text-base text-slate-800 leading-relaxed">
@@ -882,7 +886,7 @@ function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
               Simplicité absolue
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="motion-apple mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Comment ça marche
             </h2>
             <p className="mt-3 text-base text-slate-800">
@@ -924,7 +928,7 @@ function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
               Fonctionnalités clés
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="motion-apple mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Tout ce dont vous avez besoin pour vos contenus
             </h2>
             <p className="mt-3 text-base text-slate-800">
@@ -959,7 +963,7 @@ function LandingPage() {
             <span className="ob-blink inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-orange-500 text-white shadow-md">
               Offres flexibles
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="motion-apple mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Ce que vous recevez selon votre formule
             </h2>
             <p className="mt-3 text-base text-slate-800">
@@ -1029,7 +1033,7 @@ function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
               Aide & Informations
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="motion-apple mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               Questions fréquentes
             </h2>
           </div>
@@ -1058,7 +1062,7 @@ function LandingPage() {
       {/* Bannière d'appel à l'action final */}
       <section className="px-4 py-16 sm:py-20">
         <div className="max-w-4xl mx-auto rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/90 p-8 sm:p-14 text-center shadow-lg">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+          <h2 className="motion-apple text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
             Prêt à donner vie à vos créations ?
           </h2>
           <p className="mt-4 text-base sm:text-lg text-slate-800 max-w-xl mx-auto">
