@@ -6,7 +6,7 @@
  * - « Commencer » et « Quitter » ouvrent le modèle choisi.
  */
 import { VideoTile } from "./VideoTile";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef} from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getLanding } from "@/lib/landing.functions";
 import { listCommunityGallery, type CommunityItem } from "@/lib/community.functions";
@@ -61,6 +61,42 @@ type Props = {
   onGo: (path: "/app" | "/clonage-video") => void;
 };
 
+
+/** Vidéo de référence muette, en boucle, avec bouton pause / lecture. */
+function PausableVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [paused, setPaused] = useState(false);
+  return (
+    <div className="relative h-full w-full">
+      <video
+        ref={ref}
+        src={src}
+        className="pointer-events-none h-full w-full object-contain"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        disablePictureInPicture
+        controlsList="nodownload nofullscreen noremoteplayback"
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <button
+        type="button"
+        aria-label={paused ? "Lire la vidéo" : "Mettre en pause"}
+        onClick={() => {
+          const v = ref.current;
+          if (!v) return;
+          if (v.paused) { void v.play(); setPaused(false); } else { v.pause(); setPaused(true); }
+        }}
+        className="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+      >
+        {paused ? "▶ Lire" : "❚❚ Pause"}
+      </button>
+    </div>
+  );
+}
+
 export function ReferenceShowcase({ parcours, onGo }: Props) {
   const template = TEMPLATES[parcours];
   const fetchLanding = useServerFn(getLanding);
@@ -103,7 +139,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
   return (
     <>
       <div className="w-full max-w-md text-left pt-6">
-        <p className="mt-16 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
+        <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
         <h2 className="mt-3 text-[24px] font-extrabold leading-[1.1] tracking-tight" style={{ animationDelay: "180ms" }}>
@@ -116,7 +152,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         {/* Vidéo de référence */}
         <div className="motion-apple-video relative aspect-video w-full overflow-hidden rounded-[24px] bg-black mt-6">
           {refVideo ? (
-            <video src={refVideo} className="pointer-events-none h-full w-full object-contain" autoPlay loop muted playsInline preload="metadata" controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableRemotePlayback onContextMenu={(e) => e.preventDefault()} />
+            <PausableVideo src={refVideo} />
           ) : (
             <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
               La vidéo de présentation sera ajoutée prochainement.

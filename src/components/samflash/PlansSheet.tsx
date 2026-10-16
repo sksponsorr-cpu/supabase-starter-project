@@ -78,7 +78,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
-      { icon: Check, title: "Images, ChatGPT, Claude AI (bientôt disponible), clonage vidéo, avatar AI" },
+      { icon: Check, title: "Images, clonage vidéo, avatar AI, ChatGPT (bientôt disponible), Claude AI (bientôt disponible)" },
     ],
     cta: "Choisir Sam Flash Light",
     footnote: "Facturation mensuelle, annulez à tout moment",
@@ -92,7 +92,7 @@ const PLANS: Plan[] = [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
-      { icon: Check, title: "Images, ChatGPT (GPT 6 Astra, bientôt disponible), Claude AI (bientôt disponible), clonage vidéo, avatar AI" },
+      { icon: Check, title: "Images, clonage vidéo, avatar AI, ChatGPT GPT 6 Astra (bientôt disponible), Claude AI (bientôt disponible)" },
       { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
     ],
     cta: "Choisir Sam Flash Pro",
