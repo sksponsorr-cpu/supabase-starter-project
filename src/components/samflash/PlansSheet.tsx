@@ -127,7 +127,7 @@ function includedCredits(p: PriceRow, yearly: boolean): number {
 }
 
 /** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
-function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"] {
+function featuresFor(plan: Plan, total: number, bonus: number, imagesFree: number | null = null): Plan["features"] {
   if (plan.id === "custom") return plan.features;
   const paid = bonus > 0 ? total - bonus : total;
   const credits = {
@@ -138,7 +138,8 @@ function featuresFor(plan: Plan, total: number, bonus: number): Plan["features"]
     icon: Check,
     title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
   };
-  const images = { icon: Check, title: `Jusqu'à ${Math.floor(total / 5).toLocaleString("fr-FR")} images gratuites` };
+  const imagesCount = imagesFree ?? Math.floor(total / 5);
+  const images = { icon: Check, title: `Jusqu'à ${imagesCount.toLocaleString("fr-FR")} images gratuites` };
   return [credits, videos, images, ...plan.features.slice(2)];
 }
 
@@ -560,7 +561,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
           )}
           {(showFeatures || plan.id !== "custom") &&
-            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0)).map((f, i) => (
+            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0), price?.images_free ?? null).map((f, i) => (
               <div
                 key={f.title}
                 style={{ animationDelay: `${i * 80}ms` }}
