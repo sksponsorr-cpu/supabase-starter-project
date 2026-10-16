@@ -17,7 +17,7 @@ export function warmVideo(url?: string | null) {
  * Pause automatique des vignettes pendant qu'une vidéo est ouverte en grand.
  * Les vignettes reprennent toutes seules à la fermeture.
  */
-const MAX_PLAYING = 3;
+const MAX_PLAYING = 1;
 const playing = new Set<HTMLVideoElement>();
 let pauseCount = 0;
 const listeners = new Set<() => void>();

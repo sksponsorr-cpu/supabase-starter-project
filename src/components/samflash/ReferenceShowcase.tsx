@@ -103,13 +103,13 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
   return (
     <>
       <div className="w-full max-w-md text-left pt-6">
-        <p className="motion-apple mt-16 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
+        <p className="mt-16 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
-        <h2 className="motion-apple mt-3 text-[30px] font-extrabold leading-[1.08] tracking-tight" style={{ animationDelay: "180ms" }}>
+        <h2 className="mt-3 text-[30px] font-extrabold leading-[1.08] tracking-tight" style={{ animationDelay: "180ms" }}>
           {template.title}
         </h2>
-        <p className="motion-apple mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
+        <p className="mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
           {template.text}
         </p>
 
@@ -155,7 +155,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           </section>
         )}
         {revenue && revenue.images.length > 0 && (
-          <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
+          <section className="mt-10" style={{ animationDelay: "560ms" }}>
             <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
             <p className="mt-1 text-sm text-muted-foreground">Des revenus réellement générés avec la monétisation de vidéos IA.</p>
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -266,7 +266,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
           {/* Lecteur au clic */}
           {playing && (
-            <div className="motion-apple fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" onClick={() => setPlaying(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 {playing.media_type === "video" && playing.media_url ? (
                   <video src={playing.media_url} controls autoPlay loop playsInline className="max-h-[75vh] w-full rounded-2xl bg-black" />
