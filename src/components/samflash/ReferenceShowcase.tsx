@@ -32,11 +32,11 @@ export const TEMPLATES: Record<Parcours, Template> = {
     category: "pub",
     eyebrow: "Témoignage vidéo",
     title: "Une vraie personne présente ton produit.",
-    text: "Avec Sam Flash 2.0, créez des vidéos professionnelles, simples à lire et au rendu motion design. Payez facilement avec Mobile Money, sans carte bancaire.",
-    steps: ["La personne", "Ton produit", "L'image, offerte", "Texte et clips"],
+    text: "Avec Sam Flash 2.0, créez des vidéos professionnelles, simples à lire et au rendu soigné. Payez facilement avec Mobile Money, sans carte bancaire.",
+    steps: ["Mobile Money", "Sans carte bancaire", "Vidéo en minutes", "Sans tournage"],
     resultsTitle: "Des résultats concrets",
-    resultsText: "Les vidéos créées avec l'IA peuvent vous aider à générer des revenus. Voici des vidéos réalisées avec Sam Flash 2.0.",
-    cta: "Commencer ma vidéo",
+    resultsText: "Voici les revenus générés grâce à la monétisation de vidéos IA.",
+    cta: "Continuer",
     target: "/app",
   },
   clonage: {
@@ -65,6 +65,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
   const fetchLanding = useServerFn(getLanding);
   const fetchGallery = useServerFn(listCommunityGallery);
   const [items, setItems] = useState<ShowcaseItem[]>([]);
+  const [revenue, setRevenue] = useState<{ referenceVideo: string; images: { url: string; caption: string }[] } | null>(null);
   const [gallery, setGallery] = useState<CommunityItem[] | null>(null);
   const [showGallery, setShowGallery] = useState(false);
   const [playing, setPlaying] = useState<CommunityItem | null>(null);
@@ -73,7 +74,10 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
     let alive = true;
     fetchLanding()
       .then((d) => {
-        if (alive) setItems((d.showcase ?? []).filter((v) => v.cat === template.category));
+        if (alive) {
+          setItems((d.showcase ?? []).filter((v) => v.cat === template.category));
+          setRevenue(d.revenue ?? null);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -91,22 +95,12 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
   };
 
   const main = items[0];
+  const refVideo = revenue?.referenceVideo || main?.url || "";
   const results = items.slice(1);
 
   return (
     <>
       <div className="w-full max-w-md text-left">
-        {/* Vidéo de référence */}
-        <div className="motion-apple-video relative aspect-[9/12] w-full overflow-hidden rounded-[28px] bg-black shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)] mb-6">
-          {main ? (
-            <video src={main.url} className="h-full w-full object-contain" autoPlay loop muted playsInline controls />
-          ) : (
-            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
-              La vidéo de présentation sera ajoutée prochainement.
-            </div>
-          )}
-        </div>
-
         <p className="motion-apple mt-8 text-[13px] font-semibold uppercase tracking-[0.2em]" style={{ animationDelay: "120ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
@@ -116,6 +110,17 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         <p className="motion-apple mt-4 text-[17px] leading-relaxed text-muted-foreground" style={{ animationDelay: "240ms" }}>
           {template.text}
         </p>
+
+        {/* Vidéo de référence */}
+        <div className="motion-apple-video relative aspect-video w-full overflow-hidden rounded-[24px] bg-black mt-6">
+          {refVideo ? (
+            <video src={refVideo} className="h-full w-full object-contain" autoPlay loop muted playsInline controls preload="auto" disablePictureInPicture />
+          ) : (
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
+              La vidéo de présentation sera ajoutée prochainement.
+            </div>
+          )}
+        </div>
 
         {/* Les quatre étapes, en pilules numérotées */}
         <div className="mt-7 grid grid-cols-2 gap-3">
@@ -138,7 +143,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           <h3 className="text-[22px] font-bold tracking-tight">{template.resultsTitle}</h3>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{template.resultsText}</p>
           {results.length > 0 ? (
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-3 gap-2">
               {results.map((it) => (
                 <figure key={it.url} className="overflow-hidden rounded-2xl bg-black">
                   <video src={it.url} className="aspect-[9/12] w-full object-cover" muted loop playsInline autoPlay />
@@ -153,15 +158,22 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           )}
         </section>
 
-        <button
-          type="button"
-          onClick={openGallery}
-          className="motion-apple-tap motion-apple mt-8 flex w-full items-center justify-between rounded-full border border-border px-5 py-4 text-[15px] font-semibold"
-          style={{ animationDelay: "640ms" }}
-        >
-          <span>Voir la galerie des créations</span>
-          <span aria-hidden>→</span>
-        </button>
+        {revenue && revenue.images.length > 0 && (
+          <section className="motion-apple mt-10" style={{ animationDelay: "560ms" }}>
+            <h3 className="text-[22px] font-bold tracking-tight">Revenus générés</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Des revenus réellement générés avec la monétisation de vidéos IA.</p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {revenue.images.map((img) => (
+                <figure key={img.url} className="overflow-hidden rounded-2xl bg-secondary/50">
+                  <img src={img.url} alt={img.caption || "Revenu"} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
+                  {img.caption && <figcaption className="px-3 py-2 text-xs text-muted-foreground">{img.caption}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
+        
 
         {/* Bouton principal */}
         <button
