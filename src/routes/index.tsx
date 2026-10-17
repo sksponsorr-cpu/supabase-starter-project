@@ -1022,6 +1022,9 @@ function LandingPage() {
                 </div>
 
                 <div className="mt-8 pt-4">
+                  <p className="mb-4 rounded-xl bg-indigo-50/80 px-3 py-2 text-center text-xs font-semibold text-indigo-700 sm:text-sm">
+                    Besoin de plus ? Achetez le nombre de crédits que vous voulez.
+                  </p>
                   <Link
                     to="/connexion"
                     className={`w-full max-w-[260px] mx-auto py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${

@@ -1529,11 +1529,12 @@ function AdminPage() {
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <label className="text-[11px] text-muted-foreground">
-                          Mensuel (FCFA)
+                          {p.id === "custom" ? "Prix d'UN crédit (FCFA), ex. 1,2" : "Mensuel (FCFA)"}
                           <input
-                            type="number" step="any"
+                            type="number"
                             min={0}
-                            step="1"
+                            step="any"
+                            inputMode="decimal"
                             aria-label={`Prix mensuel en FCFA pour ${p.label}`}
                             value={p.amount_fcfa ?? ""}
                             onChange={(e) =>
@@ -1549,9 +1550,10 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Annuel (FCFA)
                           <input
-                            type="number" step="any"
+                            type="number"
                             min={0}
-                            step="1"
+                            step="any"
+                            inputMode="decimal"
                             aria-label={`Prix annuel en FCFA pour ${p.label}`}
                             value={p.amount_fcfa_yearly ?? ""}
                             onChange={(e) =>
@@ -1575,7 +1577,7 @@ function AdminPage() {
                         <label className="text-[11px] text-muted-foreground">
                           Crédits par € (taux)
                           <input
-                            type="number" step="any"
+                            type="number"
                             min={0}
                             step="0.01"
                             aria-label={`Taux de crédits pour ${p.label}`}
