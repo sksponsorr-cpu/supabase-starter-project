@@ -15,7 +15,7 @@ export const Route = createFileRoute("/outils-ai")({
   component: ToolsPage,
 });
 
-type ToolId = "motion-ai" | "clonage-video";
+type ToolId = "clonage-video";
 
 type Tool = {
   id: ToolId;
@@ -30,14 +30,6 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    id: "motion-ai",
-    name: "Motion AI",
-    logo: "/tools/chatgpt.png",
-    logo2: "/tools/claude.png",
-    description: "Décrivez votre idée, l'IA fabrique votre vidéo motion design. Choisissez votre modèle (GPT ou Claude).",
-    price: "Selon la durée choisie",
-  },
-  {
     id: "clonage-video",
     name: "Clonage vidéo",
     logo: "/tools/clonage-video.png",
@@ -49,13 +41,6 @@ const TOOLS: Tool[] = [
 
 /** Lien vers la bonne page selon l'outil. */
 function OpenLink({ id, className, children }: { id: ToolId; className?: string; children: React.ReactNode }) {
-  if (id === "motion-ai") {
-    return (
-      <Link to="/flash-motion" className={className}>
-        {children}
-      </Link>
-    );
-  }
   if (id === "clonage-video") {
     return (
       <Link to="/clonage-video" className={className}>
