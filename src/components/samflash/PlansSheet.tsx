@@ -64,7 +64,7 @@ type Plan = {
   label: string;
   badge?: string;
   tagline: React.ReactNode;
-  features: { icon: React.ElementType; title: string; sub?: string }[];
+  features: { icon: React.ElementType; title: string; sub?: string; soon?: boolean }[];
   cta: string;
   footnote: string;
 };
@@ -78,7 +78,10 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
-      { icon: Check, title: "Images, clonage vidéo, avatar AI, ChatGPT (bientôt disponible), Claude AI (bientôt disponible)" },
+      { icon: Check, title: "Clonage vidéo" },
+      { icon: Check, title: "Avatar AI" },
+      { icon: Check, title: "ChatGPT", soon: true },
+      { icon: Check, title: "Claude AI", soon: true },
     ],
     cta: "Choisir Sam Flash Light",
     footnote: "Facturation mensuelle, annulez à tout moment",
@@ -92,7 +95,10 @@ const PLANS: Plan[] = [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
-      { icon: Check, title: "Images, clonage vidéo, avatar AI, ChatGPT GPT 6 Astra (bientôt disponible), Claude AI (bientôt disponible)" },
+      { icon: Check, title: "Clonage vidéo" },
+      { icon: Check, title: "Avatar AI" },
+      { icon: Check, title: "ChatGPT GPT 6 Astra", soon: true },
+      { icon: Check, title: "Claude AI", soon: true },
       { icon: Check, title: "Paiement par Mobile Money ou carte bancaire" },
     ],
     cta: "Choisir Sam Flash Pro",
@@ -137,13 +143,10 @@ function featuresFor(plan: Plan, total: number, bonus: number, imagesFree: numbe
     icon: Check,
     title: bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${total} crédits par mois`,
   };
-  const videos = {
-    icon: Check,
-    title: `${plan.id === "pro" ? "Environ " : ""}${Math.floor(total / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
-  };
   const imagesCount = imagesFree ?? Math.floor(total / 5);
   const images = { icon: Check, title: `Jusqu'à ${imagesCount.toLocaleString("fr-FR")} images gratuites` };
-  return [credits, videos, images, ...plan.features.slice(2)];
+  // Crédits et vidéos sont déjà affichés au-dessus : on ne les répète pas (sauf le détail payés + offerts).
+  return [...(bonus > 0 ? [credits] : []), images, ...plan.features.slice(2)];
 }
 
 /** Fuseaux horaires et régions des pays pris en charge (détection sur l'appareil). */
@@ -574,7 +577,17 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
                   <f.icon className="h-4 w-4 text-foreground" />
                 </span>
-                <span className="text-[15px] font-medium leading-snug">{f.title}</span>
+                <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug">
+                  {f.title}
+                  {f.sub && f.sub !== "Bientôt disponible" && (
+                    <span className="block text-xs font-normal text-muted-foreground">{f.sub}</span>
+                  )}
+                </span>
+                {(f.soon || f.sub === "Bientôt disponible") && (
+                  <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                    Bientôt disponible
+                  </span>
+                )}
               </div>
             ))}
         </div>
