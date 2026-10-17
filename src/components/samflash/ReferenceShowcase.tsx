@@ -68,6 +68,8 @@ function PausableVideo({ src, hold }: { src: string; hold?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [userPaused, setUserPaused] = useState(false);
   const [inView, setInView] = useState(true);
+  // Les navigateurs exigent un appui pour activer le son : on démarre muet, puis « Son » le remet.
+  const [soundOn, setSoundOn] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -80,9 +82,10 @@ function PausableVideo({ src, hold }: { src: string; hold?: boolean }) {
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
+    v.muted = !soundOn;
     if (userPaused || hold || !inView) v.pause();
     else void v.play().catch(() => {});
-  }, [userPaused, hold, inView]);
+  }, [userPaused, hold, inView, soundOn]);
 
   return (
     <div className="relative h-full w-full">
@@ -99,6 +102,14 @@ function PausableVideo({ src, hold }: { src: string; hold?: boolean }) {
         controlsList="nodownload nofullscreen noremoteplayback"
         onContextMenu={(e) => e.preventDefault()}
       />
+      <button
+        type="button"
+        aria-label={soundOn ? "Couper le son" : "Activer le son"}
+        onClick={() => setSoundOn((s) => !s)}
+        className="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+      >
+        {soundOn ? "🔊 Son" : "🔇 Son"}
+      </button>
       <button
         type="button"
         aria-label={userPaused ? "Lire la vidéo" : "Mettre en pause"}
@@ -152,14 +163,14 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
 
   return (
     <>
-      <div className="w-full max-w-md text-left pt-1">
-        <p className="sf-reveal text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ ["--d" as string]: "60ms", color: ACCENT }}>
+      <div className="mx-auto w-full max-w-md pt-1 text-left md:max-w-3xl">
+        <p className="sf-reveal text-[11px] font-semibold uppercase tracking-[0.18em] md:text-[13px]" style={{ ["--d" as string]: "60ms", color: ACCENT }}>
           {template.eyebrow}
         </p>
-        <h2 className="sf-reveal mt-1.5 text-[20px] font-extrabold leading-[1.15] tracking-tight" style={{ ["--d" as string]: "120ms" }}>
+        <h2 className="sf-reveal mt-1.5 text-[20px] font-extrabold leading-[1.15] tracking-tight md:text-[32px]" style={{ ["--d" as string]: "120ms" }}>
           {template.title}
         </h2>
-        <p className="sf-reveal mt-2 text-[14px] leading-snug text-muted-foreground" style={{ ["--d" as string]: "180ms" }}>
+        <p className="sf-reveal mt-2 text-[14px] leading-snug text-muted-foreground md:text-[17px]" style={{ ["--d" as string]: "180ms" }}>
           {template.text}
         </p>
 
@@ -175,7 +186,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
         </div>
 
         {/* Les quatre étapes, en pilules numérotées */}
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <div className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
           {template.steps.map((label, i) => (
             <div
               key={label}
@@ -208,7 +219,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           <section className="sf-reveal mt-6" style={{ ["--d" as string]: "560ms" }}>
             <h3 className="text-[18px] font-bold tracking-tight">Revenus générés</h3>
             <p className="mt-1 text-[13px] text-muted-foreground">Des revenus réellement générés avec la monétisation de vidéos IA.</p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-2 md:gap-4">
               {revenue.images.map((img) => (
                 <figure key={img.url} className="overflow-hidden rounded-2xl bg-secondary/50">
                   <img src={img.url} alt={img.caption || "Revenu"} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
@@ -229,7 +240,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
             if (template.cta === "Continuer") openGallery();
             else onGo(template.target);
           }}
-          className="sf-reveal motion-apple-tap mt-5 mb-4 flex w-full items-center justify-center gap-3 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background shadow-lg"
+          className="sf-reveal motion-apple-tap mx-auto mt-5 mb-4 flex w-full max-w-md items-center justify-center gap-3 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background shadow-lg"
           style={{ ["--d" as string]: "700ms" }}
         >
           {template.cta}
@@ -240,7 +251,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
       {/* Galerie plein écran : toutes les vidéos générées et approuvées */}
       {showGallery && (
         <div className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background">
-          <div className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+          <div className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] md:px-[max(1rem,calc((100vw-64rem)/2))]">
             <h2 className="text-[15px] font-bold">Galerie des créations</h2>
             <button
               type="button"
@@ -255,6 +266,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-28 pt-2 [overscroll-behavior:contain]">
+            <div className="mx-auto w-full max-w-5xl">
             {gallery === null ? (
               <p className="py-16 text-center text-sm text-muted-foreground">Chargement…</p>
             ) : gallery.length === 0 ? (
@@ -266,7 +278,7 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
                 <h3 className="mt-1 text-[15px] font-bold leading-tight">Vidéos générées avec Sam Flash 2.0</h3>
                 <p className="mt-1 text-[12px] text-muted-foreground">Créées par nos utilisateurs déjà inscrits.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
                 {(galleryAll ? gallery : gallery.slice(0, 6)).map((g, i) => (
                   <button
                     key={g.id}
@@ -303,10 +315,11 @@ export function ReferenceShowcase({ parcours, onGo }: Props) {
               </div>
               </>
             )}
+            </div>
           </div>
 
           <div className="fixed inset-x-0 bottom-0 z-[125] border-t border-border bg-background p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
-            <button type="button" onClick={() => { playClick(); onGo(template.target); }} className="w-full rounded-full bg-foreground py-3.5 text-[15px] font-semibold text-background">
+            <button type="button" onClick={() => { playClick(); onGo(template.target); }} className="mx-auto block w-full max-w-md rounded-full bg-foreground py-3.5 text-[15px] font-semibold text-background">
               Quitter la galerie
             </button>
           </div>

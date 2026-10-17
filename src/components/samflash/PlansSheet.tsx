@@ -126,7 +126,12 @@ function includedCredits(p: PriceRow, yearly: boolean): number {
 
 /** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
 function featuresFor(plan: Plan, total: number, bonus: number, imagesFree: number | null = null): Plan["features"] {
-  if (plan.id === "custom") return plan.features;
+  if (plan.id === "custom") {
+    return [
+      { icon: Check, title: `${total.toLocaleString("fr-FR")} crédits par mois, au nombre de votre choix` },
+      ...plan.features,
+    ];
+  }
   const paid = bonus > 0 ? total - bonus : total;
   const credits = {
     icon: Check,
@@ -376,6 +381,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         ? Math.round(rawUnit)
         : Math.round(rawUnit * 100) / 100
       : null;
+  const unitCustom = rawUnit !== null ? Math.round(rawUnit * 100) / 100 : null;
   const yearlyNote = yearly ? " · payé une fois pour 12 mois" : "";
 
   return (
@@ -389,7 +395,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         }}
       />
 
-      <div className="relative flex flex-1 flex-col px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-4">
+      <div className="relative mx-auto flex w-full max-w-lg flex-1 flex-col px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-4 md:max-w-xl md:pt-8">
         <button
           type="button"
           aria-label="Fermer"
@@ -400,7 +406,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </button>
 
         <PlansStyles />
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
           <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
           <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
@@ -417,17 +423,17 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
-          <h2 className="motion-apple inline-flex items-center gap-3 text-4xl font-semibold tracking-tight">
+          <h2 className="motion-apple inline-flex items-center gap-3 text-4xl font-semibold tracking-tight md:text-5xl">
             Sam flash
             {plan.badge && (
               <span className="rounded-xl bg-secondary px-3 py-1 text-lg font-medium">{plan.badge}</span>
             )}
           </h2>
           <p className="mt-1 text-sm font-medium text-primary/90">Studio IA</p>
-          <p className="mt-2 text-xl font-medium text-foreground/90">{plan.tagline}</p>
+          <p className="mt-2 text-xl font-medium text-foreground/90 md:text-2xl">{plan.tagline}</p>
         </div>
 
-        <div className="relative mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
+        <div className="relative mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row md:max-w-md rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
           {/* Indicateur glissant : se déplace jusqu'à l'onglet choisi */}
           <div
             aria-hidden
@@ -503,7 +509,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
               </div>
               <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> vidéos de 5 s en 480p par mois
+                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} de 5 s en 480p par mois
               </p>
             </div>
           )}
@@ -530,11 +536,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span>{maxCredits.toLocaleString("fr-FR")}</span>
               </div>
               <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> vidéos de 5 s en 480p par mois
+                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} de 5 s en 480p par mois
               </p>
-              {unitLocal !== null && selectedCountry && (
+              {unitCustom !== null && selectedCountry && (
                 <p className="text-xs text-muted-foreground">
-                  Prix : {formatLocalAmount(unitLocal, selectedCountry.currency)} par crédit
+                  Prix : {formatLocalAmount(unitCustom, selectedCountry.currency)} par crédit
                 </p>
               )}
               {quote && selectedCountry && plan.id === "custom" && (
@@ -572,6 +578,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </div>
             ))}
         </div>
+
+        {plan.id !== "custom" && (
+          <button
+            type="button"
+            onClick={() => setActive("custom")}
+            className="mt-4 w-full rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-left text-sm font-medium text-primary"
+          >
+            Besoin de plus ? Achetez le nombre de crédits que vous voulez avec « Sur mesure ».
+          </button>
+        )}
 
         {/* Code promo */}
         <div className="mt-4 space-y-2">
