@@ -77,7 +77,8 @@ const PLANS: Plan[] = [
     tagline: <>Tous les outils IA dans un seul abonnement</>,
     features: [
       { icon: Check, title: "110 crédits par mois" },
-      { icon: Check, title: "22 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "22 vidéos" },
+      { icon: Check, title: "Vidéos jusqu'à 1 minute" },
       { icon: Check, title: "Clonage vidéo" },
       { icon: Check, title: "Avatar AI" },
       { icon: Check, title: "ChatGPT", soon: true },
@@ -93,7 +94,8 @@ const PLANS: Plan[] = [
     tagline: <>Le plus de crédits, sans limite de qualité</>,
     features: [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
-      { icon: Check, title: "Environ 90 vidéos de 5 secondes en 480p" },
+      { icon: Check, title: "Environ 90 vidéos" },
+      { icon: Check, title: "Vidéos jusqu'à 3 minutes" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
       { icon: Check, title: "Clonage vidéo" },
       { icon: Check, title: "Avatar AI" },
@@ -110,7 +112,7 @@ const PLANS: Plan[] = [
     label: "Sur mesure",
     tagline: <>Choisissez vous-même votre nombre de crédits</>,
     features: [
-      { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p de 6 secondes" },
+      { icon: Sparkles, title: "Images et vidéos IA", sub: "Vidéos HD 720p" },
       { icon: Brain, title: "ChatGPT (GPT 6 Astra)", sub: "Bientôt disponible" },
       { icon: Brain, title: "Claude AI", sub: "Bientôt disponible" },
       { icon: MonitorPlay, title: "Clonage vidéo", sub: "Reproduisez les mouvements d'une vidéo" },
@@ -131,7 +133,7 @@ function includedCredits(p: PriceRow, yearly: boolean): number {
 }
 
 /** Lignes de crédits calculées comme le chiffre affiché au-dessus (évite les incohérences). */
-function featuresFor(plan: Plan, total: number, bonus: number, imagesFree: number | null = null): Plan["features"] {
+function featuresFor(plan: Plan, total: number, bonus: number, _imagesFree: number | null = null): Plan["features"] {
   if (plan.id === "custom") {
     return [
       { icon: Check, title: `${total.toLocaleString("fr-FR")} crédits par mois, au nombre de votre choix` },
@@ -143,10 +145,8 @@ function featuresFor(plan: Plan, total: number, bonus: number, imagesFree: numbe
     icon: Check,
     title: bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${total} crédits par mois`,
   };
-  const imagesCount = imagesFree ?? Math.floor(total / 5);
-  const images = { icon: Check, title: `Jusqu'à ${imagesCount.toLocaleString("fr-FR")} images gratuites` };
   // Crédits et vidéos sont déjà affichés au-dessus : on ne les répète pas (sauf le détail payés + offerts).
-  return [...(bonus > 0 ? [credits] : []), images, ...plan.features.slice(2)];
+  return [...(bonus > 0 ? [credits] : []), ...plan.features.slice(2)];
 }
 
 /** Fuseaux horaires et régions des pays pris en charge (détection sur l'appareil). */
@@ -512,7 +512,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
               </div>
               <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} de 5 s en 480p par mois
+                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} par mois
               </p>
             </div>
           )}
@@ -539,7 +539,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span>{maxCredits.toLocaleString("fr-FR")}</span>
               </div>
               <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} de 5 s en 480p par mois
+                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} par mois
               </p>
               {unitCustom !== null && selectedCountry && (
                 <p className="text-xs text-muted-foreground">
@@ -675,7 +675,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </p>
               <ul className="mt-5 space-y-3">
                 {[
-                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
+                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p"))} vidéos`,
                   "Pour tester sans vous engager",
                   "Paiement par Mobile Money",
                 ].map((t, i) => (
