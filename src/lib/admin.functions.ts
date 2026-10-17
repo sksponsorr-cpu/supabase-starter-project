@@ -322,7 +322,7 @@ export const updateAdminPrice = createServerFn({ method: "POST" })
     return {
       id: input.id,
       imagesFree: images === null ? null : Math.round(Number(images)),
-      amountFcfa: Math.round(amount),
+      amountFcfa: Math.round(amount * 100) / 100,
       amountFcfaYearly: yearly,
       active: Boolean(input.active),
       creditsRate: rate === null ? null : Number(rate),
