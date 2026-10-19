@@ -17,6 +17,7 @@ import { toast } from "@/lib/toast";
 import { useLocation } from "@tanstack/react-router";
 import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
+import { getCreatorSelection } from "@/lib/creator-selection";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -406,7 +407,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId },
+        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId, model: getCreatorSelection().modelId },
       });
 
       if (result.ok) {
