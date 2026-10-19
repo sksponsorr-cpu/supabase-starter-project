@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { getFeatureFlags } from "@/lib/feature-flags.functions";
 import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CREATOR_MODELS } from "@/lib/creator-models";
 
 const AUDIENCES = [
@@ -22,6 +23,7 @@ const AUDIENCES = [
 export function HomeModelsSection() {
   const fetchFlags = useServerFn(getFeatureFlags);
   const [flags, setFlags] = useState<FeatureFlags>({});
+  const isAdmin = useIsAdmin();
 
   useEffect(() => {
     void fetchFlags()
@@ -29,7 +31,7 @@ export function HomeModelsSection() {
       .catch(() => undefined);
   }, [fetchFlags]);
 
-  const visibleAudiences = AUDIENCES.filter((a) => isFeatureVisible(a.key, flags, false));
+  const visibleAudiences = AUDIENCES.filter((a) => isFeatureVisible(a.key, flags, isAdmin));
   if (visibleAudiences.length === 0) return null;
 
   return (

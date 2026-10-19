@@ -407,7 +407,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId, model: getCreatorSelection().modelId },
+        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId, model: getCreatorSelection().active ? getCreatorSelection().modelId : null },
       });
 
       if (result.ok) {
