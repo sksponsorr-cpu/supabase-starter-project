@@ -10,6 +10,7 @@
  */
 
 import { creditCostFor } from "@/lib/credits";
+import { createKieCreatorTask, isKieCreatorModel } from "@/lib/services/kie-creator.server";
 import { getCreditConfig } from "@/lib/credits.server";
 
 export type GenerationInput = {
@@ -130,6 +131,7 @@ async function generateImage(input: GenerationInput): Promise<MediaOutcome> {
 /** Génération vidéo : Fal.ai (text-to-video, image-to-video ou montage), ou KIE si le moteur KIE est actif. */
 async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
   // Choix « Grok Imagine » dans la barre de saisie : passe toujours par KIE.
+  if (isKieCreatorModel(input.model)) return generateVideoWithKieCreator(input);
   if (input.model === "grok-imagine") return generateVideoWithKie(input);
   if ((await currentVideoProvider()) === "kie") return generateVideoWithKie(input);
   const { isFalConfigured, generateVideoWithFal } = await import("@/lib/services/fal.server");
@@ -172,6 +174,34 @@ async function currentVideoProvider(): Promise<"fal" | "kie"> {
 }
 
 /** Vidéo via KIE (Grok Imagine). La tâche est suivie ensuite par finalizePendingRow (préfixe « kie: »). */
+/** Seedance 2.0, Seedance 2.5 et Veo 3.1 via KIE. Montage et référence non encore branchés. */
+async function generateVideoWithKieCreator(input: GenerationInput): Promise<MediaOutcome> {
+  if (!isKieCreatorModel(input.model)) {
+    return { ok: false, error: "Modèle vidéo inconnu." };
+  }
+  const resolution = input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p";
+  const hasVideo = !!input.videoUrl;
+  const hasImage = !!input.imageUrl;
+  const result = await createKieCreatorTask({
+    model: input.model,
+    mode: hasVideo ? "clone" : hasImage ? "image" : "text",
+    prompt: input.prompt,
+    imageUrls: hasImage && input.imageUrl ? [input.imageUrl] : [],
+    videoUrls: hasVideo && input.videoUrl ? [input.videoUrl] : [],
+    resolution,
+    aspectRatio: input.aspectRatio,
+    duration: secondsFor(input),
+  });
+  if (!result.ok) return { ok: false, error: result.message };
+  return {
+    ok: true,
+    isImmediate: false,
+    requestId: result.taskId,
+    statusUrl: `kie:${result.taskId}`,
+    responseUrl: `kie:${result.taskId}`,
+  };
+}
+
 async function generateVideoWithKie(input: GenerationInput): Promise<MediaOutcome> {
   if (input.videoUrl) {
     return { ok: false, error: "Le montage vidéo n'est pas disponible avec le moteur KIE." };
@@ -222,8 +252,8 @@ async function checkKieStatus(
 export function secondsFor(input: GenerationInput): number {
   if (input.mediaType !== "video") return 2;
   const parsed = Number.parseInt(input.duration, 10);
-  const allowed = [5, 8, 10];
-  return allowed.includes(parsed) ? parsed : 5;
+  // Couvre Grok (5, 8, 10), Seedance (4 à 30) et Veo (4, 6, 8).
+  return Number.isInteger(parsed) && parsed >= 4 && parsed <= 30 ? parsed : 5;
 }
 
 /** Exécute une génération complète pour un utilisateur donné. */

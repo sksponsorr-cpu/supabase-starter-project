@@ -77,7 +77,12 @@ export async function getGrokVideoTask(taskId: string): Promise<
     const d = json.data as { state: string; resultJson?: string; failMsg?: string | null };
     let resultUrl: string | null = null;
     try {
-      resultUrl = (JSON.parse(d.resultJson ?? "{}").resultUrls as string[] | undefined)?.[0] ?? null;
+      const parsed = JSON.parse(d.resultJson ?? "{}") as {
+        resultUrls?: string[];
+        result_urls?: string[];
+        data?: { result_urls?: string[] };
+      };
+      resultUrl = parsed.resultUrls?.[0] ?? parsed.data?.result_urls?.[0] ?? parsed.result_urls?.[0] ?? null;
     } catch {
       resultUrl = null;
     }
