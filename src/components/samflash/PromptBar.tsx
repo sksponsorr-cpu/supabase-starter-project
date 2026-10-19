@@ -123,44 +123,55 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [sent, setSent] = useState<string | null>(null);
   const [promptFocused, setPromptFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const attachedImage = attachedImages[0] ?? null;
+  const MAX_PHOTOS = 9;
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Référence à l'instance SpeechRecognition en cours, pour pouvoir l'arrêter
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX_WIDTH = 1920;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
+  /** Redimensionne une photo (1920 px max) et renvoie une data URL JPEG. */
+  const compressPhoto = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Lecture impossible"));
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Image illisible"));
+        img.onload = () => {
+          const MAX_WIDTH = 1920;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas indisponible"));
           ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-          setAttachedImage(dataUrl);
-        } else {
-          setAttachedImage(event.target?.result as string);
-        }
+          resolve(canvas.toDataURL("image/jpeg", 0.8));
+        };
+        img.src = event.target?.result as string;
       };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const room = Math.max(0, MAX_PHOTOS - attachedImages.length);
+    try {
+      const added = await Promise.all(files.slice(0, room).map(compressPhoto));
+      setAttachedImages((prev) => [...prev, ...added].slice(0, MAX_PHOTOS));
+    } catch {
+      toast.error("Une photo n'a pas pu être lue.");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const handleMicClick = (e: React.MouseEvent) => {
@@ -407,7 +418,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     let isDone = false;
     try {
       const result = await generate({
-        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, project_id: currentProjectId, model: getCreatorSelection().active ? getCreatorSelection().modelId : null },
+        data: { prompt: finalPrompt, mediaType: mode, resolution: res, duration: dur, aspectRatio: ratio, imageUrl: attachedImage, imageUrls: attachedImages.length > 1 ? attachedImages : null, creatorMode: getCreatorSelection().active && getCreatorSelection().mode === "reference_to_video" ? "reference" : null, project_id: currentProjectId, model: getCreatorSelection().active ? getCreatorSelection().modelId : null },
       });
 
       if (result.ok) {
@@ -547,19 +558,26 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           />
         )}
 
-        {attachedImage && (
-          <div className="relative inline-block shrink-0 self-start ml-2 mt-1">
-            <img src={attachedImage} alt="Attachment" className="h-14 w-14 rounded-xl object-cover border border-border shadow-sm" />
+        {attachedImages.length > 0 && (
+          <div className="ml-2 mt-1 flex items-center gap-2 self-start overflow-x-auto">
+            {attachedImages.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt={`Photo ${i + 1}`}
+                className="h-14 w-14 shrink-0 rounded-xl object-cover border border-border shadow-sm"
+              />
+            ))}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setAttachedImage(null);
+                setAttachedImages([]);
                 if (fileRef.current) fileRef.current.value = "";
               }}
-              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border shadow-sm text-muted-foreground hover:text-foreground"
+              className="flex h-6 shrink-0 items-center justify-center rounded-full bg-background border border-border px-2 text-xs text-muted-foreground hover:text-foreground"
             >
-              <X className="h-3 w-3" />
+              Retirer ({attachedImages.length})
             </button>
           </div>
         )}
@@ -586,7 +604,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
         <div className="flex w-full items-center justify-between gap-1 overflow-visible">
           <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
-            <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={handleFileChange} />
+            <input type="file" accept="image/*" multiple className="hidden" ref={fileRef} onChange={handleFileChange} />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
