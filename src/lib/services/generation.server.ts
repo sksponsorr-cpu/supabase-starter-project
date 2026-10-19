@@ -21,6 +21,7 @@ export type GenerationInput = {
   imageUrl?: string | null;
   videoUrl?: string | null;
   project_id?: string | null;
+  model?: string | null;
 };
 
 export type GenerationRow = {
@@ -128,6 +129,8 @@ async function generateImage(input: GenerationInput): Promise<MediaOutcome> {
 
 /** Génération vidéo : Fal.ai (text-to-video, image-to-video ou montage), ou KIE si le moteur KIE est actif. */
 async function generateVideo(input: GenerationInput): Promise<MediaOutcome> {
+  // Choix « Grok Imagine » dans la barre de saisie : passe toujours par KIE.
+  if (input.model === "grok-imagine") return generateVideoWithKie(input);
   if ((await currentVideoProvider()) === "kie") return generateVideoWithKie(input);
   const { isFalConfigured, generateVideoWithFal } = await import("@/lib/services/fal.server");
   if (!isFalConfigured()) {
