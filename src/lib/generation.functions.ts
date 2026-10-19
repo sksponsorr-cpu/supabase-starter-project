@@ -10,6 +10,7 @@ type GenerateInput = {
   aspectRatio: string;
   imageUrl?: string | null;
   project_id?: string | null;
+  model?: string | null;
 };
 
 /** Anti-abus : au plus 4 demandes par minute et 3 créations en cours par compte. */
@@ -49,6 +50,7 @@ function normalize(input: GenerateInput) {
     aspectRatio: String(input.aspectRatio ?? "2:3"),
     imageUrl: input.imageUrl || null,
     project_id: input.project_id || null,
+    model: input.model ? String(input.model).slice(0, 40) : null,
   };
 }
 
