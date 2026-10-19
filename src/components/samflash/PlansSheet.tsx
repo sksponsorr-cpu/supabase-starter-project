@@ -145,7 +145,7 @@ function featuresFor(plan: Plan, total: number, bonus: number, _imagesFree: numb
   const paid = bonus > 0 ? total - bonus : total;
   const credits = {
     icon: Check,
-    title: bonus > 0 ? `${paid} crédits payés + ${bonus} crédits offerts chaque mois` : `${total} crédits par mois`,
+    title: bonus > 0 ? `${paid.toLocaleString("fr-FR")} crédits payés + ${bonus.toLocaleString("fr-FR")} crédits offerts chaque mois` : `${total.toLocaleString("fr-FR")} crédits par mois`,
   };
   // Crédits et vidéos sont déjà affichés au-dessus : on ne les répète pas (sauf le détail payés + offerts).
   return [...(bonus > 0 ? [credits] : []), ...plan.features.slice(2)];
