@@ -571,33 +571,73 @@ function MonetisePage() {
 
                   {data.videos.length > 0 && (
                     <Reveal>
-                      <section className={`${card} space-y-2.5`}>
+                      <section className={`${card} space-y-4`}>
                         <h3 className="text-xl font-bold tracking-tight">Mes vidéos</h3>
-                        {data.videos.map((v) => (
-                          <div key={v.id} className="flex items-start gap-3 rounded-2xl border border-border/60 p-3.5 text-sm">
-                            {v.status === "approved" ? (
-                              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                            ) : v.status === "pending" ? (
-                              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                            ) : (
-                              <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate font-medium">
-                                {v.platform} · {v.claimed_views.toLocaleString("fr-FR")} vues{v.source === "manual" ? " annoncées" : ""}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {v.status === "approved"
-                                  ? `Validée : ${(v.eligible_views ?? 0).toLocaleString("fr-FR")} vues éligibles, ${eur(v.earned_eur)}`
-                                  : v.status === "pending"
-                                    ? v.source === "tiktok"
-                                      ? `Suivi automatique : ${s.min_views.toLocaleString("fr-FR")} vues nécessaires`
-                                      : "En cours de vérification"
-                                    : `Refusée : ${v.reject_reason ?? ""}`}
-                              </p>
+                        {(() => {
+                          const approvedRows = data.videos.filter((v) => v.status === "approved") as ((typeof data.videos)[number] & { verified_views?: number | null })[];
+                          const verified = approvedRows.reduce((t, v) => t + (v.verified_views ?? 0), 0);
+                          const eligible = approvedRows.reduce((t, v) => t + (v.eligible_views ?? 0), 0);
+                          return (
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-2xl bg-secondary/50 p-3">
+                                <p className="text-lg font-bold tabular-nums">{verified.toLocaleString("fr-FR")}</p>
+                                <p className="text-xs text-muted-foreground">vues vérifiées</p>
+                              </div>
+                              <div className="rounded-2xl bg-secondary/50 p-3">
+                                <p className="text-lg font-bold tabular-nums">{eligible.toLocaleString("fr-FR")}</p>
+                                <p className="text-xs text-muted-foreground">vues éligibles</p>
+                              </div>
+                              <div className="rounded-2xl bg-secondary/50 p-3">
+                                <p className="text-lg font-bold tabular-nums">{Math.max(0, verified - eligible).toLocaleString("fr-FR")}</p>
+                                <p className="text-xs text-muted-foreground">vues non éligibles</p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })()}
+                        {data.videos.map((v) => {
+                          const row = v as (typeof data.videos)[number] & {
+                            verified_views?: number | null;
+                            ai_views?: number | null;
+                            ai_confidence?: number | null;
+                          };
+                          const verified = row.verified_views ?? 0;
+                          const eligible = row.eligible_views ?? 0;
+                          const firstVideoRule = row.status === "approved" && verified > 0 && eligible === 0;
+                          return (
+                            <div key={v.id} className="flex items-start gap-3 rounded-2xl border border-border/60 p-3.5 text-sm">
+                              {v.status === "approved" ? (
+                                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                              ) : v.status === "pending" ? (
+                                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                              )}
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p className="truncate font-medium">
+                                  {v.platform} · {v.claimed_views.toLocaleString("fr-FR")} vues annoncées
+                                </p>
+                                {v.status === "approved" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {verified.toLocaleString("fr-FR")} vérifiées · {eligible.toLocaleString("fr-FR")} éligibles · {Math.max(0, verified - eligible).toLocaleString("fr-FR")} non éligibles · {eur(v.earned_eur)}
+                                  </p>
+                                )}
+                                {firstVideoRule && (
+                                  <p className="text-xs text-muted-foreground">Première vidéo : non monétisée. Les vidéos suivantes le sont.</p>
+                                )}
+                                {v.status === "pending" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {row.ai_views != null
+                                      ? `Lecture automatique : ${row.ai_views.toLocaleString("fr-FR")} vues, en cours de vérification`
+                                      : "En cours de vérification"}
+                                  </p>
+                                )}
+                                {v.status === "rejected" && (
+                                  <p className="text-xs text-destructive">Refusée : {v.reject_reason ?? ""}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </section>
                     </Reveal>
                   )}
