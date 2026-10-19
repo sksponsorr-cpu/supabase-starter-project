@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { setCreatorSelection } from "@/lib/creator-selection";
 import { useServerFn } from "@tanstack/react-start";
 import { getFeatureFlags } from "@/lib/feature-flags.functions";
 import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
@@ -34,6 +35,7 @@ export function CreatorModelPicker({
   }, [fetchFlags]);
 
   useEffect(() => {
+    setCreatorSelection({ modelId: model.id, mode, seconds });
     onChange?.({ model, mode, seconds });
   }, [model, mode, seconds, onChange]);
 
