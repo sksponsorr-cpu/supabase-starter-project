@@ -24,7 +24,7 @@ export interface CreatorModel {
 }
 
 /** Types de vidéo réellement pris en charge par le serveur aujourd'hui. */
-export const LIVE_MODES: VideoMode[] = ["text_to_video", "image_to_video"];
+export const LIVE_MODES: VideoMode[] = ["text_to_video", "image_to_video", "reference_to_video"];
 
 export const CREATOR_MODELS: CreatorModel[] = [
   {

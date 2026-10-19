@@ -211,7 +211,7 @@ export const getMonetizeOverview = createServerFn({ method: "GET" })
       db.from("creator_profiles").select("country, adult_confirmed").eq("user_id", context.userId).maybeSingle(),
       db
         .from("creator_videos")
-        .select("id, video_url, platform, published_at, claimed_views, source, status, verified_views, eligible_views, earned_eur, reject_reason, created_at")
+        .select("id, video_url, platform, published_at, claimed_views, source, status, verified_views, eligible_views, earned_eur, reject_reason, created_at, ai_views, ai_confidence, ai_note")
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(30),
@@ -308,6 +308,10 @@ export const submitMonetizeVideo = createServerFn({ method: "POST" })
       .eq("status", "pending");
     if ((count ?? 0) >= 5) return { ok: false, message: "Vous avez déjà 5 vidéos en attente de vérification." };
 
+    // Lecture des vues sur la capture ou la vidéo d'écran (proposition, validée ensuite par l'administrateur).
+    const { readViewsFromEvidence } = await import("@/lib/services/views-analysis.server");
+    const reading = data.screenRecordUrl ? await readViewsFromEvidence(data.screenRecordUrl) : null;
+
     const { error } = await db.from("creator_videos").insert({
       user_id: context.userId,
       video_url: data.videoUrl,
@@ -316,6 +320,9 @@ export const submitMonetizeVideo = createServerFn({ method: "POST" })
       claimed_views: data.claimedViews,
       screen_record_url: data.screenRecordUrl || null,
       tier,
+      ai_views: reading?.views ?? null,
+      ai_confidence: reading?.confidence ?? null,
+      ai_note: reading?.note || null,
     });
     if (error) {
       if (String(error.code) === "23505") return { ok: false, message: "Cette vidéo a déjà été soumise." };
@@ -477,7 +484,14 @@ export const adminReviewMonetizeVideo = createServerFn({ method: "POST" })
     if (data.verifiedViews < settings.min_views) {
       return { ok: false, message: `Moins de ${settings.min_views} vues vérifiées : refusez la vidéo.` };
     }
-    const eligible = Math.min(data.eligibleViews, data.verifiedViews);
+    // Règle de lancement : la première vidéo validée d'un créateur n'est pas monétisée.
+    const { count: approvedBefore } = await db
+      .from("creator_videos")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", vid.user_id)
+      .eq("status", "approved");
+    const firstVideo = (approvedBefore ?? 0) === 0;
+    const eligible = firstVideo ? 0 : Math.min(data.eligibleViews, data.verifiedViews);
     const rpm = rpmFor(settings, vid.tier as Tier);
     const raw = Math.floor((eligible / 1000) * rpm * 100) / 100;
     const earned = await creditEarning(db, settings, vid.user_id, vid.id, raw);
@@ -497,6 +511,9 @@ export const adminReviewMonetizeVideo = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) return { ok: false, message: "Validation impossible." };
+    if (firstVideo) {
+      return { ok: true, message: "Première vidéo validée : non monétisée (règle de lancement). Les vidéos suivantes le seront." };
+    }
     return { ok: true, message: `Vidéo validée : ${earned} € crédités.` };
   });
 
