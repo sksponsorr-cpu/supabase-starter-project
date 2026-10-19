@@ -2,7 +2,7 @@ export type LegalDoc = { title: string; updated: string; sections: { h: string; 
 
 export const TERMS: LegalDoc = {
   title: "Conditions Générales d'Utilisation",
-  updated: "Dernière mise à jour : 22 août 2026",
+  updated: "Dernière mise à jour : 19 octobre 2026",
   sections: [
     {
       h: "1. Objet",
@@ -55,7 +55,16 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      h: "8. Droit applicable et contact",
+      h: "8. Programme Monétise (créateurs)",
+      p: [
+        "Le programme Monétise est facultatif. Il permet à un créateur de contenu d'être rémunéré lorsqu'il publie une vidéo publique qui présente Sam flash 2.0. Il est réservé aux personnes âgées d'au moins 18 ans, disposant d'un abonnement actif et résidant dans un pays éligible, dont la liste est affichée sur la page Monétise.",
+        "La vidéo doit mentionner Sam flash 2.0 (nom, hashtag ou lien) et atteindre le nombre minimum de vues indiqué sur la page Monétise. Les vues sont relevées à partir du compte TikTok connecté par le créateur ou vérifiées par notre équipe. Les vues artificielles (robots, achats de vues, échanges de vues) et les contenus illicites sont refusés ; ils peuvent entraîner l'annulation des gains et l'exclusion du programme.",
+        "La rémunération est calculée pour 1 000 vues éligibles, selon un taux (RPM) qui dépend de l'abonnement du créateur et qui est affiché sur la page Monétise. Nous pouvons modifier les taux, les plafonds mensuels et le budget du programme pour les vidéos futures, ou suspendre le programme à tout moment. Les gains deviennent disponibles après un délai de sécurité, puis peuvent être retirés à partir du montant minimum indiqué, dans la monnaie locale du créateur, par les moyens de paiement disponibles dans son pays.",
+        "Le programme ne crée aucun lien de travail, de mandat ou d'association entre le créateur et Sam flash 2.0. Le créateur reste responsable du contenu qu'il publie, du respect des règles des plateformes sur lesquelles il publie, de la mention éventuelle du caractère promotionnel de sa vidéo prévue par la loi, et de ses obligations fiscales.",
+      ],
+    },
+    {
+      h: "9. Droit applicable et contact",
       p: [
         "Les présentes CGU sont soumises au droit applicable au lieu d'établissement de l'éditeur. En cas de litige, une solution amiable sera recherchée en priorité.",
         "Contact : Supportgrok@sam-flash.lat",
@@ -66,7 +75,7 @@ export const TERMS: LegalDoc = {
 
 export const PRIVACY: LegalDoc = {
   title: "Politique de confidentialité",
-  updated: "Dernière mise à jour : 22 août 2026",
+  updated: "Dernière mise à jour : 19 octobre 2026",
   sections: [
     {
       h: "1. Responsable du traitement",
@@ -123,6 +132,15 @@ export const PRIVACY: LegalDoc = {
       h: "8. Mineurs et cookies",
       p: [
         "Le Service n'est pas destiné aux enfants de moins de 16 ans. L'application utilise uniquement des stockages locaux techniques (session, préférences de langue et d'affichage) nécessaires à son fonctionnement.",
+      ],
+    },
+    {
+      h: "9. Connexion TikTok (programme Monétise)",
+      p: [
+        "Si vous choisissez de connecter votre compte TikTok à Sam flash 2.0, la connexion se fait par « Login Kit » de TikTok : vous saisissez vos identifiants uniquement sur TikTok, jamais chez nous, et vous autorisez expressément l'accès demandé.",
+        "Avec votre autorisation, nous recevons l'identifiant de votre compte TikTok, votre nom d'affichage et la liste de vos vidéos publiques (titre, description, date de publication, lien et nombre de vues). Nous utilisons ces données uniquement pour repérer les vidéos qui mentionnent Sam flash 2.0, compter leurs vues, calculer vos gains et les afficher dans votre tableau de bord et à notre équipe d'administration.",
+        "Nous ne publions rien en votre nom, nous n'accédons ni à vos messages ni à vos contenus privés, et nous ne vendons ni ne partageons ces données avec des tiers à des fins publicitaires. Les jetons d'accès sont conservés côté serveur, avec un accès restreint, et ne sont visibles par aucun autre utilisateur.",
+        "Vous pouvez retirer l'accès à tout moment : par le bouton « Déconnecter » de la page Monétise, ou depuis les réglages de TikTok (Applications et services autorisés). À la déconnexion, nous supprimons vos jetons d'accès. Vous pouvez aussi demander la suppression de vos données en nous écrivant à l'adresse de contact indiquée ci-dessus. Les coordonnées de paiement fournies pour un retrait (par exemple un numéro Mobile Money) sont conservées le temps nécessaire au paiement et à nos obligations comptables.",
       ],
     },
   ],
