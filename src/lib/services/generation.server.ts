@@ -12,7 +12,7 @@
 import { creditCostFor } from "@/lib/credits";
 import { createKieCreatorTask, isKieCreatorModel } from "@/lib/services/kie-creator.server";
 import { isPricedModel, samCreditsFor, type PricedResolution } from "@/lib/creator-pricing";
-import { canUseFeature, parseFeatureFlags } from "@/lib/feature-flags";
+import { isFeatureVisible, parseFeatureFlags } from "@/lib/feature-flags";
 import { getCreditConfig } from "@/lib/credits.server";
 
 export type GenerationInput = {
@@ -311,7 +311,7 @@ export async function runGeneration(
       .eq("id", "global")
       .maybeSingle();
     const flags = parseFeatureFlags((flagRow as { feature_flags?: unknown } | null)?.feature_flags);
-    if (!canUseFeature("creator_studio", flags, isAdmin)) {
+    if (!isFeatureVisible("creator_studio", flags, isAdmin)) {
       return { ok: false, reason: "error", message: "Cette fonctionnalité n'est pas encore disponible.", id: null };
     }
   }
