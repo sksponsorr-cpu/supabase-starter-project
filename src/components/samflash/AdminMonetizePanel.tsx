@@ -106,13 +106,23 @@ export function AdminMonetizePanel() {
         <p className="text-xs text-muted-foreground">Ouvrez le lien, regardez les vues réelles et la mention de Sam Flash, puis saisissez les vues vérifiées et éligibles.</p>
         {data.pendingVideos.length === 0 && <p className="text-sm text-muted-foreground">Rien en attente.</p>}
         {data.pendingVideos.map((v) => {
-          const f = views[v.id] ?? { v: String(v.claimed_views), e: String(v.claimed_views), reason: "" };
+          const ai = v as { ai_views?: number | null; ai_confidence?: number | null; ai_note?: string | null };
+          // Pré-remplit avec la lecture IA quand elle existe ; l'administrateur peut toujours corriger.
+          const suggested = ai.ai_views ?? v.claimed_views;
+          const f = views[v.id] ?? { v: String(suggested), e: String(suggested), reason: "" };
+          const lowConfidence = ai.ai_views == null || (ai.ai_confidence ?? 0) < 0.6;
           const upd = (p: Partial<typeof f>) => setViews({ ...views, [v.id]: { ...f, ...p } });
           return (
             <div key={v.id} className="space-y-2 rounded-xl border border-border p-3 text-sm">
               <p className="text-xs text-muted-foreground">{v.user_email ?? v.user_id} · {v.country ? countryName(v.country) : "pays ?"} · offre {v.tier} · {v.claimed_views.toLocaleString("fr-FR")} vues annoncées</p>
               <a href={v.video_url} target="_blank" rel="noreferrer" className="block break-all text-primary underline">{v.video_url}</a>
               {v.screen_record_url && <a href={v.screen_record_url} target="_blank" rel="noreferrer" className="block break-all text-xs underline">Vidéo d'écran</a>}
+              <div className={`rounded-lg p-2 text-xs ${lowConfidence ? "bg-amber-500/10 text-amber-300" : "bg-emerald-500/10 text-emerald-300"}`}>
+                {ai.ai_views == null
+                  ? "Lecture IA : aucun chiffre lu. Vérifiez la capture à la main."
+                  : `Lecture IA : ${ai.ai_views.toLocaleString("fr-FR")} vues (confiance ${Math.round((ai.ai_confidence ?? 0) * 100)} %)${lowConfidence ? " : à vérifier à la main" : ""}`}
+                {ai.ai_note ? <span className="block opacity-80">{ai.ai_note}</span> : null}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs">Vues vérifiées<input className={input} inputMode="numeric" value={f.v} onChange={(e) => upd({ v: e.target.value.replace(/\D/g, "") })} /></label>
                 <label className="text-xs">Vues éligibles<input className={input} inputMode="numeric" value={f.e} onChange={(e) => upd({ e: e.target.value.replace(/\D/g, "") })} /></label>
