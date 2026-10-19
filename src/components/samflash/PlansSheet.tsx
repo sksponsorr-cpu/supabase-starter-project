@@ -9,8 +9,16 @@ import { formatLocalAmount } from "@/lib/payments/countries";
 import { X, Zap, Sparkles, Rocket, FolderPlus, MonitorPlay, Brain, Infinity as InfinityIcon, Check, Gift } from "lucide-react";
 import nightSky from "@/assets/night-sky.jpg";
 import { useAuth } from "@/hooks/useAuth";
-import { creditCostFor } from "@/lib/credits";
+import { samCreditsFor, type PricedModel, type PricedResolution, type VeoTier } from "@/lib/creator-pricing";
 import { detectCountry } from "@/lib/country.functions";
+
+/** Vidéos affichées par modèle, avec une configuration de référence (pas de durée affichée). */
+const VIDEO_SHOWCASE: { label: string; model: PricedModel; resolution: PricedResolution; seconds: number; tier?: VeoTier }[] = [
+  { label: "Grok Imagine", model: "grok-imagine", resolution: "480p", seconds: 6 },
+  { label: "Seedance 2.0", model: "seedance-2", resolution: "480p", seconds: 5 },
+  { label: "Seedance 2.5", model: "seedance-2-5", resolution: "480p", seconds: 5 },
+  { label: "Veo 3.1", model: "veo-3-1", resolution: "720p", seconds: 8, tier: "fast" },
+];
 
 /** Affiche un nombre qui glisse en douceur vers sa nouvelle valeur (ease-out cubique). */
 function AnimatedNumber({ value, format }: { value: number; format: (n: number) => string }) {
@@ -373,10 +381,14 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const videosPossible = useMemo(() => {
-    const cost = creditCostFor("video", 5, "480p");
-    return Math.floor(sliderValue / cost);
-  }, [sliderValue]);
+  const videoRows = useMemo(
+    () =>
+      VIDEO_SHOWCASE.map((item) => {
+        const cost = samCreditsFor(item.model, item.resolution, item.seconds, item.tier ?? "fast");
+        return { ...item, count: cost ? Math.floor(sliderValue / cost) : 0 };
+      }),
+    [sliderValue],
+  );
 
   const selectedCountry = countries.find((c) => c.code === countryCode);
   const rawUnit = quote && sliderValue > 0 ? quote.amountLocal / sliderValue : null;
@@ -513,9 +525,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span className="text-sm text-muted-foreground">Crédits inclus par mois</span>
                 <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
               </div>
-              <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} par mois
-              </p>
+              <ul className="space-y-1.5 text-sm">
+                {videoRows.map((r) => (
+                  <li key={r.model} className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{r.label}</span>
+                    <span className="text-muted-foreground">
+                      jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -540,9 +559,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span>{minCredits}</span>
                 <span>{maxCredits.toLocaleString("fr-FR")}</span>
               </div>
-              <p className="text-sm">
-                ≈ <span className="font-semibold">{videosPossible}</span> {videosPossible > 1 ? "vidéos" : "vidéo"} par mois
-              </p>
+              <ul className="space-y-1.5 text-sm">
+                {videoRows.map((r) => (
+                  <li key={r.model} className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{r.label}</span>
+                    <span className="text-muted-foreground">
+                      jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
+                    </span>
+                  </li>
+                ))}
+              </ul>
               {unitCustom !== null && selectedCountry && (
                 <p className="text-xs text-muted-foreground">
                   Prix : {formatLocalAmount(unitCustom, selectedCountry.currency)} par crédit
@@ -677,7 +703,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </p>
               <ul className="mt-5 space-y-3">
                 {[
-                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / creditCostFor("video", 5, "480p"))} vidéos`,
+                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / (samCreditsFor("grok-imagine", "480p", 6) ?? 1))} vidéos Grok Imagine`,
                   "Pour tester sans vous engager",
                   "Paiement par Mobile Money",
                 ].map((t, i) => (
