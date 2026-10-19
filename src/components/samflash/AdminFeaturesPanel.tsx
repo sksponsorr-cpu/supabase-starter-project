@@ -18,6 +18,14 @@ const LABELS: Record<FeatureKey, { title: string; desc: string }> = {
     title: "Bibliothèque de voix",
     desc: "Voix clonées ajoutées depuis le bureau admin.",
   },
+  creator_dashboard: {
+    title: "Tableau de bord créateur",
+    desc: "Profil, vidéos et revenus du créateur.",
+  },
+  monetization_requests: {
+    title: "Demandes de monétisation",
+    desc: "Demandes de participation à la monétisation.",
+  },
 };
 
 /** Publication des nouvelles fonctionnalités : vous voyez tout, les utilisateurs seulement ce qui est publié. */
@@ -62,14 +70,15 @@ export function AdminFeaturesPanel() {
       <div className="mt-4 space-y-3">
         {FEATURE_KEYS.map((key) => {
           const on = flags[key] === true;
+          const label = LABELS[key] ?? { title: key, desc: "" };
           return (
             <div
               key={key}
               className="flex items-center justify-between gap-4 rounded-3xl border border-border/70 bg-card/50 p-5"
             >
               <div className="min-w-0">
-                <p className="text-[15px] font-semibold">{LABELS[key].title}</p>
-                <p className="text-sm text-muted-foreground">{LABELS[key].desc}</p>
+                <p className="text-[15px] font-semibold">{label.title}</p>
+                <p className="text-sm text-muted-foreground">{label.desc}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   {on ? <Globe className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   {loading ? "Chargement…" : on ? "Publié pour tous" : "Aperçu administrateur uniquement"}
