@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
+import { HomeModelsSection } from "@/components/samflash/HomeModelsSection";
 import {
   Mail,
   Loader2,
@@ -968,6 +969,7 @@ function LandingPage() {
       </section>
 
       {/* Section Tarifs & Abonnements */}
+      <HomeModelsSection />
       <section id="tarifs" className="scroll-mt-20 px-4 py-16 sm:py-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-12">

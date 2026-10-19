@@ -19,6 +19,7 @@ import { Sidebar } from "@/components/samflash/Sidebar";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { PromptBar } from "@/components/samflash/PromptBar";
+import { ProfilePicker } from "@/components/samflash/ProfilePicker";
 import { WelcomeGate } from "@/components/samflash/WelcomeGate";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
@@ -225,6 +226,7 @@ function AppFeed() {
           <p className="text-muted-foreground mb-6 md:mb-8 text-center text-[11px] sm:text-xs md:text-sm">Décrivez votre idée et laissez l'IA faire la magie.</p>
         </div>
 
+        <ProfilePicker />
         <WelcomeGate />
         <PromptBar
           onStart={(p) => setPending(p)}
