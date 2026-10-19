@@ -22,7 +22,9 @@ export type GenerationInput = {
   duration: string;
   aspectRatio: string;
   imageUrl?: string | null;
+  imageUrls?: string[] | null;
   videoUrl?: string | null;
+  creatorMode?: "text" | "image" | "reference" | "clone" | null;
   project_id?: string | null;
   model?: string | null;
 };
@@ -183,12 +185,14 @@ async function generateVideoWithKieCreator(input: GenerationInput): Promise<Medi
   }
   const resolution = input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p";
   const hasVideo = !!input.videoUrl;
-  const hasImage = !!input.imageUrl;
+  const list = input.imageUrls?.length ? input.imageUrls : input.imageUrl ? [input.imageUrl] : [];
+  const mode = input.creatorMode ?? (hasVideo ? "clone" : list.length ? "image" : "text");
   const result = await createKieCreatorTask({
     model: input.model,
-    mode: hasVideo ? "clone" : hasImage ? "image" : "text",
+    mode,
     prompt: input.prompt,
-    imageUrls: hasImage && input.imageUrl ? [input.imageUrl] : [],
+    imageUrls: mode === "image" ? list.slice(0, 1) : mode === "reference" && input.model === "veo-3-1" ? list : [],
+    referenceImageUrls: mode === "reference" && input.model !== "veo-3-1" ? list : [],
     videoUrls: hasVideo && input.videoUrl ? [input.videoUrl] : [],
     resolution,
     aspectRatio: input.aspectRatio,
@@ -256,6 +260,35 @@ export function secondsFor(input: GenerationInput): number {
   const parsed = Number.parseInt(input.duration, 10);
   // Couvre Grok (5, 8, 10), Seedance (4 à 30) et Veo (4, 6, 8).
   return Number.isInteger(parsed) && parsed >= 4 && parsed <= 30 ? parsed : 5;
+}
+
+/**
+ * Les moteurs (KIE, Fal) ont besoin d'un lien public, pas d'une image encodée dans la requête.
+ * La photo envoyée par le navigateur (data URL) est enregistrée d'abord, puis remplacée par son lien.
+ */
+async function toPublicInputUrl(value: string | null | undefined, userId: string): Promise<string | null> {
+  if (!value) return null;
+  if (!value.startsWith("data:")) return value;
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(value);
+  if (!match) throw new Error("Format d'image non pris en charge.");
+  const contentType = match[1];
+  const bytes = new Uint8Array(Buffer.from(match[2], "base64"));
+  if (bytes.byteLength === 0 || bytes.byteLength > 10 * 1024 * 1024) {
+    throw new Error("Image vide ou trop lourde (10 Mo maximum).");
+  }
+  const path = `${userId}/inputs/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const r2 = await import("@/lib/services/r2.server");
+  if (r2.isR2Configured()) {
+    return await r2.uploadToR2(path, bytes, contentType);
+  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error: upErr } = await supabaseAdmin.storage.from("generations").upload(path, bytes, { contentType });
+  if (upErr) throw new Error("Impossible d'enregistrer la photo.");
+  const { data: signed } = await supabaseAdmin.storage
+    .from("generations")
+    .createSignedUrl(path, SIGNED_URL_TTL);
+  if (!signed?.signedUrl) throw new Error("Impossible de préparer la photo.");
+  return signed.signedUrl;
 }
 
 /** Exécute une génération complète pour un utilisateur donné. */
@@ -419,7 +452,15 @@ export async function runGeneration(
 
   try {
     const outcome =
-      input.mediaType === "image" ? await generateImage(input) : await generateVideo(input);
+      input.mediaType === "image"
+        ? await generateImage({ ...input, imageUrl: await toPublicInputUrl(input.imageUrl, userId) })
+        : await generateVideo({
+            ...input,
+            imageUrl: await toPublicInputUrl(input.imageUrl, userId),
+            imageUrls: input.imageUrls
+              ? await Promise.all(input.imageUrls.map((u) => toPublicInputUrl(u, userId) as Promise<string>))
+              : null,
+          });
     if (!outcome.ok) throw new Error(outcome.error);
 
     if (outcome.isImmediate) {
