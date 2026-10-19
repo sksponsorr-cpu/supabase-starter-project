@@ -11,6 +11,7 @@
 
 import { creditCostFor } from "@/lib/credits";
 import { createKieCreatorTask, isKieCreatorModel } from "@/lib/services/kie-creator.server";
+import { isPricedModel, samCreditsFor, type PricedResolution } from "@/lib/creator-pricing";
 import { getCreditConfig } from "@/lib/credits.server";
 
 export type GenerationInput = {
@@ -289,7 +290,9 @@ export async function runGeneration(
   let creditCost: number | null = !isAdmin
     ? isFreeUser
       ? freeCreditCost(input.mediaType)
-      : creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
+      : (input.mediaType === "video" && isPricedModel(input.model)
+          ? samCreditsFor(input.model, (input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p") as PricedResolution, seconds)
+          : null) ?? creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
     : null;
   if (creditCost !== null) {
     const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
