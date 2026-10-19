@@ -12,6 +12,7 @@
 import { creditCostFor } from "@/lib/credits";
 import { createKieCreatorTask, isKieCreatorModel } from "@/lib/services/kie-creator.server";
 import { isPricedModel, samCreditsFor, type PricedResolution } from "@/lib/creator-pricing";
+import { canUseFeature, parseFeatureFlags } from "@/lib/feature-flags";
 import { getCreditConfig } from "@/lib/credits.server";
 
 export type GenerationInput = {
@@ -268,6 +269,19 @@ export async function runGeneration(
 
   const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
   const isAdmin = profile?.role === "admin";
+
+  // Publication : les modèles créateur ne sont lancés que si l'interrupteur est publié (admin : toujours).
+  if (isKieCreatorModel(input.model) || isPricedModel(input.model)) {
+    const { data: flagRow } = await supabaseAdmin
+      .from("app_settings")
+      .select("feature_flags")
+      .eq("id", "global")
+      .maybeSingle();
+    const flags = parseFeatureFlags((flagRow as { feature_flags?: unknown } | null)?.feature_flags);
+    if (!canUseFeature("creator_studio", flags, isAdmin)) {
+      return { ok: false, reason: "error", message: "Cette fonctionnalité n'est pas encore disponible.", id: null };
+    }
+  }
 
   // Contrôle d'accès préalable : aucun appel au moteur si l'utilisateur n'a
   // ni abonnement actif ni offre gratuite disponible sur cet appareil.
