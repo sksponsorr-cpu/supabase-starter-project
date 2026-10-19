@@ -33,8 +33,8 @@ export const CREATOR_MODELS: CreatorModel[] = [
     apiModel: "bytedance/seedance-2",
     modes: ["text_to_video", "image_to_video", "reference_to_video", "video_edit"],
     durations: [4, 5, 6, 8, 10, 12, 15],
-    resolutions: ["480p", "720p", "1080p", "4k"],
-    live: false,
+    resolutions: ["480p", "720p", "1080p"],
+    live: true,
   },
   {
     id: "seedance-2-5",
@@ -43,7 +43,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "video_edit"],
     durations: [4, 5, 6, 8, 10, 15, 20, 30],
     resolutions: ["480p", "720p", "1080p"],
-    live: false,
+    live: true,
   },
   {
     id: "grok-imagine",
@@ -60,8 +60,8 @@ export const CREATOR_MODELS: CreatorModel[] = [
     apiModel: "veo-3-1",
     modes: ["text_to_video", "image_to_video", "reference_to_video", "extend"],
     durations: [4, 6, 8],
-    resolutions: ["720p", "1080p", "4k"],
-    live: false,
+    resolutions: ["720p", "1080p"],
+    live: true,
   },
   {
     id: "gemini-omni",
