@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from "react";
 import { CREATOR_MODELS, type CreatorModel, type VideoMode } from "@/lib/creator-models";
 
-export type CreatorSelection = { modelId: string; mode: VideoMode; seconds: number };
+export type CreatorSelection = { modelId: string; mode: VideoMode; seconds: number; active?: boolean };
 
 const DEFAULT: CreatorSelection = {
   modelId: CREATOR_MODELS[0].id,

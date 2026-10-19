@@ -19,7 +19,12 @@ export interface CreatorModel {
   modes: VideoMode[];
   durations: number[]; // secondes proposées
   resolutions: ("480p" | "720p" | "1080p" | "4k")[];
+  /** Vrai seulement quand le serveur sait vraiment générer avec ce modèle. */
+  live: boolean;
 }
+
+/** Types de vidéo réellement pris en charge par le serveur aujourd'hui. */
+export const LIVE_MODES: VideoMode[] = ["text_to_video", "image_to_video"];
 
 export const CREATOR_MODELS: CreatorModel[] = [
   {
@@ -29,6 +34,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "video_edit"],
     durations: [4, 5, 6, 8, 10, 12, 15],
     resolutions: ["480p", "720p", "1080p", "4k"],
+    live: false,
   },
   {
     id: "seedance-2-5",
@@ -37,6 +43,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "video_edit"],
     durations: [4, 5, 6, 8, 10, 15, 20, 30],
     resolutions: ["480p", "720p", "1080p"],
+    live: false,
   },
   {
     id: "grok-imagine",
@@ -45,6 +52,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "extend"],
     durations: [6, 10, 15, 20, 30],
     resolutions: ["480p", "720p", "1080p"],
+    live: true,
   },
   {
     id: "veo-3-1",
@@ -53,6 +61,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "extend"],
     durations: [4, 6, 8],
     resolutions: ["720p", "1080p", "4k"],
+    live: false,
   },
   {
     id: "gemini-omni",
@@ -61,6 +70,7 @@ export const CREATOR_MODELS: CreatorModel[] = [
     modes: ["text_to_video", "image_to_video", "reference_to_video", "video_edit"],
     durations: [4, 6, 8, 10],
     resolutions: ["480p", "720p", "1080p", "4k"],
+    live: false,
   },
 ];
 
