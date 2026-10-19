@@ -78,6 +78,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "110 crédits par mois" },
       { icon: Check, title: "22 vidéos" },
+      { icon: Check, title: "Modèles : Grok Imagine, Seedance 2.0, Seedance 2.5, Veo 3.1, Google Omni" },
       { icon: Check, title: "Vidéos jusqu'à 1 minute" },
       { icon: Check, title: "Clonage vidéo" },
       { icon: Check, title: "Avatar AI" },
@@ -95,6 +96,7 @@ const PLANS: Plan[] = [
     features: [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
       { icon: Check, title: "Environ 90 vidéos" },
+      { icon: Check, title: "Modèles : Grok Imagine, Seedance 2.0, Seedance 2.5, Veo 3.1, Google Omni" },
       { icon: Check, title: "Vidéos jusqu'à 3 minutes" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
       { icon: Check, title: "Clonage vidéo" },
