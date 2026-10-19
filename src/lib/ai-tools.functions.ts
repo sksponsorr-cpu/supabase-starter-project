@@ -73,7 +73,7 @@ export const presignAiUpload = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!(await isAdminUser(context))) return { ok: false as const, message: "Fonctionnalité non disponible." };
+    // Ouvert à tout utilisateur connecté (Clonage vidéo public) ; types et tailles restent limités ci-dessous.
 
     const limits = { image: 10, audio: 20, video: 100 } as const;
     if (!data.type.startsWith(`${data.kind}/`)) {
@@ -126,7 +126,7 @@ export const startAiJob = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!(await isAdminUser(context))) return { ok: false as const, message: "Fonctionnalité non disponible." };
+    if (data.tool !== "clone" && !(await isAdminUser(context))) return { ok: false as const, message: "Fonctionnalité non disponible." };
 
     const tool = data.tool as AiTool;
     const variant = variantsFor(tool).find((v) => v.id === data.variant);
@@ -237,7 +237,7 @@ export const getAiJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ jobId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    if (!(await isAdminUser(context))) return { ok: false as const, message: "Fonctionnalité non disponible." };
+    // La tâche est déjà filtrée sur l'utilisateur connecté ci-dessous.
     const db = await getDb();
 
     const { data: job } = await db
@@ -326,7 +326,7 @@ export const listAiJobs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ tool: z.enum(["avatar", "clone"]) }).parse(input))
   .handler(async ({ data, context }) => {
-    if (!(await isAdminUser(context))) return [] as AiJobRow[];
+    if (data.tool !== "clone" && !(await isAdminUser(context))) return [] as AiJobRow[];
     const db = await getDb();
     const { data: rows } = await db
       .from("ai_jobs")
