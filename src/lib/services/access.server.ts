@@ -136,31 +136,6 @@ export async function checkGenerationAccess(
     : 8;
 
   if (!isSubscribed) {
-    if (mediaType === "video") {
-      // Vidéo réservée à ceux qui ont déjà acheté quelque chose (recharge ou abonnement)
-      const { data: bought } = await supabaseAdmin
-        .from("credit_ledger")
-        .select("id")
-        .eq("user_id", userId)
-        .in("kind", ["recharge", "pass", "abonnement", "annuel_mensuel"])
-        .limit(1);
-      if (!bought || bought.length === 0) {
-        return {
-          ...base,
-          allowed: false,
-          code: "subscription_required",
-          message: "La génération vidéo est réservée aux abonnés. Rechargez votre compte ou abonnez-vous pour continuer.",
-        };
-      }
-      if (seconds > 8) {
-        return {
-          ...base,
-          allowed: false,
-          code: "subscription_required",
-          message: "Avec une recharge, les vidéos sont limitées à 8 secondes. Passez à un abonnement supérieur pour des vidéos plus longues.",
-        };
-      }
-    }
     await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
@@ -172,7 +147,7 @@ export async function checkGenerationAccess(
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur.",
+        message: "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.",
       };
     }
     return { ...base, allowed: true, code: "ok", message: null };
