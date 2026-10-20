@@ -1,6 +1,13 @@
 import { ImageIcon, Video } from "lucide-react";
 
-type Feature = { title: string; desc: string; starter: string };
+type Feature = {
+  title: string;
+  desc: string;
+  starter: string;
+  mediaType: "image" | "video";
+  modelId?: string;
+  videoMode?: "text_to_video" | "image_to_video" | "video_edit";
+};
 
 /** Fonctionnalités vendeur / e-commerçant. Un clic pré-remplit la barre de saisie. */
 const IMAGE_FEATURES: Feature[] = [
@@ -8,21 +15,25 @@ const IMAGE_FEATURES: Feature[] = [
     title: "Cloner une publicité",
     desc: "Une image qui marche déjà, refaite avec ton produit et ton décor.",
     starter: "Reprends la mise en scène de cette publicité et remplace le produit par le mien : ",
+    mediaType: "image",
   },
   {
     title: "Une perruque portée",
     desc: "Ta perruque sur la tête de quelqu'un. De face, de dos, sur le fond que tu veux.",
     starter: "Montre une femme portant cette perruque, de face, sur un fond : ",
+    mediaType: "image",
   },
   {
     title: "Habiller un mannequin",
     desc: "Ta pièce portée debout, sur le fond de ton choix. Prête pour la fiche produit.",
     starter: "Habille un mannequin avec cette pièce, debout, sur un fond : ",
+    mediaType: "image",
   },
   {
     title: "Un produit en main",
     desc: "Ton parfum, ta montre, ton bijou, tenu par quelqu'un, sur le décor que tu choisis.",
     starter: "Présente mon produit tenu en main par une personne, sur ce décor : ",
+    mediaType: "image",
   },
 ];
 
@@ -31,34 +42,49 @@ const VIDEO_FEATURES: Feature[] = [
     title: "Publicité UGC dynamique",
     desc: "Un clip façon témoignage client, avec ton produit en main.",
     starter: "Crée une publicité UGC dynamique où une personne présente mon produit : ",
+    mediaType: "video",
+    modelId: "veo-3-1",
+    videoMode: "image_to_video",
   },
   {
     title: "Pub voix off",
     desc: "Une publicité avec voix off qui présente ton produit.",
     starter: "Crée une publicité avec voix off qui présente mon produit : ",
+    mediaType: "video",
+    modelId: "veo-3-1",
+    videoMode: "text_to_video",
   },
   {
     title: "Clonage vidéo",
     desc: "Reprends une vidéo qui marche et remplace le produit ou la personne.",
     starter: "Reprends le style de cette vidéo et remplace le produit par le mien : ",
+    mediaType: "video",
+    modelId: "seedance-2",
+    videoMode: "video_edit",
   },
   {
     title: "Rejouer une pub",
     desc: "Refais une publicité qui performe, avec tes propres visuels.",
     starter: "Rejoue cette publicité avec mon produit et mes visuels : ",
+    mediaType: "video",
+    modelId: "seedance-2",
+    videoMode: "video_edit",
   },
   {
     title: "Changer le produit",
     desc: "Remplace le produit dans une vidéo existante, là où il apparaît.",
     starter: "Dans cette vidéo, remplace le produit par le mien : ",
+    mediaType: "video",
+    modelId: "seedance-2",
+    videoMode: "video_edit",
   },
 ];
 
-function FeatureCard({ f, onPick }: { f: Feature; onPick: (text: string) => void }) {
+function FeatureCard({ f, onPick }: { f: Feature; onPick: (f: Feature) => void }) {
   return (
     <button
       type="button"
-      onClick={() => onPick(f.starter)}
+      onClick={() => onPick(f)}
       className="flex flex-col items-start gap-2 rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left transition-transform active:scale-[0.98]"
     >
       <span className="flex w-full items-center justify-between gap-2 text-[15px] font-semibold text-white">
@@ -72,8 +98,8 @@ function FeatureCard({ f, onPick }: { f: Feature; onPick: (text: string) => void
 
 /** Espace vendeur : cartes Image et Vidéo, comme sur Vizuely. */
 export function SellerStudio() {
-  const pick = (text: string) => {
-    window.dispatchEvent(new CustomEvent<string>("samflash:prefill", { detail: text }));
+  const pick = (f: Feature) => {
+    window.dispatchEvent(new CustomEvent("samflash:seller-preset", { detail: f }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
