@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { creditCostFor } from "@/lib/credits";
+import { samCreditsFor } from "@/lib/creator-pricing";
 import { PLAN_LABEL, toPlanType } from "@/lib/plans";
 import nightSky from "@/assets/night-sky.jpg";
 
@@ -104,8 +105,10 @@ function TableauDeBordPage() {
     { icon: ImageIcon, label: "Image 480p", value: creditCostFor("image", 0, "480p") },
     { icon: ImageIcon, label: "Image 720p", value: creditCostFor("image", 0, "720p") },
     { icon: ImageIcon, label: "Image 1080p", value: creditCostFor("image", 0, "1080p") },
-    { icon: Video, label: "Vidéo 5 s · 480p", value: creditCostFor("video", 5, "480p") },
-    { icon: Video, label: "Vidéo 5 s · 720p", value: creditCostFor("video", 5, "720p") },
+    { icon: Video, label: "Grok Imagine · 480p", value: samCreditsFor("grok-imagine", "480p", 6) ?? 0 },
+    { icon: Video, label: "Seedance 2.0 · 720p", value: samCreditsFor("seedance-2", "720p", 5) ?? 0 },
+    { icon: Video, label: "Seedance 2.5 · 720p", value: samCreditsFor("seedance-2-5", "720p", 5) ?? 0 },
+    { icon: Video, label: "Veo 3.1 · 1080p", value: samCreditsFor("veo-3-1", "1080p", 8, "fast") ?? 0 },
   ];
 
   return (
