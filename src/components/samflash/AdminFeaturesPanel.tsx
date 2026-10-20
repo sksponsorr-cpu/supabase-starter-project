@@ -11,8 +11,8 @@ const LABELS: Record<FeatureKey, { title: string; desc: string }> = {
     desc: "Choix du modèle, type de vidéo et durée sur /app.",
   },
   seller_studio: {
-    title: "Espace vendeur",
-    desc: "Influenceurs IA, produits et voix off.",
+    title: "Mode vendeur",
+    desc: "Cartes Image et Vidéo de l'espace vendeur. Masqué : « Bientôt disponible » pour les utilisateurs, tu vois toujours l'aperçu.",
   },
   voice_library: {
     title: "Bibliothèque de voix",
