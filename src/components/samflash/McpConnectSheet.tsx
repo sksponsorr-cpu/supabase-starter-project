@@ -24,15 +24,27 @@ const PROVIDERS: { id: Provider; label: string; hint: string; icon: typeof Spark
   {
     id: "chatgpt",
     label: "ChatGPT",
-    hint: "Ajoute Sam Flash dans les connecteurs en mode développeur.",
+    hint: "Crée un connecteur personnalisé avec ces réglages exacts.",
     icon: MessageSquare,
     steps: [
-      "Ouvre ChatGPT, puis Paramètres.",
-      "Active le mode développeur, puis va dans Connecteurs.",
-      "Colle l'adresse complète copiée ci-dessus.",
-      "Valide. Dans une conversation, demande une image ou une vidéo.",
+      "Ouvre ChatGPT, puis Paramètres, puis Connecteurs (ou Applications), puis « Créer » ou « Ajouter ».",
+      "Nom : écris Sam Flash. Description : facultatif, tu peux la laisser vide.",
+      "Connexion : choisis « URL du serveur » (pas « Tunnel »).",
+      "URL : colle l'adresse complète copiée ci-dessus, jusqu'au bout de la clé.",
+      "Authentification : choisis « Aucune ». Ne choisis pas OAuth : la clé dans l'adresse suffit, et OAuth réclame un identifiant client que tu n'as pas.",
+      "Enregistre. Si ChatGPT affiche « Ajouter Sam Flash à ChatGPT » avec un bouton « Connecter », touche-le pour finaliser.",
     ],
   },
+];
+
+/** Termes rencontrés dans les réglages des assistants, expliqués pour un débutant. */
+const GLOSSAIRE: { terme: string; sens: string }[] = [
+  { terme: "Clé (sfk_…)", sens: "Ton mot de passe Sam Flash. Quiconque la possède peut utiliser ton compte : ne la partage pas." },
+  { terme: "URL du serveur", sens: "L'adresse internet directe de Sam Flash. C'est le mode à choisir." },
+  { terme: "Tunnel", sens: "Un autre mode de connexion, non utilisé ici." },
+  { terme: "Authentification : Aucune", sens: "Pas de connexion supplémentaire : la clé dans l'adresse suffit." },
+  { terme: "OAuth", sens: "Connexion par compte, avec un identifiant client. Non utilisé ici : ne le choisis pas." },
+  { terme: "Révoquer", sens: "Désactive une clé. Une clé révoquée ne marche plus : il faut en recréer une." },
 ];
 
 /** Feuille « Connexion MCP » : création de clé, adresse complète, et mode d'emploi par assistant. */
@@ -172,6 +184,19 @@ export function McpConnectSheet({ open, onClose }: { open: boolean; onClose: () 
                 </li>
               ))}
             </ol>
+          </section>
+
+          {/* 3b. Glossaire pour débutants */}
+          <section className="space-y-2">
+            <div className="text-sm font-semibold text-foreground">Les termes à connaître</div>
+            <ul className="space-y-2">
+              {GLOSSAIRE.map((g) => (
+                <li key={g.terme} className="rounded-2xl border border-white/10 p-3">
+                  <span className="block text-xs font-semibold text-foreground">{g.terme}</span>
+                  <span className="block text-xs leading-5 text-muted-foreground">{g.sens}</span>
+                </li>
+              ))}
+            </ul>
           </section>
 
           {/* 4. Clés existantes */}
