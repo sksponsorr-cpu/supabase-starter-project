@@ -96,33 +96,6 @@ export function CreatorModelPicker({
           : "bg-white/[0.07] text-white/80 active:scale-95"
     }`;
 
-  return (
-    <div className="sf-picker-in w-full max-w-xl px-4 mb-2">
-      <style>{MOTION_CSS}</style>
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 backdrop-blur-xl">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Espace créateur · vidéos</p>
-        {previewOnly && (
-          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-white/50">
-            <Eye className="h-3.5 w-3.5" /> Aperçu administrateur : les utilisateurs ne le voient pas encore.
-          </p>
-        )}
-
-        <p className="mb-1 px-1 text-[10px] uppercase tracking-wider text-white/40">Modèle</p>
-        <div className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {CREATOR_MODELS.filter((m) => m.live).map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={chip(m.id === model.id, false)}
-              onClick={() => pickModel(m)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        {hint && <p className="mt-2 px-1 text-[12px] text-white/50">{hint}</p>}
-      </div>
-    </div>
-  );
+  // Le choix du modèle et du mode est dans la barre de saisie : rien à afficher ici.
+  return null;
 }
