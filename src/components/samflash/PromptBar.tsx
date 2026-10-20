@@ -19,7 +19,7 @@ import { useLocation } from "@tanstack/react-router";
 import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
 import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf } from "@/lib/creator-selection";
-import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload } from "@/lib/creator-models";
+import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload, type VideoMode } from "@/lib/creator-models";
 import { isPricedModel, samCreditsFor } from "@/lib/creator-pricing";
 
 const IDEAS = [
@@ -335,6 +335,23 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     setText(prefill.text);
     window.setTimeout(() => inputRef.current?.focus(), 50);
   }, [prefill?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cartes du mode vendeur : règle le type, le modèle et le mode vidéo, puis pré-remplit la saisie.
+  useEffect(() => {
+    const onPreset = (e: Event) => {
+      const d = (e as CustomEvent<{ text: string; mediaType: "image" | "video"; modelId?: string; videoMode?: VideoMode }>).detail;
+      if (!d) return;
+      setMode(d.mediaType);
+      if (d.mediaType === "video" && d.modelId && d.videoMode) {
+        const cur = getCreatorSelection();
+        setCreatorSelection({ modelId: d.modelId, mode: d.videoMode, seconds: cur.seconds, active: true });
+      }
+      setText(d.text);
+      window.setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    window.addEventListener("samflash:seller-preset", onPreset);
+    return () => window.removeEventListener("samflash:seller-preset", onPreset);
+  }, []);
 
   const afterSuccess = (prompt: string) => {
     notifyDone(prefs, "Sam flash", "Votre création est prête ✨");
