@@ -16,7 +16,7 @@ const PER_SECOND_KIE: Record<"grok-imagine" | "seedance-2" | "seedance-2-5", Par
   "seedance-2-5": { "480p": 28, "720p": 63, "1080p": 158 },
 };
 
-/** Veo 3.1 : prix fixe par vidéo, selon le niveau et la résolution. Indépendant de la durée. */
+/** Veo 3.1 : prix de base par clip de 8 s, selon le niveau et la résolution. Proportionnel à la durée. */
 const VEO_PER_VIDEO_KIE: Record<VeoTier, Partial<Record<PricedResolution, number>>> = {
   lite: { "720p": 30, "1080p": 35 },
   fast: { "720p": 60, "1080p": 65 },
@@ -35,7 +35,10 @@ export function kieCostFor(
   tier: VeoTier = "fast",
 ): number | null {
   if (model === "veo-3-1") {
-    return VEO_PER_VIDEO_KIE[tier][resolution] ?? null;
+    // Prix de base par clip de 8 s ; il augmente avec la durée (8 s = prix de base).
+    const base = VEO_PER_VIDEO_KIE[tier][resolution];
+    if (base === undefined) return null;
+    return base * Math.max(1, Math.round(seconds)) / 8;
   }
   const rate = PER_SECOND_KIE[model][resolution];
   return rate === undefined ? null : rate * Math.max(1, Math.round(seconds));
