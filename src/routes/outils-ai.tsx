@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plug } from "lucide-react";
+import { McpConnectSheet } from "@/components/samflash/McpConnectSheet";
 import { ToolLogo } from "@/components/samflash/ToolLogo";
 import { aiAccess } from "@/lib/chat.functions";
 
@@ -58,6 +59,7 @@ function OpenLink({ id, className, children }: { id: ToolId; className?: string;
 function ToolsPage() {
   const checkAccess = useServerFn(aiAccess);
   const [enabled, setEnabled] = useState(false);
+  const [mcpOpen, setMcpOpen] = useState(false);
   useEffect(() => {
     checkAccess({})
       .then((r) => setEnabled(r.enabled))
@@ -116,8 +118,29 @@ function ToolsPage() {
               </article>
             );
           })}
+
+          <article className="flex flex-col overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm">
+            <button type="button" onClick={() => setMcpOpen(true)} className="flex flex-1 flex-col text-left">
+              <div className="flex h-36 items-center justify-center bg-zinc-100">
+                <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-zinc-900 text-white">
+                  <Plug className="h-9 w-9" />
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col gap-2 p-5">
+                <h2 className="text-lg font-semibold">Connexion MCP</h2>
+                <p className="text-sm leading-relaxed text-zinc-600">Utilise Sam Flash depuis Claude ou ChatGPT, étape par étape.</p>
+                <div className="mt-auto flex items-center justify-between pt-4">
+                  <span className="text-xs font-medium text-zinc-500">Crédits débités de ton compte</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white">
+                    Ouvrir <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </div>
+            </button>
+          </article>
         </div>
       </div>
+      <McpConnectSheet open={mcpOpen} onClose={() => setMcpOpen(false)} />
     </main>
   );
 }
