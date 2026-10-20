@@ -439,7 +439,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
-          <h2 className="motion-apple inline-flex items-center gap-3 text-4xl font-semibold tracking-tight md:text-5xl">
+          <h2 className="motion-apple inline-flex items-center gap-3 text-3xl font-semibold tracking-tight md:text-4xl">
             Sam flash
             {plan.badge && (
               <span className="rounded-xl bg-secondary px-3 py-1 text-lg font-medium">{plan.badge}</span>
@@ -498,7 +498,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="mt-5 space-y-5 rounded-3xl border border-border bg-card/50 p-5 backdrop-blur-xl">
+        <div className="mt-4 space-y-3 rounded-3xl border border-border bg-card/50 p-4 backdrop-blur-xl">
           {/* Pays : détecté au premier passage, modifiable */}
           {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
             <p className="text-xs text-muted-foreground">
@@ -527,13 +527,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Crédits inclus par mois</p>
-                <p className="mt-1 text-5xl font-semibold tracking-tight">
+                <p className="mt-1 text-4xl font-semibold tracking-tight">
                   <AnimatedNumber value={sliderValue} format={(n) => n.toLocaleString("fr-FR")} />
                 </p>
               </div>
               <ul className="divide-y divide-border/60 text-sm">
                 {videoRows.map((r) => (
-                  <li key={r.model} className="flex items-center justify-between gap-3 py-2.5">
+                  <li key={r.model} className="flex items-center justify-between gap-3 py-1.5">
                     <span className="font-medium">{r.label}</span>
                     <span className="text-muted-foreground">
                       jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
@@ -567,7 +567,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               </div>
               <ul className="divide-y divide-border/60 text-sm">
                 {videoRows.map((r) => (
-                  <li key={r.model} className="flex items-center justify-between gap-3 py-2.5">
+                  <li key={r.model} className="flex items-center justify-between gap-3 py-1.5">
                     <span className="font-medium">{r.label}</span>
                     <span className="text-muted-foreground">
                       jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
@@ -670,7 +670,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Prix total */}
-        <div className="mt-6 text-center">
+        <div className="mt-4 text-center">
           <p className="text-sm text-muted-foreground">
             {period === "yearly" && yearly ? "Total pour 12 mois" : "Total par mois"}
           </p>
@@ -776,7 +776,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           {promoFree ? `Offre de lancement : ${PROMO_DAYS} jours offerts, sans paiement.` : plan.footnote}
         </p>
 
-        <div className="mt-8 rounded-2xl border border-border bg-card/60 p-4">
+        <div className="mt-6 rounded-2xl border border-border bg-card/60 p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Vos crédits</span>
             <span className="text-lg font-semibold">{profile?.credits_balance ?? 0}</span>
@@ -786,7 +786,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </a>
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           Conditions d'utilisation · Politique de confidentialité
         </p>
         <p className="mt-2 text-center text-xs text-muted-foreground">Sam flash 2.0 — Studio IA</p>

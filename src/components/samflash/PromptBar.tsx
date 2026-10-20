@@ -19,7 +19,7 @@ import { useLocation } from "@tanstack/react-router";
 import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
 import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf } from "@/lib/creator-selection";
-import { LIVE_MODES, MODE_LABELS } from "@/lib/creator-models";
+import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload } from "@/lib/creator-models";
 import { isPricedModel, samCreditsFor } from "@/lib/creator-pricing";
 
 const IDEAS = [
@@ -547,6 +547,15 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     costCredits = null;
   }
 
+  // Le bouton + (photo ou vidéo) n'apparaît que si le mode choisi en a besoin.
+  const showAttach =
+    mode === "image" || !creatorSel.active || needsImageUpload(creatorSel.mode) || needsVideoUpload(creatorSel.mode);
+  // En mode texte, on retire les photos déjà ajoutées pour ne pas les envoyer par erreur.
+  useEffect(() => {
+    if (!showAttach && attachedImages.length > 0) setAttachedImages([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAttach]);
+
   // Options de la feuille Paramètres : elles dépendent du modèle et du mode choisis.
   const cModel = mode === "video" && creatorSel.active ? modelOf(creatorSel) : null;
   const planMaxSec =
@@ -650,14 +659,43 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         <div className="flex w-full items-center justify-between gap-1 overflow-visible">
           <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
             <input type="file" accept="image/*" multiple className="hidden" ref={fileRef} onChange={handleFileChange} />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              aria-label="Ajouter"
-              className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+            {showAttach && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                aria-label="Ajouter"
+                className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
+            {creatorSel.active && mode === "video" && (
+              <label className="flex h-9 sm:h-10 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 text-xs font-medium">
+                <Video className="h-3.5 w-3.5 shrink-0" />
+                <select
+                  aria-label="Modèle"
+                  value={creatorSel.modelId}
+                  onChange={(e) => setCreatorSelection({ ...getCreatorSelection(), modelId: e.target.value })}
+                  className="max-w-[6.5rem] truncate bg-transparent text-xs font-medium outline-none"
+                >
+                  {CREATOR_MODELS.filter((m) => m.live).map((m) => (
+                    <option key={m.id} value={m.id} className="text-black">
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {mode === "video" && (
+              <button
+                type="button"
+                aria-label="Paramètres"
+                onClick={() => setSettingsOpen(true)}
+                className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-secondary"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
+            )}
             <div className="flex items-center gap-0.5 rounded-full bg-secondary p-1 shrink-0">
               {allowImage && <button
                 type="button"
@@ -768,19 +806,27 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           ))}
         </div>
       )}
-      <div className="mt-3 flex justify-center px-1">
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          className="flex items-center gap-2 rounded-full bg-secondary/80 px-4 py-2 text-xs font-medium text-foreground backdrop-blur-xl transition-transform active:scale-95"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          <span>Paramètres</span>
-          <span className="text-muted-foreground">
-            {res} · {mode === "video" ? `${showSlider ? longSec : parseInt(dur, 10)}s · ` : ""}{ratio}
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            window.localStorage.setItem("sam-flash-profile", "seller");
+          } catch {
+            /* ignoré */
+          }
+          window.location.reload();
+        }}
+        className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left backdrop-blur-xl transition-transform active:scale-[0.98]"
+      >
+        <span className="text-[13px] text-white/70">Vendeur ou e-commerçant</span>
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-[#d4ff00]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#d4ff00] opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d4ff00]" />
           </span>
-        </button>
-      </div>
+          Passer en mode vendeur
+        </span>
+      </button>
       {mode === "video" && showSlider && (
         <div className="mt-2 px-1">
           <DurationSlider
