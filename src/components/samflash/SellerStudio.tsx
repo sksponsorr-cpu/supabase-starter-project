@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { getFeatureFlags } from "@/lib/feature-flags.functions";
+import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { ImageIcon, Video, Info } from "lucide-react";
 import { samCreditsFor } from "@/lib/creator-pricing";
@@ -154,7 +158,14 @@ export function SellerStudio() {
 
   const [guided, setGuided] = useState<GuidedFeature | null>(null);
   const [kind, setKind] = useState<"image" | "video">("image");
-  const [modeOn, setModeOn] = useState(true);
+  const isAdmin = useIsAdmin();
+  const fetchFlags = useServerFn(getFeatureFlags);
+  const [flags, setFlags] = useState<FeatureFlags>({});
+  useEffect(() => {
+    void fetchFlags().then((f) => setFlags(f)).catch(() => undefined);
+  }, [fetchFlags]);
+  // Mode vendeur : publié ou masqué par l'administrateur uniquement (aucun interrupteur côté utilisateur).
+  const modeOn = isFeatureVisible("seller_studio", flags, isAdmin);
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
@@ -189,19 +200,6 @@ export function SellerStudio() {
       </label>
 
       {guided && <SellerGuidedFlow feature={guided} onClose={() => setGuided(null)} />}
-
-      <div className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-card p-4">
-        <span className="text-sm font-semibold text-foreground">Mode vendeur</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={modeOn}
-          onClick={() => setModeOn((v) => !v)}
-          className={`relative h-7 w-12 rounded-full transition-colors ${modeOn ? "bg-primary" : "bg-white/15"}`}
-        >
-          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${modeOn ? "translate-x-5" : "translate-x-0.5"}`} />
-        </button>
-      </div>
 
       <div role="tablist" aria-label="Type de création" className="grid grid-cols-2 gap-1 rounded-full bg-white/[0.04] p-1">
         {(["image", "video"] as const).map((k) => (
