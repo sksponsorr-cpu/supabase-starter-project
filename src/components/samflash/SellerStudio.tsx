@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getFeatureFlags } from "@/lib/feature-flags.functions";
-import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import type { FeatureFlags } from "@/lib/feature-flags";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { ImageIcon, Video, Info } from "lucide-react";
 import { samCreditsFor } from "@/lib/creator-pricing";
@@ -158,14 +157,13 @@ export function SellerStudio() {
 
   const [guided, setGuided] = useState<GuidedFeature | null>(null);
   const [kind, setKind] = useState<"image" | "video">("image");
-  const isAdmin = useIsAdmin();
   const fetchFlags = useServerFn(getFeatureFlags);
   const [flags, setFlags] = useState<FeatureFlags>({});
   useEffect(() => {
     void fetchFlags().then((f) => setFlags(f)).catch(() => undefined);
   }, [fetchFlags]);
   // Mode vendeur : publié ou masqué par l'administrateur uniquement (aucun interrupteur côté utilisateur).
-  const modeOn = isFeatureVisible("seller_studio", flags, isAdmin);
+  const modeOn = flags.seller_studio === true;
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
@@ -229,3 +227,4 @@ export function SellerStudio() {
     </div>
   );
 }
+ 
