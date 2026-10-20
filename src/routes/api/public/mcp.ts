@@ -3,13 +3,23 @@ import { createFileRoute } from "@tanstack/react-router";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-/** Serveur MCP Sam Flash (protocole JSON-RPC 2.0). Authentification : en-tête « Authorization: Bearer <clé> ». */
+/** Serveur MCP Sam Flash (JSON-RPC 2.0). Authentification : clé dans l'adresse (?key=…) ou en-tête « Authorization: Bearer <clé> ». */
 export const Route = createFileRoute("/api/public/mcp")({
   server: {
     handlers: {
+      // Visite directe dans le navigateur : on explique au lieu de renvoyer une page 404.
+      GET: async () =>
+        json({
+          name: "Sam Flash — serveur MCP",
+          status: "ok",
+          message: "Ce serveur sert aux assistants (Claude, ChatGPT). Colle l'adresse complète contenant ta clé dans le connecteur.",
+        }),
       POST: async ({ request }) => {
+        const url = new URL(request.url);
         const auth = request.headers.get("authorization") ?? "";
-        const key = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+        // La clé peut venir de l'en-tête « Bearer » ou de l'adresse (?key=...), pour les assistants qui n'ont pas de champ d'en-tête.
+        const fromHeader = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+        const key = fromHeader || (url.searchParams.get("key") ?? "").trim();
         const { verifyApiKey } = await import("@/lib/mcp/api-keys.server");
         const userId = key ? await verifyApiKey(key) : null;
         if (!userId) {
