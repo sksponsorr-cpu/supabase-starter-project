@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X, SlidersHorizontal } from "lucide-react";
+import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
@@ -37,6 +37,9 @@ const PAID_RETRY_MESSAGE =
 /** Comptes gratuits : invitation claire à passer à une offre payante. */
 const FREE_UPGRADE_MESSAGE =
   "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.";
+
+/** Messages du serveur qui indiquent quoi faire (à conserver tels quels). */
+const KEEP_SERVER_MESSAGE = /réservée aux abonnés|limitées à|Crédits insuffisants|quota/i;
 
 function isEngineBalanceError(message?: string | null): boolean {
   return !!message && /insufficient|balance|payment required|402|solde insuffisant|fonds insuffisants/i.test(message);
@@ -504,7 +507,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             playChime("error");
             setText(prompt);
             // Timeout polling : message persistant (pas de setTimeout)
-            setSent("La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.");
+            setSent(userPlan === "free" ? FREE_UPGRADE_MESSAGE : PAID_RETRY_MESSAGE);
           }
         }
       } else if (result.reason === "quota") {
@@ -524,11 +527,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           if (userPlan === "free") {
             errorMessage = "L'offre gratuite est momentanément en pause.\n\nVotre vidéo et vos images offertes ne sont pas décomptées.\n\nAbonnez-vous dès maintenant : vos générations reprennent dès la reprise du service, avec des jours supplémentaires offerts.";
           } else {
-            errorMessage = "Votre abonnement est bien actif, mais la génération est momentanément indisponible.\n\nVos secondes ne sont pas décomptées.\nPour vous remercier de votre patience, des jours supplémentaires vous sont offerts.\n\nRéessayez un peu plus tard. Si le problème dure, contactez-nous.\n\nMerci de votre confiance.";
+            errorMessage = "Votre abonnement est bien actif, mais la génération est momentanément indisponible.\n\nVos crédits ne sont pas décomptés.\nPour vous remercier de votre patience, des jours supplémentaires vous sont offerts.\n\nRéessayez un peu plus tard. Si le problème dure, contactez-nous.\n\nMerci de votre confiance.";
           }
         }
         
-        if (isEngineBalanceError(result.message)) {
+        // Messages d'échec génériques ou techniques : on affiche les messages prévus par le produit.
+        // Les messages actionnables du serveur (quota, réservé aux abonnés, limites, crédits) sont conservés.
+        if (!KEEP_SERVER_MESSAGE.test(result.message ?? "") || isEngineBalanceError(result.message)) {
           errorMessage = userPlan === "free" ? FREE_UPGRADE_MESSAGE : PAID_RETRY_MESSAGE;
         }
         if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
@@ -542,7 +547,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         playChime("error");
         setText(prompt);
         // Erreur inattendue : message persistant, pas de setTimeout
-        setSent(userPlan === "free" ? "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur." : "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.");
+        setSent(userPlan === "free" ? FREE_UPGRADE_MESSAGE : PAID_RETRY_MESSAGE);
       }
     } finally {
       setBusy(false);
@@ -601,6 +606,19 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     if (!safeResOptions.includes(res)) setRes(safeResOptions[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creatorSel.modelId, creatorSel.active, mode]);
+
+  const optionsRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const updateScrollHint = useCallback(() => {
+    const el = optionsRef.current;
+    if (!el) return;
+    setShowScrollHint(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+  }, []);
+  useEffect(() => {
+    updateScrollHint();
+    window.addEventListener("resize", updateScrollHint);
+    return () => window.removeEventListener("resize", updateScrollHint);
+  }, [updateScrollHint, mode, creatorSel.active, allowImage, allowVideo]);
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
@@ -676,8 +694,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           }`}
         />
 
-        <div className="flex w-full items-center justify-between gap-1 overflow-visible">
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative flex w-full items-center justify-between gap-1 overflow-visible">
+          {/* Indicateur : il reste des options à faire défiler vers la droite */}
+          {showScrollHint && (
+            <span aria-hidden className="pointer-events-none absolute right-16 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground shadow animate-pulse sm:hidden">
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
+          <div ref={optionsRef} onScroll={updateScrollHint} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <input type="file" accept="image/*" multiple className="hidden" ref={fileRef} onChange={handleFileChange} />
             {showAttach && (
               <button
@@ -853,6 +877,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
             maxAllowed={lockedMaxSec}
             resolution={(res === "480p" ? "480p" : "720p") as Resolution}
             config={creditCfg}
+            costLabel={costCredits}
             onLocked={() => toast.error(`Votre offre permet des vidéos jusqu'à ${lockedMaxSec} secondes. Passez à une offre supérieure pour aller plus loin.`)}
             onChange={(sec) => {
               setLongSec(sec);

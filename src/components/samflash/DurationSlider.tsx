@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Lock } from "lucide-react";
-import { creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
+import type { CreditConfig, Resolution } from "@/lib/credits";
 
 /** Bornes de la durée vidéo : 10 secondes à 3 minutes. */
 export const DURATION_MIN = 10;
@@ -51,11 +51,12 @@ type Props = {
   maxAllowed?: number;
   /** Appelé quand l'utilisateur tente de dépasser la limite de sa formule. */
   onLocked?: () => void;
+  /** Coût affiché = celui de la barre de saisie (source unique). */
+  costLabel?: number | null;
 };
 
 /** Curseur pleine largeur : durée, piste, zone verrouillée (hachurée) et coût. */
-export function DurationSlider({ value, onChange, resolution, config, maxAllowed = DURATION_MAX, onLocked }: Props) {
-  const cost = creditCostFor("video", value, resolution, config);
+export function DurationSlider({ value, onChange, maxAllowed = DURATION_MAX, onLocked, costLabel = null }: Props) {
   const min = Math.min(DURATION_MIN, maxAllowed);
   const pct = ((value - min) / (DURATION_MAX - min)) * 100;
   const lockPct = ((maxAllowed - min) / (DURATION_MAX - min)) * 100;
@@ -121,9 +122,11 @@ export function DurationSlider({ value, onChange, resolution, config, maxAllowed
         />
       </div>
 
-      <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">
-        {cost.toLocaleString("fr-FR")} cr
-      </span>
+      {costLabel !== null && (
+        <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">
+          {costLabel.toLocaleString("fr-FR")} cr
+        </span>
+      )}
     </div>
   );
 }
