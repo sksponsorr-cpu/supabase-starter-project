@@ -123,11 +123,11 @@ export function sanitizeGenerationError(rawError: unknown): string {
     lower.includes("504") ||
     lower.includes("gateway timeout")
   ) {
-    return "La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.";
+    return "La génération a pris trop de temps. Réessayez. Vos crédits ne sont pas décomptés.";
   }
 
   // 4. Toute autre erreur
-  return "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.";
+  return "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.";
 }
 
 function readError(payload: unknown, status: number, fallback: string): string {
