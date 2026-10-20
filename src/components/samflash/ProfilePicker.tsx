@@ -5,6 +5,8 @@ import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
 import { CreatorModelPicker } from "@/components/samflash/CreatorModelPicker";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ProfileOnboarding } from "@/components/samflash/ProfileOnboarding";
+import { useAuth } from "@/hooks/useAuth";
+import { CreatorProfile } from "@/components/samflash/CreatorProfile";
 
 type Profile = "creator" | "seller" | "ecommerce";
 
@@ -24,6 +26,8 @@ export function ProfilePicker() {
   const [flags, setFlags] = useState<FeatureFlags>({});
   const [profile, setProfile] = useState<Profile>("creator");
   const isAdmin = useIsAdmin();
+  const { profile } = useAuth();
+  const firstName = profile?.full_name?.trim().split(" ")[0] ?? "";
 
   useEffect(() => {
     void fetchFlags()
@@ -46,9 +50,15 @@ export function ProfilePicker() {
 
   return (
     <div className="w-full flex flex-col items-center">
+      {firstName && (
+        <p className="mb-3 text-center text-[15px] text-white/80">
+          Bienvenue, <span className="font-semibold text-white">{firstName}</span>
+        </p>
+      )}
       <ProfileOnboarding onChoose={onOnboardingChoose} allowed={allowedChoices} />
 
       {current.id === "creator" && <CreatorModelPicker />}
+      {current.id === "creator" && <CreatorProfile />}
 
       {current.id !== "creator" && (
         <div className="w-full max-w-2xl px-4 mb-4">

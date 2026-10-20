@@ -30,6 +30,14 @@ const IDEAS = [
 ];
 const MEMORY_KEY = "samflash:composer";
 
+/** Message affiché quand le moteur de génération n'a plus de solde : clair et sans jargon. */
+const BALANCE_MESSAGE =
+  "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.";
+
+function isEngineBalanceError(message?: string | null): boolean {
+  return !!message && /insufficient|balance|payment required|402|solde insuffisant|fonds insuffisants/i.test(message);
+}
+
 const chip = (active: boolean) =>
   `shrink-0 rounded-full px-2.5 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs font-medium transition-colors ${
     active ? "bg-foreground text-background" : "text-muted-foreground"
@@ -354,6 +362,11 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const submit = async () => {
     const prompt = text.trim();
     if (!prompt || busy) return;
+    // Un mode qui demande une photo ne part pas sans photo (sinon il deviendrait une création texte).
+    if (creatorSel.active && mode === "video" && needsImageUpload(creatorSel.mode) && attachedImages.length === 0) {
+      setSent("Ajoutez une photo pour ce mode, avec le bouton +.");
+      return;
+    }
 
     // Contrôle d'accès avant tout appel au moteur : évite un appel inutile.
     try {
@@ -511,6 +524,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           }
         }
         
+        if (isEngineBalanceError(result.message)) {
+          errorMessage = BALANCE_MESSAGE;
+        }
         if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
           errorMessage += `\n\nDétail technique : ${result.message}`;
         }
@@ -657,7 +673,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         />
 
         <div className="flex w-full items-center justify-between gap-1 overflow-visible">
-          <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <input type="file" accept="image/*" multiple className="hidden" ref={fileRef} onChange={handleFileChange} />
             {showAttach && (
               <button
@@ -818,8 +834,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         }}
         className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left backdrop-blur-xl transition-transform active:scale-[0.98]"
       >
-        <span className="text-[13px] text-white/70">Vendeur ou e-commerçant</span>
-        <span className="flex items-center gap-2 text-[13px] font-semibold text-[#d4ff00]">
+        <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold text-[#d4ff00]">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#d4ff00] opacity-70" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d4ff00]" />

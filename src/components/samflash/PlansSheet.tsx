@@ -527,7 +527,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Crédits inclus par mois</p>
-                <p className="mt-1 text-4xl font-semibold tracking-tight">
+                <p className="mt-1 text-3xl font-semibold tracking-tight">
                   <AnimatedNumber value={sliderValue} format={(n) => n.toLocaleString("fr-FR")} />
                 </p>
               </div>
@@ -638,7 +638,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
         {/* Code promo */}
         <div className="mt-4 space-y-2">
-          {!(promoOpen || promoApplied || promoError) ? (
+          {false ? (
             <button
               type="button"
               onClick={() => setPromoOpen(true)}
@@ -674,7 +674,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground">
             {period === "yearly" && yearly ? "Total pour 12 mois" : "Total par mois"}
           </p>
-          <p className="mt-1 text-5xl font-semibold tracking-tight">
+          <p className="mt-1 text-3xl font-semibold tracking-tight">
             {quoteBusy && !quote
               ? "…"
               : quote
