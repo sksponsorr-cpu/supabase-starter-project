@@ -339,9 +339,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   // Cartes du mode vendeur : règle le type, le modèle et le mode vidéo, puis pré-remplit la saisie.
   useEffect(() => {
     const onPreset = (e: Event) => {
-      const d = (e as CustomEvent<{ text: string; mediaType: "image" | "video"; modelId?: string; videoMode?: VideoMode }>).detail;
+      const d = (e as CustomEvent<{ text: string; mediaType: "image" | "video"; modelId?: string; videoMode?: VideoMode; images?: string[] }>).detail;
       if (!d) return;
       setMode(d.mediaType);
+      if (d.images && d.images.length > 0) setAttachedImages(d.images);
       if (d.mediaType === "video" && d.modelId && d.videoMode) {
         const cur = getCreatorSelection();
         setCreatorSelection({ modelId: d.modelId, mode: d.videoMode, seconds: cur.seconds, active: true });
