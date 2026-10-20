@@ -6,7 +6,7 @@ import { CreatorModelPicker } from "@/components/samflash/CreatorModelPicker";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ProfileOnboarding } from "@/components/samflash/ProfileOnboarding";
 import { useAuth } from "@/hooks/useAuth";
-import { CreatorProfile } from "@/components/samflash/CreatorProfile";
+import { SellerStudio } from "@/components/samflash/SellerStudio";
 
 type Profile = "creator" | "seller" | "ecommerce";
 
@@ -27,7 +27,8 @@ export function ProfilePicker() {
   const [profile, setProfile] = useState<Profile>("creator");
   const isAdmin = useIsAdmin();
   const { profile: account } = useAuth();
-  const firstName = account?.full_name?.trim().split(" ")[0] ?? "";
+  // Nom affiché = nom saisi dans le profil (Paramètres).
+  const displayName = account?.full_name?.trim() ?? "";
 
   useEffect(() => {
     void fetchFlags()
@@ -50,26 +51,15 @@ export function ProfilePicker() {
 
   return (
     <div className="w-full flex flex-col items-center">
-      {firstName && (
+      {displayName && (
         <p className="mb-3 text-center text-[15px] text-white/80">
-          Bienvenue, <span className="font-semibold text-white">{firstName}</span>
+          Bienvenue, <span className="font-semibold text-white">{displayName}</span>
         </p>
       )}
       <ProfileOnboarding onChoose={onOnboardingChoose} allowed={allowedChoices} />
 
       {current.id === "creator" && <CreatorModelPicker />}
-      {current.id === "creator" && <CreatorProfile />}
-
-      {current.id !== "creator" && (
-        <div className="w-full max-w-2xl px-4 mb-4">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-center">
-            <p className="text-[15px] font-semibold">Espace {current.label.toLowerCase()}</p>
-            <p className="text-sm text-white/60 mt-1">
-              Influenceurs IA, produits et voix off seront proposés ici.
-            </p>
-          </div>
-        </div>
-      )}
+      {current.id !== "creator" && <SellerStudio />}
     </div>
   );
 }
