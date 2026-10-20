@@ -870,26 +870,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           ))}
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          try {
-            window.localStorage.setItem("sam-flash-profile", "seller");
-          } catch {
-            /* ignoré */
-          }
-          window.location.reload();
-        }}
-        className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-[#d4ff00]/60 bg-[#d4ff00]/10 px-4 py-2.5 text-left shadow-[0_0_18px_rgba(212,255,0,0.35)] backdrop-blur-xl animate-pulse transition-transform active:scale-[0.98]"
-      >
-        <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold text-[#d4ff00]">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#d4ff00] opacity-70" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d4ff00]" />
-          </span>
-          Passer en mode vendeur
-        </span>
-      </button>
 
 
       {settingsOpen && typeof document !== "undefined" &&
