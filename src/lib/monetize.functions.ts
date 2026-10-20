@@ -87,7 +87,7 @@ function toSettings(row: any): MonetizeSettings {
     rpm_pro: Number(row?.rpm_pro ?? 0.8),
     min_withdrawal_eur: Number(row?.min_withdrawal_eur ?? 25),
     min_views: Number(row?.min_views ?? 2500),
-    hold_days: Number(row?.hold_days ?? 30),
+    hold_days: Number(row?.hold_days ?? 5),
     monthly_creator_cap_eur: Number(row?.monthly_creator_cap_eur ?? 50),
     monthly_budget_eur: Number(row?.monthly_budget_eur ?? 100),
     eligible_countries: Array.isArray(row?.eligible_countries) ? row.eligible_countries : [],
