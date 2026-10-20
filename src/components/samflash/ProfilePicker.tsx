@@ -26,8 +26,8 @@ export function ProfilePicker() {
   const [flags, setFlags] = useState<FeatureFlags>({});
   const [profile, setProfile] = useState<Profile>("creator");
   const isAdmin = useIsAdmin();
-  const { profile } = useAuth();
-  const firstName = profile?.full_name?.trim().split(" ")[0] ?? "";
+  const { profile: account } = useAuth();
+  const firstName = account?.full_name?.trim().split(" ")[0] ?? "";
 
   useEffect(() => {
     void fetchFlags()
