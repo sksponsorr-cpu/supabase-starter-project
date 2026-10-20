@@ -2,6 +2,7 @@ import { z } from "zod";
 import { verifyCallbackToken } from "@/lib/payments/token.server";
 import { expiryFor, planTypeFor } from "@/lib/plans";
 import { isCreditProduct } from "@/lib/credits";
+import { FIRST_PURCHASE_BONUS_CREDITS } from "@/lib/pricing-fcfa";
 
 const payloadSchema = z
   .object({
@@ -152,6 +153,17 @@ export async function applyOrderOutcome(
       packAmount = Number(fallbackPack ?? 0);
     }
     if (packAmount > 0) {
+      // Bonus de premier achat (+50 crédits) : seulement si le compte n'a aucune recharge ni pass antérieur.
+      const { data: priorPurchases } = await supabaseAdmin
+        .from("credit_ledger")
+        .select("id")
+        .eq("user_id", updatedOrder.user_id)
+        .in("kind", ["recharge", "pass"])
+        .neq("ref", updatedOrder.id)
+        .limit(1);
+      if (!priorPurchases || priorPurchases.length === 0) {
+        packAmount += FIRST_PURCHASE_BONUS_CREDITS;
+      }
       await supabaseAdmin.rpc("add_credits", {
         p_user: updatedOrder.user_id,
         p_amount: packAmount,
