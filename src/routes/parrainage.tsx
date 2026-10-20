@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { PartnerDashboard } from "@/components/samflash/PartnerDashboard";
 import { useServerFn } from "@tanstack/react-start";
-import { Gift, Copy, Share2, Users, ShoppingBag, Trophy, Clapperboard } from "lucide-react";
+import { Gift, Copy, Share2, Users, ShoppingBag, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Sidebar } from "@/components/samflash/Sidebar";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
@@ -63,7 +64,6 @@ function ParrainagePage() {
     void copy();
   };
 
-  const progress = data ? Math.min(100, Math.round((data.conversionsLast30Days / data.goal) * 100)) : 0;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -131,28 +131,9 @@ function ParrainagePage() {
                 </div>
               </Link>
 
-              <section className="rounded-2xl border border-border bg-card/40 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-primary" />
-                  <h2 className="font-semibold">Palier « Membre d'équipe »</h2>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Faites acheter un abonnement à {data.goal} personnes en 30 jours pour devenir membre d'équipe.
-                </p>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="text-sm">
-                  {data.conversionsLast30Days} / {data.goal} sur les 30 derniers jours
-                </p>
-                {data.teamEligibleAt && (
-                  <p className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium">
-                    Bravo ! Vous avez atteint l'objectif. Notre équipe va activer votre statut de membre d'équipe.
-                  </p>
-                )}
-              </section>
             </>
           )}
+          <PartnerDashboard />
         </main>
       </div>
 
