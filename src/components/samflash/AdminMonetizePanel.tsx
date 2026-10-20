@@ -10,6 +10,7 @@ import {
 } from "@/lib/monetize.functions";
 import { AFRICA_CODES, countryName, parseCountryCodes } from "@/lib/monetize-countries";
 import { toast } from "@/lib/toast";
+import { AdminPartnersPanel } from "@/components/samflash/AdminPartnersPanel";
 
 const input = "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm";
 const num = (v: string) => (v.trim() === "" || Number.isNaN(Number(v.replace(",", "."))) ? 0 : Number(v.replace(",", ".")));
@@ -59,6 +60,7 @@ export function AdminMonetizePanel() {
 
   return (
     <div className="space-y-4">
+      <AdminPartnersPanel />
       <section className="space-y-3 rounded-2xl border border-border p-4">
         <h3 className="text-base font-semibold">Réglages Monétise</h3>
         <p className="text-xs text-muted-foreground">
