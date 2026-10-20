@@ -198,6 +198,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [credits, setCredits] = useState<number | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [showFeatures, setShowFeatures] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
   const [promoApplied, setPromoApplied] = useState<string | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
@@ -424,9 +425,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
         <PlansStyles />
         <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
-          <div className="sf-blob-2 absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
-          <div className="sf-blob absolute bottom-10 left-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         </div>
         {(
           <button
@@ -476,25 +475,30 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
         {/* Choix de la période */}
         {yearlyAvailable && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="relative mx-auto mt-4 flex w-full max-w-[16rem] rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-full bg-secondary shadow-[var(--shadow-glow)] transition-transform duration-500 ease-out"
+              style={{ transform: `translateX(${period === "yearly" ? 100 : 0}%)` }}
+            />
             <button
               type="button"
               onClick={() => setPeriod("monthly")}
-              className={`rounded-2xl border p-3 text-left ${period === "monthly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"}`}
+              className={`relative z-10 flex-1 rounded-full py-2 text-sm font-medium transition-colors duration-300 ${period === "monthly" ? "text-foreground" : "text-muted-foreground"}`}
             >
-              <span className="text-muted-foreground">Mensuel</span>
+              Mensuel
             </button>
             <button
               type="button"
               onClick={() => setPeriod("yearly")}
-              className={`rounded-2xl border p-3 text-left ${period === "yearly" ? "border-primary bg-secondary/60" : "border-border bg-card/40"}`}
+              className={`relative z-10 flex-1 rounded-full py-2 text-sm font-medium transition-colors duration-300 ${period === "yearly" ? "text-foreground" : "text-muted-foreground"}`}
             >
-              <span className="text-muted-foreground">Annuel</span>
+              Annuel
             </button>
           </div>
         )}
 
-        <div className="mt-4 space-y-4 rounded-2xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+        <div className="mt-5 space-y-5 rounded-3xl border border-border bg-card/50 p-5 backdrop-blur-xl">
           {/* Pays : détecté au premier passage, modifiable */}
           {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
             <p className="text-xs text-muted-foreground">
@@ -507,7 +511,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               <select
                 value={countryCode}
                 onChange={(e) => changeCountry(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2"
+                className="mt-1 w-full rounded-xl border-0 bg-secondary/60 px-3 py-2.5 text-[15px]"
               >
                 {countries.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -520,14 +524,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
           {/* Forfait fixe : crédits imposés */}
           {price && plan.id !== "custom" && (
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm text-muted-foreground">Crédits inclus par mois</span>
-                <span className="text-xl font-semibold">{sliderValue.toLocaleString("fr-FR")}</span>
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Crédits inclus par mois</p>
+                <p className="mt-1 text-5xl font-semibold tracking-tight">
+                  <AnimatedNumber value={sliderValue} format={(n) => n.toLocaleString("fr-FR")} />
+                </p>
               </div>
-              <ul className="space-y-1.5 text-sm">
+              <ul className="divide-y divide-border/60 text-sm">
                 {videoRows.map((r) => (
-                  <li key={r.model} className="flex items-center justify-between gap-3">
+                  <li key={r.model} className="flex items-center justify-between gap-3 py-2.5">
                     <span className="font-medium">{r.label}</span>
                     <span className="text-muted-foreground">
                       jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
@@ -559,9 +565,9 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span>{minCredits}</span>
                 <span>{maxCredits.toLocaleString("fr-FR")}</span>
               </div>
-              <ul className="space-y-1.5 text-sm">
+              <ul className="divide-y divide-border/60 text-sm">
                 {videoRows.map((r) => (
-                  <li key={r.model} className="flex items-center justify-between gap-3">
+                  <li key={r.model} className="flex items-center justify-between gap-3 py-2.5">
                     <span className="font-medium">{r.label}</span>
                     <span className="text-muted-foreground">
                       jusqu'à <span className="font-semibold text-foreground">{r.count}</span> vidéos · {r.resolution}
@@ -602,10 +608,10 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 style={{ animationDelay: `${i * 80}ms` }}
                 className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                  <f.icon className="h-4 w-4 text-foreground" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                  <f.icon className="h-3.5 w-3.5 text-primary" />
                 </span>
-                <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug">
+                <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug">
                   {f.title}
                   {f.sub && f.sub !== "Bientôt disponible" && (
                     <span className="block text-xs font-normal text-muted-foreground">{f.sub}</span>
@@ -632,21 +638,31 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
 
         {/* Code promo */}
         <div className="mt-4 space-y-2">
-          <div className="flex gap-2">
-            <input
-              value={promoInput}
-              onChange={(e) => setPromoInput(e.target.value)}
-              placeholder="EX : BIENVENUE20"
-              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 uppercase"
-            />
+          {!(promoOpen || promoApplied || promoError) ? (
             <button
               type="button"
-              onClick={applyPromo}
-              className="rounded-xl bg-secondary px-4 py-2 text-sm font-medium"
+              onClick={() => setPromoOpen(true)}
+              className="mx-auto block text-sm font-medium text-muted-foreground underline-offset-4 hover:underline"
             >
-              Appliquer
+              J'ai un code promo
             </button>
-          </div>
+          ) : (
+            <div className="flex gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+              <input
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value)}
+                placeholder="EX : BIENVENUE20"
+                className="flex-1 rounded-xl border-0 bg-secondary/60 px-3 py-2.5 uppercase"
+              />
+              <button
+                type="button"
+                onClick={applyPromo}
+                className="rounded-xl bg-secondary px-4 py-2 text-sm font-medium"
+              >
+                Appliquer
+              </button>
+            </div>
+          )}
           {promoApplied && quote && quote.discountEur > 0 && (
             <p className="text-sm text-primary">Code {promoApplied} appliqué : −{quote.discountPercent ?? 0} %</p>
           )}
@@ -654,11 +670,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Prix total */}
-        <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4">
+        <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
             {period === "yearly" && yearly ? "Total pour 12 mois" : "Total par mois"}
           </p>
-          <p className="mt-1 text-3xl font-semibold">
+          <p className="mt-1 text-5xl font-semibold tracking-tight">
             {quoteBusy && !quote
               ? "…"
               : quote

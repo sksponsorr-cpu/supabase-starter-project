@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Eye } from "lucide-react";
-import { getCreatorSelection, setCreatorSelection } from "@/lib/creator-selection";
+import { getCreatorSelection, setCreatorSelection, useCreatorSelection } from "@/lib/creator-selection";
 import { getFeatureFlags } from "@/lib/feature-flags.functions";
 import { isFeatureVisible, type FeatureFlags } from "@/lib/feature-flags";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -30,7 +30,7 @@ const MOTION_CSS = `
 `;
 
 /**
- * Choix du modèle et du type de vidéo, sous le titre de /app.
+ * Choix du modèle, sous le titre de /app. Le type de vidéo se choisit dans Paramètres.
  * Seuls les modèles et types réellement branchés sont cliquables ; les autres sont marqués « Bientôt ».
  * La durée, la résolution et le format se choisissent dans la barre de saisie (un seul endroit).
  * Publié pour les utilisateurs seulement quand « creator_studio » est activé ; l'administrateur le voit toujours.
@@ -45,9 +45,10 @@ export function CreatorModelPicker({
   const [flags, setFlags] = useState<FeatureFlags>({});
   const firstLive = CREATOR_MODELS.find((m) => m.live) ?? CREATOR_MODELS[0];
   const [model, setModel] = useState<CreatorModel>(firstLive);
-  const [mode, setMode] = useState<VideoMode>(
-    firstLive.modes.find((m) => LIVE_MODES.includes(m)) ?? firstLive.modes[0],
-  );
+  const stored = useCreatorSelection();
+  const defaultMode = (m: CreatorModel): VideoMode => m.modes.find((x) => LIVE_MODES.includes(x)) ?? m.modes[0];
+  // Le type de vidéo (mode) se choisit dans la feuille Paramètres de la barre de saisie ; on le lit ici.
+  const mode: VideoMode = model.modes.includes(stored.mode) && LIVE_MODES.includes(stored.mode) ? stored.mode : defaultMode(model);
 
   useEffect(() => {
     void fetchFlags()
@@ -74,7 +75,6 @@ export function CreatorModelPicker({
   const pickModel = (m: CreatorModel) => {
     if (!m.live) return;
     setModel(m);
-    setMode(m.modes.find((x) => LIVE_MODES.includes(x)) ?? m.modes[0]);
   };
 
   const hint = useMemo(() => {
@@ -117,20 +117,6 @@ export function CreatorModelPicker({
               onClick={() => pickModel(m)}
             >
               {m.label}
-            </button>
-          ))}
-        </div>
-
-        <p className="mb-1 mt-2 px-1 text-[10px] uppercase tracking-wider text-white/40">Type</p>
-        <div className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {model.modes.filter((md) => LIVE_MODES.includes(md)).map((md) => (
-            <button
-              key={md}
-              type="button"
-              className={chip(md === mode, false)}
-              onClick={() => setMode(md)}
-            >
-              {SHORT_LABELS[md]}
             </button>
           ))}
         </div>

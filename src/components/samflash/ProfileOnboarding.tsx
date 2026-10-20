@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Zap } from "lucide-react";
 
 type Choice = "creator" | "seller";
 
@@ -62,6 +63,15 @@ export function ProfileOnboarding({ onChoose, allowed }: { onChoose: (c: Choice)
               }`}
             >
               {o.label}
+              {o.id === "seller" && !active && (
+                <span
+                  aria-hidden
+                  className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-[#d4ff00] px-1.5 py-[1px] align-middle text-[9px] font-bold uppercase tracking-wide text-black motion-safe:animate-pulse"
+                >
+                  <Zap className="h-2.5 w-2.5" />
+                  Nouveau
+                </span>
+              )}
             </button>
           );
         })}

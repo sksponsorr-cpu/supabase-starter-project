@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X } from "lucide-react";
+import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X, SlidersHorizontal } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
 import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
 import { launchLongVideo } from "@/lib/long-jobs.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
-import { DEFAULT_CREDIT_CONFIG, type CreditConfig, type Resolution } from "@/lib/credits";
+import { DEFAULT_CREDIT_CONFIG, creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
 import { DurationSlider } from "@/components/samflash/DurationSlider";
 import { clipMaxSeconds } from "@/lib/plans";
 import { updateProjectTitle } from "@/lib/project.functions";
@@ -17,7 +18,9 @@ import { toast } from "@/lib/toast";
 import { useLocation } from "@tanstack/react-router";
 import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
-import { getCreatorSelection } from "@/lib/creator-selection";
+import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf } from "@/lib/creator-selection";
+import { LIVE_MODES, MODE_LABELS } from "@/lib/creator-models";
+import { isPricedModel, samCreditsFor } from "@/lib/creator-pricing";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -104,6 +107,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [dur, setDur] = useState("5s");
   const [longSec, setLongSec] = useState(10);
   const [showSlider, setShowSlider] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
   const fetchCreditCfg = useServerFn(getPublicCreditConfig);
   const launchLong = useServerFn(launchLongVideo);
@@ -528,6 +532,47 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     }
   };
 
+  // Coût affiché à côté du bouton d'envoi (même calcul que celui du serveur quand le modèle est tarifé).
+  const creatorSel = useCreatorSelection();
+  const costSeconds = mode === "video" ? (longSec > 15 ? longSec : Number(dur.replace(/\D/g, "")) || 5) : 0;
+  let costCredits: number | null = null;
+  try {
+    if (mode === "video" && creatorSel.active && isPricedModel(creatorSel.modelId)) {
+      costCredits = samCreditsFor(creatorSel.modelId, (res === "1080p" ? "1080p" : res === "480p" ? "480p" : "720p"), costSeconds);
+    }
+    if (costCredits === null) {
+      costCredits = creditCostFor(mode, costSeconds, res, creditCfg);
+    }
+  } catch {
+    costCredits = null;
+  }
+
+  // Options de la feuille Paramètres : elles dépendent du modèle et du mode choisis.
+  const cModel = mode === "video" && creatorSel.active ? modelOf(creatorSel) : null;
+  const planMaxSec =
+    userPlan === "superhearly_monthly" || userPlan === "superhearly" ? 15 : userPlan === "super_grok_plus" ? 10 : 8;
+  const baseDurs = [5, 8, 10, 15].filter((d) => d <= planMaxSec);
+  const durOptions = cModel ? cModel.durations.filter((d) => d <= planMaxSec) : baseDurs;
+  const safeDurOptions = durOptions.length > 0 ? durOptions : baseDurs.slice(0, 1);
+  const resOptions: string[] =
+    mode === "video"
+      ? (cModel ? ["480p", "720p"].filter((r) => (cModel.resolutions as string[]).includes(r)) : ["480p", "720p"])
+      : ["480p", "720p", "1080p"];
+  const safeResOptions = resOptions.length > 0 ? resOptions : ["720p"];
+  const modeOptions = cModel ? cModel.modes.filter((m) => LIVE_MODES.includes(m)) : [];
+
+  // Quand le modèle change, on garde uniquement une durée et une qualité qu'il accepte.
+  useEffect(() => {
+    if (!cModel || showSlider) return;
+    const d = parseInt(dur, 10);
+    if (!safeDurOptions.includes(d)) {
+      setDur(`${safeDurOptions[0]}s`);
+      setLongSec(safeDurOptions[0]);
+    }
+    if (!safeResOptions.includes(res)) setRes(safeResOptions[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creatorSel.modelId, creatorSel.active, mode]);
+
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
       {sent && (
@@ -686,6 +731,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               )}
               <span className="hidden text-[11px] sm:text-xs font-medium sm:inline">{t("enhance")}</span>
             </button>
+            {costCredits !== null && (
+              <span
+                className="flex h-9 sm:h-10 shrink-0 items-center rounded-full bg-secondary px-2.5 text-[11px] sm:text-xs font-semibold tabular-nums text-foreground"
+                title="Crédits utilisés pour cette création"
+              >
+                {costCredits} cr.
+              </span>
+            )}
             <button
               type="button"
               aria-label={t("send")}
@@ -715,56 +768,18 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           ))}
         </div>
       )}
-      <div className="mt-3 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-          {(mode === "video" ? ["480p", "720p"] : ["480p", "720p", "1080p"]).map((r) => (
-            <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-        {mode === "video" && (() => {
-          const isFree = userPlan === "free";
-          const isPlus = userPlan === "super_grok_plus";
-          const isHeavy = userPlan === "superhearly_monthly" || userPlan === "superhearly";
-          const maxSec = isHeavy ? 15 : isPlus ? 10 : 8;
-          const activeDurations = ["5s", "8s", "10s", "15s"].filter((d) => parseInt(d, 10) <= maxSec);
-          const upcomingDurations = isHeavy ? [] : isPlus ? ["15s"] : [];
-
-          return (
-            <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-              {activeDurations.map((d) => (
-                <button key={d} type="button" onClick={() => { setDur(d); setLongSec(parseInt(d, 10)); setShowSlider(false); }} className={chip(dur === d && !showSlider)}>
-                  {d}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setShowSlider((v) => !v)}
-                className={chip(showSlider)}
-              >
-                Long
-              </button>
-              {upcomingDurations.map((d) => (
-                <span
-                  key={d}
-                  title="Bientôt disponible"
-                  className="shrink-0 rounded-full px-2 py-1 text-[11px] sm:px-2.5 sm:py-1.5 sm:text-xs font-medium text-muted-foreground/40 cursor-not-allowed flex items-center gap-1 select-none"
-                >
-                  {d}
-                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-semibold">Bientôt</span>
-                </span>
-              ))}
-            </div>
-          );
-        })()}
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary/80 p-1 backdrop-blur-xl">
-          {["9:16", "2:3", "3:4", "1:1", "16:9"].map((r) => (
-            <button key={r} type="button" onClick={() => setRatio(r)} className={chip(ratio === r)}>
-              {r}
-            </button>
-          ))}
-        </div>
+      <div className="mt-3 flex justify-center px-1">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="flex items-center gap-2 rounded-full bg-secondary/80 px-4 py-2 text-xs font-medium text-foreground backdrop-blur-xl transition-transform active:scale-95"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span>Paramètres</span>
+          <span className="text-muted-foreground">
+            {res} · {mode === "video" ? `${showSlider ? longSec : parseInt(dur, 10)}s · ` : ""}{ratio}
+          </span>
+        </button>
       </div>
       {mode === "video" && showSlider && (
         <div className="mt-2 px-1">
@@ -781,6 +796,116 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           />
         </div>
       )}
+
+      {settingsOpen && typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[100]" role="dialog" aria-label="Paramètres">
+            <button
+              type="button"
+              aria-label="Fermer"
+              onClick={() => setSettingsOpen(false)}
+              className="absolute inset-0 bg-black/60 animate-in fade-in duration-200"
+            />
+            <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border border-border bg-card p-5 pb-8 animate-in slide-in-from-bottom duration-300">
+              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-base font-semibold">Paramètres</h2>
+                <button
+                  type="button"
+                  aria-label="Fermer"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {modeOptions.length > 0 && (
+                <div className="border-t border-border py-4">
+                  <p className="mb-2 text-xs text-muted-foreground">Mode</p>
+                  <div className="flex flex-wrap gap-2">
+                    {modeOptions.map((md) => (
+                      <button
+                        key={md}
+                        type="button"
+                        onClick={() => setCreatorSelection({ ...getCreatorSelection(), mode: md })}
+                        className={chip(creatorSel.mode === md)}
+                      >
+                        {MODE_LABELS[md]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {mode === "video" && (
+                <div className="border-t border-border py-4">
+                  <p className="mb-2 text-xs text-muted-foreground">Durée</p>
+                  <div className="flex flex-wrap gap-2">
+                    {safeDurOptions.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setDur(`${d}s`);
+                          setLongSec(d);
+                          setShowSlider(false);
+                        }}
+                        className={chip(parseInt(dur, 10) === d && !showSlider)}
+                      >
+                        {d} s
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => setShowSlider((v) => !v)} className={chip(showSlider)}>
+                      Long
+                    </button>
+                  </div>
+                  {showSlider && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Fermez cette feuille pour régler la durée avec le curseur.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-border py-4">
+                <p className="mb-2 text-xs text-muted-foreground">Qualité</p>
+                <div className="flex flex-wrap gap-2">
+                  {safeResOptions.map((r) => (
+                    <button key={r} type="button" onClick={() => setRes(r)} className={chip(res === r)}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-border py-4">
+                <p className="mb-2 text-xs text-muted-foreground">Format</p>
+                <div className="flex flex-wrap gap-2">
+                  {["9:16", "2:3", "3:4", "1:1", "16:9"].map((r) => (
+                    <button key={r} type="button" onClick={() => setRatio(r)} className={chip(ratio === r)}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {costCredits !== null && (
+                <p className="pb-3 text-center text-xs text-muted-foreground">
+                  Cette création utilisera <span className="font-semibold text-foreground">{costCredits} crédits</span>
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(false)}
+                className="w-full rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground"
+              >
+                Appliquer
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
