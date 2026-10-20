@@ -1,9 +1,8 @@
-import { TEAM_GOAL, TEAM_WINDOW_DAYS } from "@/lib/referral.functions";
+import { PARTNER_COMMISSION_PERCENT } from "@/lib/partner-config";
 
 /**
  * Appelé quand un paiement est confirmé : si l'acheteur a été parrainé et que
  * c'est son premier achat, la conversion est enregistrée pour le parrain.
- * Si le parrain atteint l'objectif en 30 jours, il est marqué « éligible équipe ».
  */
 export async function creditReferralConversion(orderId: string, buyerId: string | null) {
   if (!buyerId) return;
@@ -24,18 +23,21 @@ export async function creditReferralConversion(orderId: string, buyerId: string 
     .is("converted_at", null);
   if (error) return;
 
-  const since = new Date(Date.now() - TEAM_WINDOW_DAYS * 86400000).toISOString();
-  const { count } = await db
-    .from("referrals")
-    .select("id", { count: "exact", head: true })
-    .eq("referrer_id", referral.referrer_id)
-    .gte("converted_at", since);
-
-  if ((count ?? 0) >= TEAM_GOAL) {
-    await db
-      .from("referral_codes")
-      .update({ team_eligible_at: new Date().toISOString() })
-      .eq("user_id", referral.referrer_id)
-      .is("team_eligible_at", null);
+  // Commission partenaire : pourcentage du montant payé, enregistrée une seule fois par commande.
+  const { data: order } = await db.from("orders").select("amount_eur").eq("id", orderId).maybeSingle();
+  const amount = Number(order?.amount_eur ?? 0);
+  if (amount > 0) {
+    const commission = Math.round(amount * PARTNER_COMMISSION_PERCENT) / 100;
+    await db.from("partner_commissions").upsert(
+      {
+        referrer_id: referral.referrer_id,
+        referred_id: buyerId,
+        order_id: orderId,
+        order_amount_eur: amount,
+        commission_eur: commission,
+        status: "disponible",
+      },
+      { onConflict: "order_id", ignoreDuplicates: true },
+    );
   }
 }
