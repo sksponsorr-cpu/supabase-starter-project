@@ -1,19 +1,23 @@
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { SellerFaceLibrary } from "@/components/samflash/SellerFaceLibrary";
+import { generateMedia } from "@/lib/generation.functions";
+import { toast } from "@/lib/toast";
 
 export type GuidedFeature = {
   title: string;
   starter: string;
   mediaType: "image" | "video";
   modelId?: string;
-  videoMode?: string;
+  /** text_to_video | image_to_video (mode vidéo du modèle) */
+  videoMode?: "text_to_video" | "image_to_video";
   needsPerson: boolean;
   needsProduct: boolean;
 };
 
 type Props = { feature: GuidedFeature; onClose: () => void };
 
-/** Parcours en étapes : Personne → Produit → Texte → Lancer. Les images vont dans la barre de saisie. */
+/** Parcours en étapes : Personne → Produit → Texte → Lancer. La création part directement, sans barre de saisie. */
 export function SellerGuidedFlow({ feature, onClose }: Props) {
   const steps = [
     ...(feature.needsPerson ? ["Personne"] : []),
@@ -25,6 +29,8 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
   const [person, setPerson] = useState<string | null>(null);
   const [product, setProduct] = useState<string | null>(null);
   const [text, setText] = useState(feature.starter);
+  const [busy, setBusy] = useState(false);
+  const run = useServerFn(generateMedia);
   const current = steps[step];
 
   const readFile = (cb: (s: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,7 +41,6 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
     reader.readAsDataURL(file);
   };
 
-  // Raison affichée quand « Continuer » est désactivé.
   const blocker =
     current === "Personne" && !person
       ? "Choisis d'abord une personne."
@@ -45,25 +50,49 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
           ? "Décris ce que tu veux dans le texte."
           : null;
 
-  const launch = () => {
+  const launch = async () => {
+    setBusy(true);
     const images = [person, product].filter((x): x is string => !!x);
-    window.dispatchEvent(
-      new CustomEvent("samflash:seller-preset", {
-        detail: { text, mediaType: feature.mediaType, modelId: feature.modelId, videoMode: feature.videoMode, images },
-      }),
-    );
-    onClose();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const creatorMode =
+      feature.mediaType === "video" && feature.modelId
+        ? feature.videoMode === "image_to_video" ? "image" : "text"
+        : null;
+    try {
+      const res = await run({
+        data: {
+          prompt: text,
+          mediaType: feature.mediaType,
+          resolution: "720p",
+          duration: feature.mediaType === "video" ? "8s" : "",
+          aspectRatio: "9:16",
+          imageUrl: images[0] ?? null,
+          imageUrls: images,
+          creatorMode,
+          model: feature.modelId ?? null,
+          project_id: null,
+        } as never,
+      });
+      if (res.ok) {
+        toast.success("Création lancée. Tu la retrouveras dans Créations.");
+        onClose();
+      } else {
+        toast.error(res.message ?? "La création n'a pas pu démarrer. Tes crédits ne sont pas décomptés.");
+      }
+    } catch {
+      toast.error("La création n'a pas pu démarrer. Tes crédits ne sont pas décomptés.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end bg-black/70" role="dialog" aria-label={feature.title}>
-      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-[#0b0b0f] p-5 text-white">
+    <div className="fixed inset-0 z-[100] flex items-end bg-black/60" role="dialog" aria-label={feature.title}>
+      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-background p-5 text-foreground">
         <div className="mb-4 flex items-center justify-between">
           <p className="font-semibold">{feature.title}</p>
-          <button type="button" onClick={onClose} className="text-sm text-white/60">Fermer</button>
+          <button type="button" onClick={onClose} className="text-sm text-muted-foreground">Fermer</button>
         </div>
-        <p className="mb-4 text-xs text-white/50">
+        <p className="mb-4 text-xs text-muted-foreground">
           Étape {step + 1} sur {steps.length} : {current}
         </p>
 
@@ -75,27 +104,26 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
           </div>
         )}
         {current === "Texte" && (
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} className="w-full rounded-2xl bg-white/5 p-3 text-sm outline-none" />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} className="w-full rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
         )}
         {current === "Lancer" && (
-          <div className="space-y-3 text-sm text-white/80">
+          <div className="space-y-3 text-sm text-muted-foreground">
             <p>Ta création part avec : {person ? "une personne" : "aucune personne"}, {product ? "ton produit" : "aucun produit"}.</p>
-            <p className="text-white/50">Le prix exact s'affiche dans la barre de saisie avant l'envoi.</p>
           </div>
         )}
 
-        {blocker && <p className="mt-4 text-sm text-amber-300">{blocker}</p>}
+        {blocker && <p className="mt-4 text-sm text-amber-600 dark:text-amber-300">{blocker}</p>}
         <div className="mt-5 flex gap-3">
-          <button type="button" disabled={step === 0} onClick={() => setStep((s) => s - 1)} className="flex-1 rounded-full border border-white/20 py-3 text-sm disabled:opacity-40">
+          <button type="button" disabled={step === 0 || busy} onClick={() => setStep((s) => s - 1)} className="flex-1 rounded-full border border-border py-3 text-sm disabled:opacity-40">
             Retour
           </button>
           {step < steps.length - 1 ? (
-            <button type="button" disabled={!!blocker} onClick={() => setStep((s) => s + 1)} className="flex-1 rounded-full bg-white py-3 text-sm font-semibold text-black disabled:opacity-40">
+            <button type="button" disabled={!!blocker} onClick={() => setStep((s) => s + 1)} className="flex-1 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">
               Continuer
             </button>
           ) : (
-            <button type="button" onClick={launch} className="flex-1 rounded-full bg-white py-3 text-sm font-semibold text-black">
-              Mettre dans la barre
+            <button type="button" disabled={busy} onClick={() => void launch()} className="flex-1 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+              {busy ? "Lancement…" : "Lancer la création"}
             </button>
           )}
         </div>

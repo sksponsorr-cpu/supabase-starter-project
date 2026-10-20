@@ -7,7 +7,6 @@ import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/ge
 import { launchLongVideo } from "@/lib/long-jobs.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
 import { DEFAULT_CREDIT_CONFIG, creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
-import { DurationSlider } from "@/components/samflash/DurationSlider";
 import { clipMaxSeconds } from "@/lib/plans";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { getGenerationAccess } from "@/lib/device.functions";
@@ -121,7 +120,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [res, setRes] = useState("720p");
   const [dur, setDur] = useState("5s");
   const [longSec, setLongSec] = useState(10);
-  const [showSlider, setShowSlider] = useState(false);
+  // Durée choisie uniquement dans les paramètres, selon les durées du modèle.
+  const showSlider = false;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [creditCfg, setCreditCfg] = useState<CreditConfig>(DEFAULT_CREDIT_CONFIG);
   const fetchCreditCfg = useServerFn(getPublicCreditConfig);
@@ -715,8 +715,9 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         <div className="relative flex w-full items-center justify-between gap-1 overflow-visible">
           {/* Indicateur : il reste des options à faire défiler vers la droite */}
           {showScrollHint && (
-            <span aria-hidden className="pointer-events-none absolute right-16 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground shadow animate-pulse sm:hidden">
-              <ChevronRight className="h-4 w-4" />
+            <span aria-hidden className="pointer-events-none absolute right-14 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground shadow-lg animate-pulse sm:hidden">
+              Glisse
+              <ChevronRight className="h-3.5 w-3.5" />
             </span>
           )}
           <div ref={optionsRef} onScroll={updateScrollHint} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -888,22 +889,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           Passer en mode vendeur
         </span>
       </button>
-      {mode === "video" && showSlider && (
-        <div className="mt-2 px-1">
-          <DurationSlider
-            value={Math.min(lockedMaxSec, Math.max(Math.min(10, lockedMaxSec), longSec))}
-            maxAllowed={lockedMaxSec}
-            resolution={(res === "480p" ? "480p" : "720p") as Resolution}
-            config={creditCfg}
-            costLabel={costCredits}
-            onLocked={() => toast.error(`Votre offre permet des vidéos jusqu'à ${lockedMaxSec} secondes. Passez à une offre supérieure pour aller plus loin.`)}
-            onChange={(sec) => {
-              setLongSec(sec);
-              setDur(`${sec}s`);
-            }}
-          />
-        </div>
-      )}
 
       {settingsOpen && typeof document !== "undefined" &&
         createPortal(
@@ -957,22 +942,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
                         onClick={() => {
                           setDur(`${d}s`);
                           setLongSec(d);
-                          setShowSlider(false);
                         }}
-                        className={chip(parseInt(dur, 10) === d && !showSlider)}
+                        className={chip(parseInt(dur, 10) === d)}
                       >
                         {d} s
                       </button>
                     ))}
-                    <button type="button" onClick={() => setShowSlider((v) => !v)} className={chip(showSlider)}>
-                      Long
-                    </button>
                   </div>
-                  {showSlider && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Fermez cette feuille pour régler la durée avec le curseur.
-                    </p>
-                  )}
                 </div>
               )}
 

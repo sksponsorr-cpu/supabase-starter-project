@@ -110,23 +110,25 @@ function FeatureCard({
   allowed: boolean;
   onPick: (f: Feature) => void;
 }) {
-  const blocked = f.needsPhotoRights && !allowed;
+  const soon = SOON.has(f.title);
+  const blocked = (f.needsPhotoRights && !allowed) || soon;
   return (
     <button
       type="button"
       onClick={() => !blocked && onPick(f)}
       aria-disabled={blocked}
-      className={`flex flex-col items-start gap-2 rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left transition-transform active:scale-[0.98] ${
+      className={`flex flex-col items-start gap-2 rounded-3xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98] ${
         blocked ? "opacity-50" : ""
       }`}
     >
-      <span className="flex w-full items-center justify-between gap-2 text-[15px] font-semibold text-white">
+      <span className="flex w-full items-center justify-between gap-2 text-[15px] font-semibold text-foreground">
         {f.title}
-        <span aria-hidden className="text-white/50">→</span>
+        <span aria-hidden className="text-muted-foreground">→</span>
       </span>
-      <span className="text-sm text-white/60">{f.desc}</span>
-      {f.costLabel && <span className="text-xs font-semibold text-[#d4ff00]">{f.costLabel}</span>}
-      {blocked && <span className="text-xs text-white/50">Coche d'abord la case des droits ci-dessus.</span>}
+      <span className="text-sm text-muted-foreground">{f.desc}</span>
+      {f.costLabel && <span className="text-xs font-semibold text-primary">{f.costLabel}</span>}
+      {soon && <span className="text-xs text-muted-foreground">Bientôt disponible.</span>}
+      {!soon && f.needsPhotoRights && !allowed && <span className="text-xs text-muted-foreground">Coche d'abord la case des droits ci-dessus.</span>}
     </button>
   );
 }
@@ -138,7 +140,11 @@ const GUIDED: Record<string, { needsPerson: boolean; needsProduct: boolean }> = 
   "Habiller un mannequin": { needsPerson: false, needsProduct: true },
   "Un produit en main": { needsPerson: true, needsProduct: true },
   "Publicité UGC dynamique": { needsPerson: true, needsProduct: true },
+  "Pub voix off": { needsPerson: false, needsProduct: false },
 };
+
+/** Cartes pas encore branchées : elles affichent « Bientôt disponible ». */
+const SOON = new Set(["Clonage vidéo", "Rejouer une pub", "Changer le produit"]);
 
 /** Espace vendeur : cartes Image et Vidéo, comme sur Vizuely. */
 export function SellerStudio() {
@@ -148,26 +154,21 @@ export function SellerStudio() {
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
-    if (g) {
-      setGuided({
-        title: f.title,
-        starter: f.starter,
-        mediaType: f.mediaType,
-        modelId: f.modelId,
-        videoMode: f.videoMode,
-        needsPerson: g.needsPerson,
-        needsProduct: g.needsProduct,
-      });
-      return;
-    }
-    // Clonage vidéo : la vidéo source s'ajoute dans la barre de saisie.
-    window.dispatchEvent(new CustomEvent("samflash:seller-preset", { detail: { ...f, text: f.starter } }));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!g) return;
+    setGuided({
+      title: f.title,
+      starter: f.starter,
+      mediaType: f.mediaType,
+      modelId: f.modelId,
+      videoMode: f.videoMode === "image_to_video" ? "image_to_video" : f.videoMode === "text_to_video" ? "text_to_video" : undefined,
+      needsPerson: g.needsPerson,
+      needsProduct: g.needsProduct,
+    });
   };
 
   return (
     <div className="w-full max-w-2xl px-4 mb-6 space-y-6">
-      <label className="flex items-start gap-3 rounded-3xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm text-white/80">
+      <label className="flex items-start gap-3 rounded-3xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm text-muted-foreground">
         <input
           type="checkbox"
           checked={rightsOk}
@@ -186,7 +187,7 @@ export function SellerStudio() {
       {guided && <SellerGuidedFlow feature={guided} onClose={() => setGuided(null)} />}
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-white">
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
           <ImageIcon className="h-4 w-4" /> Image
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -196,7 +197,7 @@ export function SellerStudio() {
         </div>
       </section>
       <section>
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-white">
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
           <Video className="h-4 w-4" /> Vidéo
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import { notifyProfileChanged } from "@/lib/seller-mode";
 import { useEffect, useState } from "react";
 import { Zap } from "lucide-react";
 
@@ -42,6 +43,7 @@ export function ProfileOnboarding({ onChoose, allowed }: { onChoose: (c: Choice)
     } catch {
       /* ignoré */
     }
+    notifyProfileChanged();
   };
 
   const options = OPTIONS.filter((o) => allowed.includes(o.id));

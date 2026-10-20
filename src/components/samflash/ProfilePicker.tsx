@@ -52,8 +52,8 @@ export function ProfilePicker() {
   return (
     <div className="w-full flex flex-col items-center">
       {displayName && (
-        <p className="mb-3 text-center text-[15px] text-white/80">
-          Bienvenue, <span className="font-semibold text-white">{displayName}</span>
+        <p className="mb-3 text-center text-[15px] text-muted-foreground">
+          Bienvenue, <span className="font-semibold text-foreground">{displayName}</span>
         </p>
       )}
       <ProfileOnboarding onChoose={onOnboardingChoose} allowed={allowedChoices} />

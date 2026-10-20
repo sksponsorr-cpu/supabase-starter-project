@@ -14,7 +14,7 @@ function Chips<T extends string>({ options, value, onChange }: { options: Filter
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`rounded-full border px-3 py-1.5 text-xs ${value === o.value ? "border-white bg-white text-black" : "border-white/20 text-white/70"}`}
+          className={`rounded-full border px-3 py-1.5 text-xs ${value === o.value ? "border-white bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
         >
           {o.label}
         </button>
@@ -44,30 +44,30 @@ export function SellerFaceLibrary({ onSelect }: { onSelect: (dataUrl: string) =>
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-xs text-white/50">Genre</p>
+        <p className="text-xs text-muted-foreground">Genre</p>
         <Chips options={GENRE} value={genre} onChange={setGenre} />
-        <p className="text-xs text-white/50">Âge</p>
+        <p className="text-xs text-muted-foreground">Âge</p>
         <Chips options={AGE} value={age} onChange={setAge} />
-        <p className="text-xs text-white/50">Lieu</p>
+        <p className="text-xs text-muted-foreground">Lieu</p>
         <Chips options={LIEU} value={lieu} onChange={setLieu} />
       </div>
 
       {faces.length === 0 ? (
-        <p className="rounded-2xl border border-white/10 p-4 text-sm text-white/60">
+        <p className="rounded-2xl border border-border p-4 text-sm text-muted-foreground">
           Aucune personne dans la bibliothèque pour l'instant. Importe ta propre photo ci-dessous.
         </p>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {faces.map((f) => (
-            <button key={f.id} type="button" onClick={() => onSelect(f.src)} className="overflow-hidden rounded-2xl border border-white/10">
+            <button key={f.id} type="button" onClick={() => onSelect(f.src)} className="overflow-hidden rounded-2xl border border-border">
               <img src={f.src} alt={f.label} className="aspect-[3/4] w-full object-cover" />
-              <span className="block p-1.5 text-left text-xs text-white/80">{f.label}</span>
+              <span className="block p-1.5 text-left text-xs text-muted-foreground">{f.label}</span>
             </button>
           ))}
         </div>
       )}
 
-      <button type="button" onClick={() => fileRef.current?.click()} className="w-full rounded-2xl border border-dashed border-white/30 py-3 text-sm text-white/80">
+      <button type="button" onClick={() => fileRef.current?.click()} className="w-full rounded-2xl border border-dashed border-border py-3 text-sm text-muted-foreground">
         Importer ma photo
       </button>
       <input
