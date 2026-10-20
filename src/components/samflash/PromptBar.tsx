@@ -30,8 +30,12 @@ const IDEAS = [
 ];
 const MEMORY_KEY = "samflash:composer";
 
-/** Message affiché quand le moteur de génération n'a plus de solde : clair et sans jargon. */
-const BALANCE_MESSAGE =
+/** Abonnés et clients ayant déjà acheté : le moteur est indisponible, les crédits ne sont pas débités. */
+const PAID_RETRY_MESSAGE =
+  "Votre génération n'a pas été lancée et vos crédits ne sont pas décomptés. Notre équipe technique met en place un nouveau système. Veuillez réessayer dans quelques minutes.";
+
+/** Comptes gratuits : invitation claire à passer à une offre payante. */
+const FREE_UPGRADE_MESSAGE =
   "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.";
 
 function isEngineBalanceError(message?: string | null): boolean {
@@ -525,7 +529,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         }
         
         if (isEngineBalanceError(result.message)) {
-          errorMessage = BALANCE_MESSAGE;
+          errorMessage = userPlan === "free" ? FREE_UPGRADE_MESSAGE : PAID_RETRY_MESSAGE;
         }
         if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
           errorMessage += `\n\nDétail technique : ${result.message}`;
