@@ -601,8 +601,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   // Options de la feuille Paramètres : elles dépendent du modèle et du mode choisis.
   const cModel = mode === "video" && creatorSel.active ? modelOf(creatorSel) : null;
-  const planMaxSec =
-    userPlan === "superhearly_monthly" || userPlan === "superhearly" ? 15 : userPlan === "super_grok_plus" ? 10 : 8;
+  // Durée max par vidéo : celle du modèle (jusqu'à 30 s). Le quota quotidien par plan est vérifié côté serveur.
+  const planMaxSec = 30;
   const baseDurs = [5, 8, 10, 15].filter((d) => d <= planMaxSec);
   const durOptions = cModel ? cModel.durations.filter((d) => d <= planMaxSec) : baseDurs;
   const safeDurOptions = durOptions.length > 0 ? durOptions : baseDurs.slice(0, 1);
