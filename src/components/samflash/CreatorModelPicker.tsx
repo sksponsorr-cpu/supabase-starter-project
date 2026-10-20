@@ -44,8 +44,8 @@ export function CreatorModelPicker({
   const isAdmin = useIsAdmin();
   const [flags, setFlags] = useState<FeatureFlags>({});
   const firstLive = CREATOR_MODELS.find((m) => m.live) ?? CREATOR_MODELS[0];
-  const [model, setModel] = useState<CreatorModel>(firstLive);
   const stored = useCreatorSelection();
+  const model: CreatorModel = CREATOR_MODELS.find((m) => m.id === stored.modelId) ?? firstLive;
   const defaultMode = (m: CreatorModel): VideoMode => m.modes.find((x) => LIVE_MODES.includes(x)) ?? m.modes[0];
   // Le type de vidéo (mode) se choisit dans la feuille Paramètres de la barre de saisie ; on le lit ici.
   const mode: VideoMode = model.modes.includes(stored.mode) && LIVE_MODES.includes(stored.mode) ? stored.mode : defaultMode(model);
@@ -74,7 +74,7 @@ export function CreatorModelPicker({
 
   const pickModel = (m: CreatorModel) => {
     if (!m.live) return;
-    setModel(m);
+    setCreatorSelection({ ...getCreatorSelection(), modelId: m.id });
   };
 
   const hint = useMemo(() => {
