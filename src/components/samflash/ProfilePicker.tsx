@@ -44,21 +44,9 @@ export function ProfilePicker() {
 
   const current = available.find((p) => p.id === profile) ?? available[0];
 
-  const chip = (active: boolean) =>
-    `rounded-full px-3 py-1 text-[13px] border transition-all duration-300 active:scale-95 ${
-      active ? "bg-white text-black border-white" : "bg-white/5 text-white/80 border-white/15"
-    }`;
-
   return (
     <div className="w-full flex flex-col items-center">
       <ProfileOnboarding onChoose={onOnboardingChoose} allowed={allowedChoices} />
-      <div className="flex flex-wrap justify-center gap-2 px-4 mb-4">
-        {available.map((p) => (
-          <button key={p.id} type="button" className={chip(p.id === current.id)} onClick={() => setProfile(p.id)}>
-            {p.label}
-          </button>
-        ))}
-      </div>
 
       {current.id === "creator" && <CreatorModelPicker />}
 

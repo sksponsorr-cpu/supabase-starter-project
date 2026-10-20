@@ -4,9 +4,9 @@ import { Check, Gift, MousePointerClick, X } from "lucide-react";
 import { detectCountry } from "@/lib/country.functions";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
-import { creditCostFor } from "@/lib/credits";
+import { samCreditsFor } from "@/lib/creator-pricing";
 
-/** Cadeau flottant « Offre d'essai Grok » : présente le pack d'essai puis mène au paiement. */
+/** Cadeau flottant « Offre d'essai Sam Flash » : présente le pack d'essai puis mène au paiement. */
 export function TrialGift({ visible = true }: { visible?: boolean }) {
   const fetchPrices = useServerFn(listPrices);
   const [trialRow, setTrialRow] = useState<PriceRow | null>(null);
@@ -64,7 +64,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
             </span>
             <span className="sf-spark absolute -right-1 -top-1 text-[10px]">✦</span>
           </span>
-          <span className="whitespace-nowrap">Offre d'essai Grok</span>
+          <span className="whitespace-nowrap">Offre d'essai Sam Flash</span>
           <span className="sf-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
         </button>
         <MousePointerClick className="sf-point h-5 w-5 text-primary" aria-hidden />
@@ -84,7 +84,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
             <span className="sf-bob inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
               <Gift className="h-7 w-7" />
             </span>
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Offre d'essai Grok</p>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Offre d'essai Sam Flash</p>
             <p className="mt-1 text-4xl font-semibold tabular-nums">
               {amount.toLocaleString("fr-FR")}
               <span className="ml-2 text-base font-medium text-muted-foreground">FCFA</span>
@@ -92,7 +92,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
             <p className="mt-1 text-sm text-muted-foreground">{credits} crédits · pack ponctuel, sans abonnement</p>
             <ul className="mt-5 space-y-3">
               {[
-                `Soit ${Math.floor(credits / creditCostFor("video", 5, "480p"))} vidéos de 5 secondes en 480p`,
+                `Soit ${Math.floor(credits / (samCreditsFor("grok-imagine", "480p", 6) ?? 1))} vidéos Grok Imagine en 480p`,
                 `Jusqu'à ${Math.floor(credits / 5).toLocaleString("fr-FR")} images gratuites`,
                 "Pour tester sans vous engager",
                 "Paiement par Mobile Money",
@@ -126,7 +126,7 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
       {checkout && (
         <CheckoutSheet
           productId="pack_essai"
-          productLabel="Offre d'essai Grok"
+          productLabel="Offre d'essai Sam Flash"
           period="monthly"
           credits={credits}
           countryCode={countryCode ?? undefined}

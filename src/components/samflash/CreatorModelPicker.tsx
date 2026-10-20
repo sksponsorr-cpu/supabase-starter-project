@@ -16,11 +16,11 @@ import {
 
 /** Libellés courts pour tenir sur un petit écran. */
 const SHORT_LABELS: Record<VideoMode, string> = {
-  text_to_video: "Texte",
-  image_to_video: "Image",
-  reference_to_video: "Référence",
-  video_edit: "Modifier",
-  extend: "Étendre",
+  text_to_video: "Vidéo à partir d'un texte",
+  image_to_video: "Vidéo à partir d'une photo",
+  reference_to_video: "Vidéo avec plusieurs photos",
+  video_edit: "Modifier une vidéo",
+  extend: "Prolonger une vidéo",
 };
 
 const MOTION_CSS = `
@@ -88,7 +88,7 @@ export function CreatorModelPicker({
   const previewOnly = isAdmin && flags.creator_studio !== true;
 
   const chip = (active: boolean, disabled: boolean) =>
-    `shrink-0 snap-start rounded-full px-3 py-1.5 text-[13px] font-medium transition-all duration-300 ease-out ${
+    `shrink-0 snap-start rounded-full px-2.5 py-1 text-[12px] font-medium transition-all duration-300 ease-out ${
       disabled
         ? "cursor-not-allowed bg-white/[0.03] text-white/30"
         : active
@@ -97,48 +97,42 @@ export function CreatorModelPicker({
     }`;
 
   return (
-    <div className="sf-picker-in w-full max-w-2xl px-4 mb-3">
+    <div className="sf-picker-in w-full max-w-xl px-4 mb-2">
       <style>{MOTION_CSS}</style>
-      <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 backdrop-blur-xl">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Espace créateur · vidéos</p>
         {previewOnly && (
           <p className="mb-2 flex items-center gap-1.5 text-[11px] text-white/50">
             <Eye className="h-3.5 w-3.5" /> Aperçu administrateur : les utilisateurs ne le voient pas encore.
           </p>
         )}
 
-        <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wider text-white/40">Modèle</p>
+        <p className="mb-1 px-1 text-[10px] uppercase tracking-wider text-white/40">Modèle</p>
         <div className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {CREATOR_MODELS.map((m) => (
+          {CREATOR_MODELS.filter((m) => m.live).map((m) => (
             <button
               key={m.id}
               type="button"
-              disabled={!m.live}
-              className={chip(m.id === model.id, !m.live)}
+              className={chip(m.id === model.id, false)}
               onClick={() => pickModel(m)}
             >
               {m.label}
-              {!m.live && <span className="ml-1.5 text-[9px] uppercase tracking-wider">Bientôt</span>}
             </button>
           ))}
         </div>
 
-        <p className="mb-1.5 mt-3 px-1 text-[11px] uppercase tracking-wider text-white/40">Type</p>
+        <p className="mb-1 mt-2 px-1 text-[10px] uppercase tracking-wider text-white/40">Type</p>
         <div className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {model.modes.map((md) => {
-            const live = LIVE_MODES.includes(md);
-            return (
-              <button
-                key={md}
-                type="button"
-                disabled={!live}
-                className={chip(md === mode, !live)}
-                onClick={() => live && setMode(md)}
-              >
-                {SHORT_LABELS[md]}
-                {!live && <span className="ml-1.5 text-[9px] uppercase tracking-wider">Bientôt</span>}
-              </button>
-            );
-          })}
+          {model.modes.filter((md) => LIVE_MODES.includes(md)).map((md) => (
+            <button
+              key={md}
+              type="button"
+              className={chip(md === mode, false)}
+              onClick={() => setMode(md)}
+            >
+              {SHORT_LABELS[md]}
+            </button>
+          ))}
         </div>
 
         {hint && <p className="mt-2 px-1 text-[12px] text-white/50">{hint}</p>}
