@@ -629,7 +629,7 @@ export async function finalizePendingRow(
   }
 
   const genericError =
-    "Une erreur est survenue pendant la génération. Réessayez. Vos secondes ne sont pas décomptées.";
+    "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.";
   const raw = row.error_message ?? "";
   if (!raw.startsWith("fal:")) return { ok: false, error: "Pas de tâche asynchrone associée" };
 
@@ -655,7 +655,7 @@ export async function finalizePendingRow(
     return failPendingRow(
       row,
       userId,
-      "La génération a pris trop de temps. Réessayez. Vos secondes ne sont pas décomptées.",
+      "La génération a pris trop de temps. Réessayez. Vos crédits ne sont pas décomptés.",
     );
   }
 
@@ -668,7 +668,7 @@ export async function finalizePendingRow(
     ? await storeFinalMedia(userId, result.bytes, result.contentType)
     : { mediaUrl: result.mediaUrl, storagePath: null as string | null };
   if (!stored.mediaUrl) {
-    return failPendingRow(row, userId, "Média généré mais inaccessible. Vos secondes ne sont pas décomptées.");
+    return failPendingRow(row, userId, "Média généré mais inaccessible. Vos crédits ne sont pas décomptés.");
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
