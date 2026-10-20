@@ -20,6 +20,7 @@ import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { PromptBar } from "@/components/samflash/PromptBar";
 import { ProfilePicker } from "@/components/samflash/ProfilePicker";
+import { useSellerMode } from "@/lib/seller-mode";
 import { WelcomeGate } from "@/components/samflash/WelcomeGate";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
@@ -71,6 +72,7 @@ function AppFeed() {
   const [viewer, setViewer] = useState<Generation | null>(null);
   const [visibleCount, setVisibleCount] = useState(12);
   const navigate = useNavigate();
+  const sellerMode = useSellerMode();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
   const prefs = usePrefs();
@@ -228,6 +230,7 @@ function AppFeed() {
 
         <ProfilePicker />
         <WelcomeGate />
+        {!sellerMode && (
         <PromptBar
           onStart={(p) => setPending(p)}
           onCancelReady={(fn) => setCancelFn(() => fn)}
@@ -236,7 +239,9 @@ function AppFeed() {
           onQuotaExceeded={() => setPlansOpen(true)}
           prefill={prefill}
         />
+        )}
 
+        {!sellerMode && (
         <section className="mt-4 sm:mt-8 px-2 sm:px-4 pb-20">
         <div className="flex items-center gap-2 px-2 sm:px-4 mb-4">
           <h1 className="text-base sm:text-lg md:text-xl font-semibold">{t("myCreations")}</h1>
@@ -362,6 +367,7 @@ function AppFeed() {
           </div>
         )}
         </section>
+        )}
 
         <SupportReplyNotifier enabled={!!session} />
         <OnboardingSurvey enabled={!!session} />
