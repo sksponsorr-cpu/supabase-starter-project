@@ -204,6 +204,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [credits, setCredits] = useState<number | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [showFeatures, setShowFeatures] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoApplied, setPromoApplied] = useState<string | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -607,8 +608,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             {showFeatures ? "Masquer ce qui est inclus" : "Voir ce qui est inclus"}
           </button>
           )}
-          {(showFeatures || plan.id !== "custom") &&
-            featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0), price?.images_free ?? null).map((f, i) => (
+          {(showFeatures || plan.id !== "custom") && (() => {
+            const all = featuresFor(plan, sliderValue, Number(price?.credits_bonus ?? 0), price?.images_free ?? null);
+            const cut = all.findIndex((f) => f.title === "Clonage vidéo");
+            const limit = plan.id === "custom" || expanded || cut < 0 ? all.length : cut + 1;
+            return (
+              <>
+                {all.slice(0, limit).map((f, i) => (
               <div
                 key={f.title}
                 style={{ animationDelay: `${i * 80}ms` }}
@@ -629,7 +635,20 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                   </span>
                 )}
               </div>
-            ))}
+                ))}
+                {limit < all.length && (
+                  <button type="button" onClick={() => setExpanded(true)} className="w-full text-left text-sm font-medium text-primary">
+                    Voir plus ({all.length - limit})
+                  </button>
+                )}
+                {expanded && plan.id !== "custom" && (
+                  <button type="button" onClick={() => setExpanded(false)} className="w-full text-left text-sm font-medium text-primary">
+                    Voir moins
+                  </button>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {plan.id !== "custom" && (
