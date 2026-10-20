@@ -104,14 +104,16 @@ const VIDEO_FEATURES: Feature[] = [
 function FeatureCard({
   f,
   allowed,
+  enabled,
   onPick,
 }: {
   f: Feature;
   allowed: boolean;
+  enabled: boolean;
   onPick: (f: Feature) => void;
 }) {
   const soon = SOON.has(f.title);
-  const blocked = (f.needsPhotoRights && !allowed) || soon;
+  const blocked = (f.needsPhotoRights && !allowed) || soon || !enabled;
   return (
     <button
       type="button"
@@ -127,7 +129,7 @@ function FeatureCard({
       </span>
       <span className="text-sm text-muted-foreground">{f.desc}</span>
       {f.costLabel && <span className="text-xs font-semibold text-primary">{f.costLabel}</span>}
-      {soon && <span className="text-xs text-muted-foreground">Bientôt disponible.</span>}
+      {(soon || !enabled) && <span className="text-xs text-muted-foreground">Bientôt disponible.</span>}
       {!soon && f.needsPhotoRights && !allowed && <span className="text-xs text-muted-foreground">Coche d'abord la case des droits ci-dessus.</span>}
     </button>
   );
@@ -152,6 +154,7 @@ export function SellerStudio() {
 
   const [guided, setGuided] = useState<GuidedFeature | null>(null);
   const [kind, setKind] = useState<"image" | "video">("image");
+  const [modeOn, setModeOn] = useState(true);
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
@@ -187,6 +190,19 @@ export function SellerStudio() {
 
       {guided && <SellerGuidedFlow feature={guided} onClose={() => setGuided(null)} />}
 
+      <div className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-card p-4">
+        <span className="text-sm font-semibold text-foreground">Mode vendeur</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={modeOn}
+          onClick={() => setModeOn((v) => !v)}
+          className={`relative h-7 w-12 rounded-full transition-colors ${modeOn ? "bg-primary" : "bg-white/15"}`}
+        >
+          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${modeOn ? "translate-x-5" : "translate-x-0.5"}`} />
+        </button>
+      </div>
+
       <div role="tablist" aria-label="Type de création" className="grid grid-cols-2 gap-1 rounded-full bg-white/[0.04] p-1">
         {(["image", "video"] as const).map((k) => (
           <button
@@ -208,7 +224,7 @@ export function SellerStudio() {
       <section>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(kind === "image" ? IMAGE_FEATURES : VIDEO_FEATURES).map((f) => (
-            <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
+            <FeatureCard key={f.title} f={f} allowed={rightsOk} enabled={modeOn} onPick={pick} />
           ))}
         </div>
       </section>
