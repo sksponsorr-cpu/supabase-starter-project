@@ -151,6 +151,7 @@ export function SellerStudio() {
   const [rightsOk, setRightsOk] = useState(false);
 
   const [guided, setGuided] = useState<GuidedFeature | null>(null);
+  const [kind, setKind] = useState<"image" | "video">("image");
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
@@ -186,22 +187,27 @@ export function SellerStudio() {
 
       {guided && <SellerGuidedFlow feature={guided} onClose={() => setGuided(null)} />}
 
+      <div role="tablist" aria-label="Type de création" className="grid grid-cols-2 gap-1 rounded-full bg-white/[0.04] p-1">
+        {(["image", "video"] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={kind === k}
+            onClick={() => setKind(k)}
+            className={`flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
+              kind === k ? "bg-foreground text-background" : "text-muted-foreground"
+            }`}
+          >
+            {k === "image" ? <ImageIcon className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+            {k === "image" ? "Image" : "Vidéo"}
+          </button>
+        ))}
+      </div>
+
       <section>
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
-          <ImageIcon className="h-4 w-4" /> Image
-        </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {IMAGE_FEATURES.map((f) => (
-            <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
-          ))}
-        </div>
-      </section>
-      <section>
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
-          <Video className="h-4 w-4" /> Vidéo
-        </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {VIDEO_FEATURES.map((f) => (
+          {(kind === "image" ? IMAGE_FEATURES : VIDEO_FEATURES).map((f) => (
             <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
           ))}
         </div>

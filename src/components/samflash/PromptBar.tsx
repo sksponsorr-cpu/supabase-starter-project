@@ -715,7 +715,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         <div className="relative flex w-full items-center justify-between gap-1 overflow-visible">
           {/* Indicateur : il reste des options à faire défiler vers la droite */}
           {showScrollHint && (
-            <span aria-hidden className="pointer-events-none absolute right-14 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground shadow-lg animate-pulse sm:hidden">
+            <span aria-hidden className="pointer-events-none absolute left-1/2 -bottom-3 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-lg animate-pulse sm:hidden">
               Glisse
               <ChevronRight className="h-3.5 w-3.5" />
             </span>
@@ -850,6 +850,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
             </button>
           </div>
+
         </div>
       </div>
       {ideasOn && !text && (
@@ -879,7 +880,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           }
           window.location.reload();
         }}
-        className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left backdrop-blur-xl transition-transform active:scale-[0.98]"
+        className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-[#d4ff00]/60 bg-[#d4ff00]/10 px-4 py-2.5 text-left shadow-[0_0_18px_rgba(212,255,0,0.35)] backdrop-blur-xl animate-pulse transition-transform active:scale-[0.98]"
       >
         <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold text-[#d4ff00]">
           <span className="relative flex h-2 w-2">
@@ -889,6 +890,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           Passer en mode vendeur
         </span>
       </button>
+
 
       {settingsOpen && typeof document !== "undefined" &&
         createPortal(

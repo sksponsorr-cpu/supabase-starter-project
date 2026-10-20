@@ -1,4 +1,3 @@
-import { McpKeysPanel } from "@/components/samflash/McpKeysPanel";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -603,10 +602,6 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               />
             </Group>
 
-            <SectionTitle>Connecteurs</SectionTitle>
-            <div className="px-4 pb-2">
-              <McpKeysPanel />
-            </div>
             <SectionTitle>{t("application")}</SectionTitle>
             <Group>
               <Row
