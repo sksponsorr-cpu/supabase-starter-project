@@ -1,19 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...extra } });
 
 /** Serveur MCP Sam Flash (JSON-RPC 2.0). Authentification : clé dans l'adresse (?key=…) ou en-tête « Authorization: Bearer <clé> ». */
 export const Route = createFileRoute("/api/public/mcp")({
   server: {
     handlers: {
       // Visite directe dans le navigateur : on explique au lieu de renvoyer une page 404.
+      // Pas de flux SSE côté serveur : on répond 405 aux GET (protocole MCP « Streamable HTTP »).
       GET: async () =>
-        json({
-          name: "Sam Flash — serveur MCP",
-          status: "ok",
-          message: "Ce serveur sert aux assistants (Claude, ChatGPT). Colle l'adresse complète contenant ta clé dans le connecteur.",
-        }),
+        json(
+          {
+            name: "Sam Flash — serveur MCP",
+            status: "ok",
+            message: "Ce serveur sert aux assistants (Claude, ChatGPT). Colle l'adresse complète contenant ta clé dans le connecteur.",
+          },
+          405,
+          { Allow: "POST" },
+        ),
       POST: async ({ request }) => {
         const url = new URL(request.url);
         const auth = request.headers.get("authorization") ?? "";
@@ -42,7 +47,7 @@ export const Route = createFileRoute("/api/public/mcp")({
         switch (body.method) {
           case "initialize":
             return ok({
-              protocolVersion: "2024-11-05",
+              protocolVersion: typeof body.params?.protocolVersion === "string" ? body.params.protocolVersion : "2024-11-05",
               capabilities: { tools: {} },
               serverInfo: { name: "sam-flash", version: "1.0.0" },
             });
