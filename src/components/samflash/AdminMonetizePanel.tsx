@@ -129,6 +129,7 @@ export function AdminMonetizePanel() {
       )}
 
       {view === "creators" && (
+        <>
       <section className="space-y-3 rounded-2xl border border-border p-4">
         <h3 className="text-base font-semibold">Vidéos à vérifier ({data.pendingVideos.length})</h3>
         <p className="text-xs text-muted-foreground">Ouvrez le lien, regardez les vues réelles et la mention de Sam Flash, puis saisissez les vues vérifiées et éligibles.</p>
@@ -185,6 +186,7 @@ export function AdminMonetizePanel() {
           </div>
         ))}
       </section>
+        </>
       )}
 
     </div>
