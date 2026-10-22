@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { PartnerGate } from "@/components/samflash/PartnerApplicationForm";
+import { PartnerDashboard } from "@/components/samflash/PartnerDashboard";
 import { PARTNER_COMMISSION_PERCENT, MIN_WITHDRAWAL_USD } from "@/lib/partner-config";
 
 export const Route = createFileRoute("/partenaires")({
@@ -83,11 +84,7 @@ function PartenairesPage() {
             <p className="py-6 text-center text-sm text-muted-foreground">Chargement…</p>
           ) : session ? (
             <PartnerGate>
-              <div className={`${glass} text-center`}>
-                <p className="text-base font-semibold">Votre demande est approuvée</p>
-                <p className="mt-1 text-sm text-muted-foreground">Retrouvez votre lien et vos commissions dans votre espace.</p>
-                <Link to="/parrainage" className={`${pill} mt-6`}>Ouvrir mon espace partenaire</Link>
-              </div>
+              <PartnerDashboard />
             </PartnerGate>
           ) : (
             <div className={`${glass} space-y-5 text-center`}>
