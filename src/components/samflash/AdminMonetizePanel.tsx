@@ -28,6 +28,7 @@ export function AdminMonetizePanel() {
   const [views, setViews] = useState<Record<string, { v: string; e: string; reason: string }>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<"partners" | "creators" | "settings">("partners");
 
   const refresh = useCallback(() => {
     load()
@@ -58,7 +59,6 @@ export function AdminMonetizePanel() {
   const set = <K extends keyof MonetizeSettings>(k: K, v: MonetizeSettings[K]) => setForm({ ...form, [k]: v });
   const codes = parseCountryCodes(countries);
 
-  const [view, setView] = useState<"partners" | "creators" | "settings">("partners");
 
   return (
     <div className="space-y-5">
