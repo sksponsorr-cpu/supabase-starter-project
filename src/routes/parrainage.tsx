@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PartnerDashboard } from "@/components/samflash/PartnerDashboard";
+import { PartnerGate } from "@/components/samflash/PartnerApplicationForm";
 import { useServerFn } from "@tanstack/react-start";
 import { Gift, Copy, Share2, Users, ShoppingBag, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -133,7 +134,9 @@ function ParrainagePage() {
 
             </>
           )}
-          <PartnerDashboard />
+          <PartnerGate>
+            <PartnerDashboard />
+          </PartnerGate>
         </main>
       </div>
 
