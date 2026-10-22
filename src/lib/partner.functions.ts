@@ -308,3 +308,125 @@ export const adminResolvePartnerWithdrawal = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+export type PartnerApplication = {
+  id: string;
+  status: "en_attente" | "approuve" | "refuse" | null;
+  createdAt: string | null;
+  adminNote: string | null;
+};
+
+/** Statut de la demande d'adhésion de l'utilisateur connecté. */
+export const getMyPartnerApplication = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PartnerApplication> => {
+    const db = await serviceDb();
+    const { data } = await db
+      .from("partner_applications")
+      .select("id, status, created_at, admin_note")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!data) return { id: "", status: null, createdAt: null, adminNote: null };
+    return {
+      id: data.id,
+      status: data.status,
+      createdAt: data.created_at,
+      adminNote: data.admin_note ?? null,
+    };
+  });
+
+const applicationSchema = z.object({
+  fullName: z.string().trim().min(3).max(80),
+  email: z.string().trim().email().max(120),
+  phone: z.string().trim().min(6).max(20),
+  countryCode: z.string().length(2),
+  channels: z.string().trim().min(5).max(500),
+  audience: z.string().trim().max(300).optional().default(""),
+  acceptTerms: z.literal(true),
+});
+
+/** Envoi d'une demande d'adhésion au programme partenaires. */
+export const submitPartnerApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => applicationSchema.parse(input))
+  .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
+    const country = findCountry(data.countryCode.toUpperCase());
+    if (!country) return { ok: false, message: "Pays non pris en charge." };
+
+    const db = await serviceDb();
+    const { data: existing } = await db
+      .from("partner_applications")
+      .select("id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (existing) return { ok: false, message: "Vous avez déjà envoyé une demande." };
+
+    const { error } = await db.from("partner_applications").insert({
+      user_id: context.userId,
+      full_name: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      country_code: country.code,
+      channels: data.channels,
+      audience: data.audience ?? "",
+      status: "en_attente",
+    });
+    return error
+      ? { ok: false, message: "Envoi impossible pour le moment. Réessayez." }
+      : { ok: true, message: "Demande envoyée. Nous vous répondons sous quelques jours." };
+  });
+
+export type AdminApplication = {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  countryCode: string;
+  channels: string;
+  audience: string;
+  status: "en_attente" | "approuve" | "refuse";
+  createdAt: string;
+};
+
+/** Admin : liste des demandes d'adhésion, les plus récentes d'abord. */
+export const adminListPartnerApplications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminApplication[]> => {
+    await assertAdmin(context as any);
+    const db = await serviceDb();
+    const { data } = await db
+      .from("partner_applications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return (data ?? []).map((a: any) => ({
+      id: a.id,
+      userId: a.user_id,
+      fullName: a.full_name,
+      email: a.email,
+      phone: a.phone,
+      countryCode: a.country_code,
+      channels: a.channels,
+      audience: a.audience ?? "",
+      status: a.status,
+      createdAt: a.created_at,
+    }));
+  });
+
+/** Admin : approuve ou refuse une demande en attente. */
+export const adminReviewPartnerApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), action: z.enum(["approuve", "refuse"]) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ ok: boolean }> => {
+    await assertAdmin(context as any);
+    const db = await serviceDb();
+    const { error } = await db
+      .from("partner_applications")
+      .update({ status: data.action, reviewed_at: new Date().toISOString(), reviewed_by: context.userId })
+      .eq("id", data.id)
+      .eq("status", "en_attente");
+    return { ok: !error };
+  });
