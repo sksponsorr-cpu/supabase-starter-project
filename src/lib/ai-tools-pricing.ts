@@ -1,3 +1,4 @@
+import { kieCreditsToSamCredits } from "@/lib/ai-pricing";
 
 export type AiTool = "avatar" | "clone";
 
@@ -31,16 +32,12 @@ export function variantsFor(tool: AiTool): AiVariant[] {
   return tool === "avatar" ? AVATAR_VARIANTS : CLONE_VARIANTS;
 }
 
-/** Coût en crédits Sam Flash (3 décimales, arrondi au-dessus). */
-export function jobCost(_variant: AiVariant, seconds: number): number {
-  // Règle fixe : 1 seconde = 100 crédits, quelle que soit la qualité.
-  return Math.ceil(seconds * CREDITS_PER_SECOND);
+/** Coût par seconde en crédits Sam Flash, calculé à partir du tarif Kie de la variante. */
+export function costPerSecond(variant: AiVariant): number {
+  return kieCreditsToSamCredits(variant.kieRate);
 }
 
-/** Crédits par seconde pour les outils clonage et avatar. */
-export const CREDITS_PER_SECOND = 100;
-
-/** Coût par seconde, pour l'affichage. */
-export function costPerSecond(_variant: AiVariant): number {
-  return CREDITS_PER_SECOND;
+/** Coût total en crédits Sam Flash (3 décimales, arrondi au-dessus). */
+export function jobCost(variant: AiVariant, seconds: number): number {
+  return Math.ceil(seconds * costPerSecond(variant) * 1000) / 1000;
 }
