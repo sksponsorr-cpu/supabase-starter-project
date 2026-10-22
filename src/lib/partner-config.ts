@@ -11,36 +11,42 @@ export function affiliateLink(code: string): string {
   return `${PARTNER_SITE_URL}/?ref=${encodeURIComponent(code)}`;
 }
 
-/** Idées de créations à proposer aux partenaires pour s'inspirer. */
-export const PARTNER_INSPIRATIONS: { title: string; format: string; prompt: string }[] = [
+/** Idées de contenu : présenter Sam Flash et ce que l'outil permet, sans obligation de créer une vidéo. */
+export const PARTNER_INSPIRATIONS: { title: string; format: string; idea: string; hook: string }[] = [
   {
-    title: "Produit en lumière douce",
-    format: "Image · 1:1",
-    prompt: "Photo produit minimaliste, lumière douce de fin de journée, fond beige, ombre portée subtile, style publicitaire haut de gamme",
+    title: "Ce que Sam Flash permet de faire",
+    format: "Vidéo · 30 s",
+    idea: "Présentez l'outil en trois usages concrets : un visuel produit, une publicité, une image pour les réseaux. Montrez l'écran, pas besoin de créer quoi que ce soit en direct.",
+    hook: "Trois choses que je fais maintenant avec une seule application.",
   },
   {
-    title: "Pub UGC dans la rue",
-    format: "Vidéo · 9:16 · 6 s",
-    prompt: "Une jeune femme tient le produit face caméra dans une rue animée, ton naturel et enthousiaste, mouvement de caméra à l'épaule",
+    title: "Une semaine sans photographe",
+    format: "Carrousel · 5 slides",
+    idea: "Expliquez comment un petit commerçant peut préparer ses visuels de la semaine avec Sam Flash, slide après slide : besoin, outil, résultat.",
+    hook: "Plus besoin de payer un photographe pour chaque produit.",
   },
   {
-    title: "Avant / après",
+    title: "Pourquoi j'ai choisi Sam Flash",
+    format: "Vidéo face caméra · 45 s",
+    idea: "Racontez votre expérience personnelle : le problème que vous aviez, ce que vous avez découvert, ce qui vous a convaincu. Restez honnête sur ce que vous avez réellement testé.",
+    hook: "Je voulais des visuels pro sans budget pro. Voilà ce que j'ai trouvé.",
+  },
+  {
+    title: "Comparer les modèles disponibles",
     format: "Image · 4:5",
-    prompt: "Deux visuels côte à côte, à gauche le problème en tons ternes, à droite la solution en couleurs vives, composition claire et lisible",
+    idea: "Présentez les différents modèles proposés dans Sam Flash (images, vidéos) et à quoi chacun sert, en une phrase par modèle. Aidez l'abonné à choisir.",
+    hook: "Un seul outil, plusieurs modèles. Voici à quoi servent-ils.",
   },
   {
-    title: "Témoignage stylé",
-    format: "Vidéo · 9:16 · 8 s",
-    prompt: "Portrait d'une personne souriante qui recommande le produit, arrière-plan flou d'un salon moderne, lumière chaude",
+    title: "Le coût affiché avant de créer",
+    format: "Vidéo · 20 s",
+    idea: "Montrez que le coût d'une création est affiché avant de la lancer, et expliquez simplement la différence entre une image et une vidéo.",
+    hook: "Je sais combien je dépense avant de cliquer. C'est ça qui me rassure.",
   },
   {
-    title: "Affiche de promotion",
-    format: "Image · 3:4",
-    prompt: "Affiche promotionnelle épurée, titre en grand, produit au centre, dégradé bleu et or, typographie moderne",
-  },
-  {
-    title: "Mannequin portant le produit",
-    format: "Image · 9:16",
-    prompt: "Mannequin portant le produit dans un décor urbain, pose naturelle, éclairage studio doux, rendu photo professionnel",
+    title: "Idées pour vos réseaux",
+    format: "Post · texte + image",
+    idea: "Listez cinq types de contenus que l'on peut préparer avec Sam Flash : affiche de promo, visuel de produit, fond pour story, miniature, illustration de blog.",
+    hook: "Cinq contenus à préparer en une après-midi.",
   },
 ];
