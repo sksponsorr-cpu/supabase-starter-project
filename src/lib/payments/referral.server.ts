@@ -26,7 +26,12 @@ export async function creditReferralConversion(orderId: string, buyerId: string 
   // Commission partenaire : pourcentage du montant payé, enregistrée une seule fois par commande.
   const { data: order } = await db.from("orders").select("amount_eur").eq("id", orderId).maybeSingle();
   const amount = Number(order?.amount_eur ?? 0);
-  if (amount > 0) {
+  const { data: application } = await db
+    .from("partner_applications")
+    .select("status")
+    .eq("user_id", referral.referrer_id)
+    .maybeSingle();
+  if (amount > 0 && application?.status === "approuve") {
     const commission = Math.round(amount * PARTNER_COMMISSION_PERCENT) / 100;
     await db.from("partner_commissions").upsert(
       {
