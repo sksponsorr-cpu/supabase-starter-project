@@ -5,25 +5,32 @@ import {
   adminResolvePartnerWithdrawal,
   adminListPartnerApplications,
   adminReviewPartnerApplication,
+  adminAddPartner,
   type AdminPartnerOverview,
   type AdminApplication,
 } from "@/lib/partner.functions";
 import { formatLocalAmount, findCountry } from "@/lib/payments/countries";
 
-const card = "rounded-2xl border border-border p-4 space-y-3";
+const card = "rounded-3xl border border-border bg-card/50 p-5 space-y-5 backdrop-blur-xl";
+const field = "w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition-all duration-300 focus:border-primary/60";
 const btn = "rounded-full px-4 py-2 text-xs font-semibold transition-all duration-500 ease-out hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-40";
+const sectionTitle = "text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground";
 
-/** Bureau admin : demandes d'adhésion, évolution des parrains et retraits à traiter. */
+/** Bureau admin : ajout direct de partenaires, demandes d'adhésion, retraits et évolution des parrains. */
 export function AdminPartnersPanel() {
   const fetchOverview = useServerFn(adminPartnerOverview);
   const resolve = useServerFn(adminResolvePartnerWithdrawal);
   const fetchApps = useServerFn(adminListPartnerApplications);
   const reviewApp = useServerFn(adminReviewPartnerApplication);
+  const addPartner = useServerFn(adminAddPartner);
 
   const [data, setData] = useState<AdminPartnerOverview | null>(null);
   const [apps, setApps] = useState<AdminApplication[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [addEmail, setAddEmail] = useState("");
+  const [addLink, setAddLink] = useState("");
 
   const reload = () =>
     Promise.all([fetchOverview(), fetchApps()])
@@ -47,7 +54,22 @@ export function AdminPartnersPanel() {
 
   const review = async (id: string, action: "approuve" | "refuse") => {
     setBusy(id);
-    await reviewApp({ data: { id, action } }).catch(() => null);
+    setNotice(null);
+    const res = await reviewApp({ data: { id, action } }).catch(() => ({ ok: false, message: "Erreur réseau." }));
+    setNotice(res.message);
+    await reload();
+    setBusy(null);
+  };
+
+  const onAdd = async () => {
+    setBusy("add");
+    setNotice(null);
+    const res = await addPartner({ data: { email: addEmail, link: addLink } }).catch(() => ({ ok: false, message: "Erreur réseau." }));
+    setNotice(res.message);
+    if (res.ok) {
+      setAddEmail("");
+      setAddLink("");
+    }
     await reload();
     setBusy(null);
   };
@@ -59,24 +81,45 @@ export function AdminPartnersPanel() {
 
   return (
     <section className={card}>
-      <h3 className="text-base font-semibold">Partenaires</h3>
+      <div>
+        <h3 className="text-lg font-semibold tracking-tight">Partenaires</h3>
+        <p className="text-xs text-muted-foreground">Ajoutez un partenaire déjà inscrit, ou traitez les demandes.</p>
+      </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Demandes d'adhésion ({pendingApps.length} en attente)</p>
+      {notice && <p className="rounded-2xl bg-primary/10 px-4 py-3 text-sm">{notice}</p>}
+
+      {/* Ajout direct */}
+      <div className="space-y-3 rounded-2xl border border-border p-4">
+        <p className={sectionTitle}>Ajouter un partenaire</p>
+        <input className={field} type="email" placeholder="E-mail du compte inscrit" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
+        <input className={field} placeholder="Son lien affilié (https://sam-flash.lat/?ref=…)" value={addLink} onChange={(e) => setAddLink(e.target.value)} />
+        <button
+          type="button"
+          className={`${btn} bg-primary text-primary-foreground`}
+          disabled={busy === "add" || !addEmail.includes("@") || addLink.trim().length < 5}
+          onClick={() => void onAdd()}
+        >
+          {busy === "add" ? "Ajout…" : "Ajouter et envoyer le lien par e-mail"}
+        </button>
+      </div>
+
+      {/* Demandes */}
+      <div className="space-y-3">
+        <p className={sectionTitle}>Demandes d'adhésion ({pendingApps.length})</p>
         {pendingApps.length === 0 && <p className="text-sm text-muted-foreground">Aucune demande en attente.</p>}
         {pendingApps.map((a) => (
-          <div key={a.id} className="space-y-2 rounded-xl bg-secondary/40 px-3 py-2 text-sm">
-            <p className="font-medium">
-              {a.fullName} · {findCountry(a.countryCode)?.name ?? a.countryCode}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {a.email} · {a.phone}
-            </p>
-            <p className="text-xs">{a.channels}</p>
+          <div key={a.id} className="space-y-3 rounded-2xl border border-border p-4">
+            <div>
+              <p className="font-semibold">{a.fullName}</p>
+              <p className="text-xs text-muted-foreground">
+                {findCountry(a.countryCode)?.name ?? a.countryCode} · {a.email} · {a.phone}
+              </p>
+            </div>
+            <p className="whitespace-pre-line break-all text-xs">{a.channels}</p>
             {a.audience && <p className="text-xs text-muted-foreground">Audience : {a.audience}</p>}
             <div className="flex gap-2">
               <button className={`${btn} bg-primary text-primary-foreground`} disabled={busy === a.id} onClick={() => void review(a.id, "approuve")}>
-                Approuver
+                Approuver et envoyer le lien
               </button>
               <button className={`${btn} bg-secondary`} disabled={busy === a.id} onClick={() => void review(a.id, "refuse")}>
                 Refuser
@@ -86,38 +129,32 @@ export function AdminPartnersPanel() {
         ))}
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Demandes de retrait ({data.pendingWithdrawals.length})</p>
+      {/* Retraits */}
+      <div className="space-y-3">
+        <p className={sectionTitle}>Demandes de retrait ({data.pendingWithdrawals.length})</p>
         {data.pendingWithdrawals.length === 0 && <p className="text-sm text-muted-foreground">Aucune demande en attente.</p>}
         {data.pendingWithdrawals.map((w) => (
-          <div key={w.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-3 py-2 text-sm">
+          <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-4 text-sm">
             <div>
-              <p className="font-medium">
-                {w.code} · {formatLocalAmount(w.amountLocal, w.currency)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {w.method} · {w.mobile} · {w.amountEur.toFixed(2)} € net
-              </p>
+              <p className="font-semibold">{formatLocalAmount(w.amountLocal, w.currency)}</p>
+              <p className="text-xs text-muted-foreground">{w.method} · {w.mobile} · {w.amountEur.toFixed(2)} € net</p>
             </div>
             <div className="flex gap-2">
-              <button className={`${btn} bg-primary text-primary-foreground`} disabled={busy === w.id} onClick={() => void act(w.id, "verse")}>
-                Marquer versé
-              </button>
-              <button className={`${btn} bg-secondary`} disabled={busy === w.id} onClick={() => void act(w.id, "refuse")}>
-                Refuser
-              </button>
+              <button className={`${btn} bg-primary text-primary-foreground`} disabled={busy === w.id} onClick={() => void act(w.id, "verse")}>Marquer versé</button>
+              <button className={`${btn} bg-secondary`} disabled={busy === w.id} onClick={() => void act(w.id, "refuse")}>Refuser</button>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Évolution des parrains</p>
+      {/* Évolution */}
+      <div className="space-y-3">
+        <p className={sectionTitle}>Évolution des parrains</p>
         {data.partners.length === 0 && <p className="text-sm text-muted-foreground">Aucun parrain pour le moment.</p>}
         {data.partners.map((p) => (
-          <div key={p.userId} className="grid grid-cols-5 gap-2 rounded-xl px-3 py-2 text-xs tabular-nums">
-            <span className="font-medium">{p.code}</span>
-            <span>{p.signups} insc.</span>
+          <div key={p.userId} className="grid grid-cols-2 gap-2 rounded-2xl border border-border p-4 text-xs tabular-nums sm:grid-cols-5">
+            <span className="font-mono font-semibold">{p.code}</span>
+            <span>{p.signups} inscrits</span>
             <span>{p.conversions} achats</span>
             <span>{p.available.toFixed(2)} € dispo</span>
             <span>{p.paid.toFixed(2)} € versé</span>
