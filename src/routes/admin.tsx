@@ -124,13 +124,13 @@ import { formatSeconds } from "@/lib/quota";
 export const Route = createFileRoute("/admin")({
  head: () => ({
   meta: [
-   { title: "Bureau d'administration — Sam flash 2.0" },
+   { title: "Administration — Sam Flash" },
    {
     name: "description",
     content:
      "Tableau de bord d'administration Sam flash 2.0 : utilisateurs, générations, quotas, abonnements, collaborateurs et support.",
    },
-   { property: "og:title", content: "Bureau d'administration — Sam flash 2.0" },
+   { property: "og:title", content: "Administration — Sam Flash" },
    {
     property: "og:description",
     content: "Statistiques, prix, collaborateurs et support Sam flash 2.0.",
@@ -664,7 +664,7 @@ function AdminPage() {
   },
   { id: "moderation", label: "Modération", icon: ShieldCheck, show: canModerate },
   { id: "content", label: "Créations", icon: Images, show: isAdmin },
-  { id: "monetise", label: "Monétisation", icon: Wallet, show: isAdmin },
+  { id: "monetise", label: "Partenaires & gains", icon: Wallet, show: isAdmin },
   { id: "payouts", label: "Développeurs", icon: Wallet, show: isAdmin },
  ].filter((s) => s.show);
 
@@ -693,10 +693,10 @@ function AdminPage() {
      </Link>
      <div className="min-w-0">
       <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-       <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Espace équipe
+       <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Administration
       </p>
       <h1 className="truncate text-[19px] font-semibold tracking-tight">
-       Bureau d'administration
+       Sam Flash
       </h1>
      </div>
      <button
