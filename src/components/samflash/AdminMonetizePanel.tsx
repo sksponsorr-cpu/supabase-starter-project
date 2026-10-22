@@ -58,9 +58,33 @@ export function AdminMonetizePanel() {
   const set = <K extends keyof MonetizeSettings>(k: K, v: MonetizeSettings[K]) => setForm({ ...form, [k]: v });
   const codes = parseCountryCodes(countries);
 
+  const [view, setView] = useState<"partners" | "creators" | "settings">("partners");
+
   return (
-    <div className="space-y-4">
-      <AdminPartnersPanel />
+    <div className="space-y-5">
+      <div className="inline-flex gap-1 rounded-full border border-border bg-card/50 p-1">
+        {(
+          [
+            { id: "partners", label: "Partenaires" },
+            { id: "creators", label: "Créateurs" },
+            { id: "settings", label: "Réglages" },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setView(t.id)}
+            className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-500 ease-out ${
+              view === t.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "partners" && <AdminPartnersPanel />}
+      {view === "settings" && (
       <section className="space-y-3 rounded-2xl border border-border p-4">
         <h3 className="text-base font-semibold">Réglages Monétise</h3>
         <p className="text-xs text-muted-foreground">
@@ -102,7 +126,9 @@ export function AdminMonetizePanel() {
           Enregistrer les réglages
         </button>
       </section>
+      )}
 
+      {view === "creators" && (
       <section className="space-y-3 rounded-2xl border border-border p-4">
         <h3 className="text-base font-semibold">Vidéos à vérifier ({data.pendingVideos.length})</h3>
         <p className="text-xs text-muted-foreground">Ouvrez le lien, regardez les vues réelles et la mention de Sam Flash, puis saisissez les vues vérifiées et éligibles.</p>
@@ -159,6 +185,8 @@ export function AdminMonetizePanel() {
           </div>
         ))}
       </section>
+      )}
+
     </div>
   );
 }
