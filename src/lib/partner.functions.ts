@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { findCountry, formatLocalAmount } from "@/lib/payments/countries";
-import { MIN_WITHDRAWAL_USD, EUR_PER_USD_APPROX } from "@/lib/partner-config";
+import { MIN_WITHDRAWAL_USD, EUR_PER_USD_APPROX, PARTNER_SITE_URL, affiliateLink } from "@/lib/partner-config";
 
 type Db = any;
 
@@ -37,6 +37,7 @@ async function minimumLocal(countryCode: string | null) {
 
 export type PartnerDashboard = {
   code: string;
+  link: string;
   country: { code: string; name: string; currency: string } | null;
   signups: number;
   conversions: number;
@@ -100,6 +101,7 @@ export const getPartnerDashboard = createServerFn({ method: "GET" })
 
     return {
       code: row.code as string,
+      link: affiliateLink(row.code as string),
       country: country ? { code: country.code, name: country.name, currency: country.currency } : null,
       signups: signups ?? 0,
       conversions: conversions ?? 0,
@@ -414,19 +416,141 @@ export const adminListPartnerApplications = createServerFn({ method: "GET" })
     }));
   });
 
-/** Admin : approuve ou refuse une demande en attente. */
+/** Crée (si besoin) le code d'affiliation d'un partenaire et renvoie le code. */
+async function ensureAffiliateCode(db: Db, userId: string, countryCode: string | null): Promise<string> {
+  const { data: existing } = await db.from("referral_codes").select("code").eq("user_id", userId).maybeSingle();
+  if (existing?.code) return existing.code as string;
+  for (let i = 0; i < 5; i++) {
+    const code = globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+    const { error } = await db.from("referral_codes").insert({ user_id: userId, code, country_code: countryCode });
+    if (!error) return code;
+  }
+  throw new Error("Impossible de créer le lien affilié.");
+}
+
+/** Envoie au partenaire approuvé son lien affilié, par e-mail. */
+async function notifyApprovedPartner(email: string, name: string, link: string) {
+  const { sendAdminDirectEmail } = await import("@/lib/services/brevo.server");
+  const body = [
+    `Bonjour ${name},`,
+    "",
+    "Votre demande pour devenir partenaire Sam Flash a été approuvée.",
+    "",
+    `Votre lien affilié : ${link}`,
+    "",
+    "Partagez ce lien : chaque personne qui s'inscrit avec et achète un abonnement vous rapporte 25 %.",
+    "",
+    "Suivez vos inscriptions, vos commissions et demandez vos retraits dans votre espace partenaire :",
+    `${PARTNER_SITE_URL}/partenaires`,
+    "",
+    "L'équipe Sam Flash",
+  ].join("\n");
+  return sendAdminDirectEmail({
+    toEmail: email,
+    subject: "Votre demande partenaire est approuvée",
+    messageBody: body,
+  });
+}
+
+/** Admin : approuve ou refuse une demande. L'approbation crée le lien et envoie l'e-mail. */
 export const adminReviewPartnerApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ id: z.string().uuid(), action: z.enum(["approuve", "refuse"]) }).parse(input),
   )
-  .handler(async ({ context, data }): Promise<{ ok: boolean }> => {
+  .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
     await assertAdmin(context as any);
     const db = await serviceDb();
+
+    const { data: app } = await db
+      .from("partner_applications")
+      .select("*")
+      .eq("id", data.id)
+      .eq("status", "en_attente")
+      .maybeSingle();
+    if (!app) return { ok: false, message: "Demande introuvable ou déjà traitée." };
+
     const { error } = await db
       .from("partner_applications")
       .update({ status: data.action, reviewed_at: new Date().toISOString(), reviewed_by: context.userId })
-      .eq("id", data.id)
-      .eq("status", "en_attente");
-    return { ok: !error };
+      .eq("id", data.id);
+    if (error) return { ok: false, message: "Mise à jour impossible." };
+    if (data.action === "refuse") return { ok: true, message: "Demande refusée." };
+
+    const code = await ensureAffiliateCode(db, app.user_id, app.country_code);
+    const mail = await notifyApprovedPartner(app.email, app.full_name, affiliateLink(code));
+    return {
+      ok: true,
+      message: mail.ok ? "Partenaire approuvé. Email envoyé." : "Partenaire approuvé, mais l'email n'a pas pu partir.",
+    };
+  });
+
+/** Admin : ajoute directement un partenaire déjà inscrit, à partir de son e-mail et de son lien affilié. */
+export const adminAddPartner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        email: z.string().trim().email().max(120),
+        link: z.string().trim().min(5).max(300),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
+    await assertAdmin(context as any);
+    const db = await serviceDb();
+
+    const email = data.email.toLowerCase();
+    const { data: profile } = await db
+      .from("profiles")
+      .select("id, full_name")
+      .ilike("email", email)
+      .maybeSingle();
+    if (!profile) return { ok: false, message: "Aucun compte inscrit avec cet e-mail." };
+
+    const match = data.link.match(/[?&]ref=([A-Za-z0-9]+)/);
+    const code = match ? match[1].toUpperCase() : null;
+    if (!code) return { ok: false, message: "Lien affilié invalide : il doit contenir ?ref=…" };
+
+    const { data: ref } = await db
+      .from("referral_codes")
+      .select("user_id, country_code")
+      .eq("code", code)
+      .maybeSingle();
+    if (!ref || ref.user_id !== profile.id) {
+      return { ok: false, message: "Ce lien n'appartient pas à ce compte." };
+    }
+    if (!ref.country_code) {
+      return { ok: false, message: "Le partenaire doit d'abord choisir son pays dans son espace." };
+    }
+
+    const now = new Date().toISOString();
+    const row = {
+      user_id: profile.id,
+      full_name: (profile.full_name as string | null) ?? email,
+      email,
+      phone: "Ajouté par l'administrateur",
+      country_code: ref.country_code as string,
+      channels: "Ajouté par l'administrateur",
+      audience: "",
+      status: "approuve" as const,
+      reviewed_at: now,
+      reviewed_by: context.userId,
+    };
+    const { data: existingApp } = await db
+      .from("partner_applications")
+      .select("id")
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    const write = existingApp
+      ? db.from("partner_applications").update(row).eq("id", existingApp.id)
+      : db.from("partner_applications").insert(row);
+    const { error } = await write;
+    if (error) return { ok: false, message: "Enregistrement impossible." };
+
+    const mail = await notifyApprovedPartner(email, row.full_name, affiliateLink(code));
+    return {
+      ok: true,
+      message: mail.ok ? "Partenaire ajouté. Lien envoyé par email." : "Partenaire ajouté, mais l'email n'a pas pu partir.",
+    };
   });
