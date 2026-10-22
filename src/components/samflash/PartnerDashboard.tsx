@@ -7,16 +7,17 @@ import {
   type PartnerDashboard as Dashboard,
 } from "@/lib/partner.functions";
 import { SUPPORTED_COUNTRIES, formatLocalAmount, getFlagEmoji } from "@/lib/payments/countries";
-import { PARTNER_COMMISSION_PERCENT } from "@/lib/partner-config";
+import { PARTNER_COMMISSION_PERCENT, PARTNER_INSPIRATIONS } from "@/lib/partner-config";
 
-const card = "rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl transition-all duration-500 ease-out";
-const field = "w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3 text-sm outline-none transition-colors duration-300 focus:border-primary/60";
-const pill = "rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all duration-500 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:hover:translate-y-0";
+const glass = "rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-2xl transition-all duration-500 ease-out";
+const field = "w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3 text-sm outline-none transition-all duration-300 focus:border-primary/60";
+const pill = "inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_10px_40px_-12px] shadow-primary/60 transition-all duration-500 ease-out hover:-translate-y-0.5 active:scale-[0.98] disabled:translate-y-0 disabled:opacity-40";
+const soft = "inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-medium transition-all duration-300 hover:bg-white/10 active:scale-[0.98]";
 
 const fmtEur = (n: number) => `${n.toFixed(2)} €`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 
-/** Espace partenaire : évolution des filleuls, solde séparé, pays et demande de retrait. */
+/** Espace partenaire : lien affilié, évolution, solde, retraits et idées d'inspiration. */
 export function PartnerDashboard() {
   const fetchDash = useServerFn(getPartnerDashboard);
   const saveCountry = useServerFn(setPartnerCountry);
@@ -25,6 +26,7 @@ export function PartnerDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"link" | "idea" | null>(null);
   const [busy, setBusy] = useState(false);
   const [method, setMethod] = useState("Mobile Money");
   const [mobile, setMobile] = useState("");
@@ -38,6 +40,27 @@ export function PartnerDashboard() {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const flash = (what: "link" | "idea") => {
+    setCopied(what);
+    setTimeout(() => setCopied(null), 1600);
+  };
+
+  const copyLink = async (link: string) => {
+    await navigator.clipboard.writeText(link).catch(() => undefined);
+    flash("link");
+  };
+
+  const shareLink = async (link: string) => {
+    const text = `Découvrez Sam Flash : des images et vidéos créées par IA. ${link}`;
+    if (navigator.share) await navigator.share({ text, url: link }).catch(() => undefined);
+    else await copyLink(link);
+  };
+
+  const copyIdea = async (prompt: string) => {
+    await navigator.clipboard.writeText(prompt).catch(() => undefined);
+    flash("idea");
+  };
 
   const onCountry = async (code: string) => {
     setBusy(true);
@@ -59,45 +82,62 @@ export function PartnerDashboard() {
   };
 
   if (error) return <p className="text-sm text-muted-foreground">{error}</p>;
-  if (!data) return <p className="text-sm text-muted-foreground">Chargement de votre espace partenaire…</p>;
+  if (!data) return <p className="text-sm text-muted-foreground">Chargement de votre espace…</p>;
 
   const canWithdraw = data.balance.available >= data.minimumEur && !!data.country;
 
   return (
-    <section className="space-y-4">
-      <div className={card}>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">Programme partenaires</p>
-        <h2 className="mt-1 text-xl font-semibold">{PARTNER_COMMISSION_PERCENT} % sur chaque premier achat</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Gagnez une commission sur les abonnements des personnes qui s'inscrivent avec votre code {data.code}.
+    <section className="space-y-5">
+      {/* Lien affilié */}
+      <div className={`${glass} relative overflow-hidden`}>
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/25 blur-[70px]" />
+        <p className="relative text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Votre lien affilié</p>
+        <p className="relative mt-2 text-sm text-muted-foreground">
+          Partagez-le. Chaque personne qui s'inscrit avec et achète un abonnement vous rapporte {PARTNER_COMMISSION_PERCENT} %.
         </p>
+        <a
+          href={data.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative mt-4 block break-all rounded-2xl border border-white/10 bg-background/60 px-4 py-3.5 font-mono text-sm text-sky-300 underline-offset-4 hover:underline"
+        >
+          {data.link}
+        </a>
+        <div className="relative mt-4 flex flex-wrap gap-3">
+          <button type="button" className={pill} onClick={() => void copyLink(data.link)}>
+            {copied === "link" ? "Lien copié ✓" : "Copier le lien"}
+          </button>
+          <button type="button" className={soft} onClick={() => void shareLink(data.link)}>Partager</button>
+        </div>
       </div>
 
+      {/* Évolution */}
       <div className="grid grid-cols-2 gap-3">
-        <div className={card}>
-          <p className="text-xs text-muted-foreground">Inscriptions</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{data.signups}</p>
+        <div className={glass}>
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Inscriptions</p>
+          <p className="mt-2 text-3xl font-semibold tabular-nums">{data.signups}</p>
         </div>
-        <div className={card}>
-          <p className="text-xs text-muted-foreground">Achats convertis</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{data.conversions}</p>
+        <div className={glass}>
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Achats convertis</p>
+          <p className="mt-2 text-3xl font-semibold tabular-nums">{data.conversions}</p>
         </div>
       </div>
 
-      <div className={card}>
-        <p className="text-sm font-semibold">Votre solde partenaire</p>
-        <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-lg font-semibold tabular-nums">{fmtEur(data.balance.available)}</p>
-            <p className="text-xs text-muted-foreground">Disponible</p>
+      {/* Solde */}
+      <div className={glass}>
+        <p className="text-sm font-semibold">Votre solde</p>
+        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div className="rounded-2xl bg-white/[0.03] py-3">
+            <p className="text-base font-semibold tabular-nums">{fmtEur(data.balance.available)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Disponible</p>
           </div>
-          <div>
-            <p className="text-lg font-semibold tabular-nums">{fmtEur(data.balance.reserved)}</p>
-            <p className="text-xs text-muted-foreground">En retrait</p>
+          <div className="rounded-2xl bg-white/[0.03] py-3">
+            <p className="text-base font-semibold tabular-nums">{fmtEur(data.balance.reserved)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">En retrait</p>
           </div>
-          <div>
-            <p className="text-lg font-semibold tabular-nums">{fmtEur(data.balance.paid)}</p>
-            <p className="text-xs text-muted-foreground">Versé</p>
+          <div className="rounded-2xl bg-white/[0.03] py-3">
+            <p className="text-base font-semibold tabular-nums">{fmtEur(data.balance.paid)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Versé</p>
           </div>
         </div>
 
@@ -112,18 +152,13 @@ export function PartnerDashboard() {
           >
             <option value="" disabled>Choisir un pays</option>
             {SUPPORTED_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {getFlagEmoji(c.code)} {c.name} ({c.currency})
-              </option>
+              <option key={c.code} value={c.code}>{getFlagEmoji(c.code)} {c.name} ({c.currency})</option>
             ))}
           </select>
           {data.minimumLocal ? (
             <p className="text-xs text-muted-foreground">
               Retrait possible dès {data.minimumUsd} $, soit{" "}
-              <span className="font-medium text-foreground">
-                {formatLocalAmount(data.minimumLocal.amount, data.minimumLocal.currency)}
-              </span>
-              .
+              <span className="font-medium text-foreground">{formatLocalAmount(data.minimumLocal.amount, data.minimumLocal.currency)}</span>.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Choisissez un pays pour voir le minimum de retrait.</p>
@@ -136,12 +171,7 @@ export function PartnerDashboard() {
               <option>Mobile Money</option>
               <option>Virement bancaire</option>
             </select>
-            <input
-              className={field}
-              placeholder="Numéro de réception"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-            />
+            <input className={field} placeholder="Numéro de réception" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             <button className={pill} disabled={busy || mobile.trim().length < 6} onClick={() => void onWithdraw()}>
               Demander le retrait
             </button>
@@ -149,22 +179,45 @@ export function PartnerDashboard() {
         ) : (
           <p className="mt-5 text-xs text-muted-foreground">
             {data.country
-              ? `Le bouton de retrait apparaît dès que votre solde disponible atteint le minimum.`
+              ? "Le retrait apparaît dès que votre solde disponible atteint le minimum."
               : "Choisissez votre pays pour activer les retraits."}
           </p>
         )}
-
         {notice && <p className="mt-3 rounded-2xl bg-primary/10 px-4 py-3 text-sm">{notice}</p>}
       </div>
 
-      <div className={card}>
+      {/* Inspiration */}
+      <div className={glass}>
+        <p className="text-sm font-semibold">Idées pour inspirer vos publications</p>
+        <p className="mt-1 text-xs text-muted-foreground">Copiez une idée, collez-la dans Sam Flash, puis adaptez-la à votre produit.</p>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {PARTNER_INSPIRATIONS.map((idea) => (
+            <button
+              key={idea.title}
+              type="button"
+              onClick={() => void copyIdea(idea.prompt)}
+              className="group rounded-2xl border border-white/10 bg-background/40 p-4 text-left transition-all duration-500 ease-out hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.98]"
+            >
+              <p className="text-[11px] text-sky-300">{idea.format}</p>
+              <p className="mt-1 text-sm font-semibold">{idea.title}</p>
+              <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{idea.prompt}</p>
+              <p className="mt-3 text-[11px] text-muted-foreground transition-colors group-hover:text-foreground">
+                {copied === "idea" ? "Idée copiée ✓" : "Copier l'idée"}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Historique */}
+      <div className={glass}>
         <p className="text-sm font-semibold">Derniers achats de vos filleuls</p>
         {data.sales.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">Aucun achat pour le moment.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Aucun achat pour le moment.</p>
         ) : (
           <ul className="mt-3 divide-y divide-white/10">
             {data.sales.map((s) => (
-              <li key={s.id} className="flex items-center justify-between py-2.5 text-sm">
+              <li key={s.id} className="flex items-center justify-between py-3 text-sm">
                 <span className="text-muted-foreground">{fmtDate(s.date)}</span>
                 <span className="tabular-nums">achat {fmtEur(s.orderAmount)}</span>
                 <span className="font-medium tabular-nums">+{fmtEur(s.commission)}</span>
@@ -175,16 +228,14 @@ export function PartnerDashboard() {
       </div>
 
       {data.withdrawals.length > 0 && (
-        <div className={card}>
+        <div className={glass}>
           <p className="text-sm font-semibold">Vos demandes de retrait</p>
           <ul className="mt-3 divide-y divide-white/10">
             {data.withdrawals.map((w) => (
-              <li key={w.id} className="flex items-center justify-between py-2.5 text-sm">
+              <li key={w.id} className="flex items-center justify-between py-3 text-sm">
                 <span className="text-muted-foreground">{fmtDate(w.date)}</span>
                 <span className="tabular-nums">{formatLocalAmount(w.amountLocal, w.currency)}</span>
-                <span className="text-xs">
-                  {w.status === "en_attente" ? "En attente" : w.status === "verse" ? "Versé" : "Refusé"}
-                </span>
+                <span className="text-xs">{w.status === "en_attente" ? "En attente" : w.status === "verse" ? "Versé" : "Refusé"}</span>
               </li>
             ))}
           </ul>
