@@ -19,7 +19,7 @@ export function warmVideo(url?: string | null) {
  * - 2 vignettes maximum jouent en même temps (le reste montre sa 1re image) ;
  * - tout est mis en pause quand une vidéo s'ouvre en grand ou quand l'onglet est caché.
  */
-const MAX_PLAYING = 2;
+const MAX_PLAYING = 1;
 const playing = new Set<HTMLVideoElement>();
 let pauseCount = 0;
 const listeners = new Set<() => void>();
