@@ -1066,6 +1066,29 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
       }
     }
 
+    // 1 bis. Crédits de l'abonnement : même calcul que lors d'un achat (RPC monthly_credits),
+    // pour que l'abonné reçoive exactement les crédits inscrits dans son offre.
+    const productId =
+      planType === "superhearly_monthly" ? "heavy" : planType === "super_grok_plus" ? "plus" : "base";
+    const yearly = planType === "super_grok_annuel";
+    const { data: creditsData } = await supabaseAdmin.rpc("monthly_credits", {
+      p_product: productId,
+      p_yearly: yearly,
+    });
+    const creditsGranted = Number(creditsData ?? 0);
+    if (creditsGranted > 0) {
+      const { error: creditError } = await supabaseAdmin.rpc("add_credits", {
+        p_user: data.userId,
+        p_amount: creditsGranted,
+        p_kind: yearly ? "annuel_mensuel" : "abonnement",
+        p_ref: crypto.randomUUID(),
+      });
+      if (creditError) {
+        console.error("[ADMIN] Erreur add_credits:", creditError);
+        throw new Error("Abonnement activé, mais l'ajout des crédits a échoué.");
+      }
+    }
+
     // 2. Journalisation dans admin_actions
     try {
       await supabaseAdmin.from("admin_actions").insert({
@@ -1077,6 +1100,7 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
           tier,
           reason: data.reason.trim(),
           ends_at: endsAt,
+          credits_granted: creditsGranted,
         },
       });
     } catch (logErr) {
@@ -1085,7 +1109,7 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
 
     return {
       ok: true as const,
-      message: `Abonnement ${tier} activé avec succès jusqu'au ${new Date(endsAt).toLocaleDateString("fr-FR")}.`,
+      message: `Abonnement ${tier} activé jusqu'au ${new Date(endsAt).toLocaleDateString("fr-FR")} · ${creditsGranted} crédits ajoutés.`,
     };
   });
 
