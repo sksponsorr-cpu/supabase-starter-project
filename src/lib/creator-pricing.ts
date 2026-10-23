@@ -16,7 +16,7 @@ const PER_SECOND_KIE: Record<"grok-imagine" | "seedance-2" | "seedance-2-5", Par
   "seedance-2-5": { "480p": 28, "720p": 63, "1080p": 158 },
 };
 
-/** Veo 3.1 : prix de base par clip de 8 s, selon le niveau et la résolution. Proportionnel à la durée. */
+/** Veo 3.1 : prix fixe par vidéo, selon le niveau et la résolution. Indépendant de la durée. */
 const VEO_PER_VIDEO_KIE: Record<VeoTier, Partial<Record<PricedResolution, number>>> = {
   lite: { "720p": 30, "1080p": 35 },
   fast: { "720p": 60, "1080p": 65 },
@@ -35,16 +35,19 @@ export function kieCostFor(
   tier: VeoTier = "fast",
 ): number | null {
   if (model === "veo-3-1") {
-    // Prix de base par clip de 8 s ; il augmente avec la durée (8 s = prix de base).
-    const base = VEO_PER_VIDEO_KIE[tier][resolution];
-    if (base === undefined) return null;
-    return base * Math.max(1, Math.round(seconds)) / 8;
+    return VEO_PER_VIDEO_KIE[tier][resolution] ?? null;
   }
   const rate = PER_SECOND_KIE[model][resolution];
   return rate === undefined ? null : rate * Math.max(1, Math.round(seconds));
 }
 
 /** Coût affiché et débité, en crédits Sam Flash entiers (au moins 1). Null si la combinaison n'existe pas. */
+/** Majoration appliquée aux modèles Seedance (coût réel plus élevé). Modifiable ici seulement. */
+export const SEEDANCE_SURCHARGE: Partial<Record<PricedModel, number>> = {
+  "seedance-2": 1.5,
+  "seedance-2-5": 1.5,
+};
+
 export function samCreditsFor(
   model: PricedModel,
   resolution: PricedResolution,
@@ -53,5 +56,26 @@ export function samCreditsFor(
 ): number | null {
   const kie = kieCostFor(model, resolution, seconds, tier);
   if (kie === null) return null;
-  return Math.max(1, Math.ceil(kieCreditsToSamCredits(kie)));
+  const surcharge = SEEDANCE_SURCHARGE[model] ?? 1;
+  // Grok : +1 crédit fixe par génération.
+  const flat = model === "grok-imagine" ? 1 : 0;
+  return Math.max(1, Math.ceil(kieCreditsToSamCredits(kie) * surcharge) + flat);
+}
+
+/** Supplément fixe ajouté à chaque génération Seedance (toutes durées, toutes résolutions). */
+export const SEEDANCE_FLAT_EXTRA = 5;
+
+/**
+ * Coût d'une génération créateur, tel qu'affiché dans la barre de saisie et débité.
+ * Ne pas utiliser pour les pages d'abonnement ni la page d'accueil (elles gardent samCreditsFor).
+ */
+export function generationCreditsFor(
+  model: PricedModel,
+  resolution: PricedResolution,
+  seconds: number,
+  tier: VeoTier = "fast",
+): number | null {
+  const base = samCreditsFor(model, resolution, seconds, tier);
+  if (base === null) return null;
+  return base + (model === "seedance-2" || model === "seedance-2-5" ? SEEDANCE_FLAT_EXTRA : 0);
 }
