@@ -111,6 +111,7 @@ import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminRevenuePanel } from "@/components/samflash/AdminRevenuePanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { AdminFeaturesPanel } from "@/components/samflash/AdminFeaturesPanel";
+import { AdminGenerationPanel } from "@/components/samflash/AdminGenerationPanel";
 import { getGenerationProvider, setGenerationProvider, type GenerationProvider } from "@/lib/maintenance.functions";
 import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
 import { Loader2 as GenLoader } from "lucide-react";
@@ -2076,4 +2077,100 @@ function AdminPage() {
               </section>
             )}
 
-            {active
+            {active === "payouts" && isAdmin && (
+              <section className="pt-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div>
+                    <h2 className="text-[22px] font-semibold tracking-tight">Demandes de retrait</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Commissions enregistrées : {commissionTotal.toFixed(2)} €
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void load()}
+                    className="ml-auto rounded-full bg-secondary px-3 py-2 text-xs font-medium"
+                  >
+                    Actualiser
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {payouts.map((p) => (
+                    <article
+                      key={p.id}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-4"
+                    >
+                      <div className="flex flex-wrap items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{p.developer_name || p.developer_email || "Développeur"}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {p.developer_email || "E-mail indisponible"} · {new Date(p.created_at).toLocaleString("fr-FR")}
+                          </p>
+                        </div>
+                        <span className="text-lg font-semibold">{Number(p.amount_eur).toFixed(2)} €</span>
+                      </div>
+                      <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                        <p>Moyen : {p.method || "—"}{p.mobile ? ` · ${p.mobile}` : ""}</p>
+                        {p.note && <p>Note : {p.note}</p>}
+                        <p>Statut : {p.status}</p>
+                        {p.admin_note && <p>Note admin : {p.admin_note}</p>}
+                      </div>
+                      {p.status === "en_attente" && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const result = await decide({ data: { id: p.id, status: "payee" } });
+                                if (result.ok) {
+                                  toast.success("Demande marquée comme payée.");
+                                  await load();
+                                } else {
+                                  toast.error(result.message || "Mise à jour impossible.");
+                                }
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible.");
+                              }
+                            }}
+                            className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground"
+                          >
+                            Marquer payée
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const result = await decide({ data: { id: p.id, status: "refusee" } });
+                                if (result.ok) {
+                                  toast.success("Demande refusée.");
+                                  await load();
+                                } else {
+                                  toast.error(result.message || "Mise à jour impossible.");
+                                }
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible.");
+                              }
+                            }}
+                            className="rounded-full bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive"
+                          >
+                            Refuser
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                  {payouts.length === 0 && (
+                    <p className="py-10 text-center text-sm text-muted-foreground">
+                      Aucune demande de retrait enregistrée.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+        </main>
+      </div>
+    </div>
+  );
+            }
