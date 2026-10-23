@@ -237,7 +237,7 @@ function AdminPage() {
  const [emailSending, setEmailSending] = useState(false);
 
  const [showSubForm, setShowSubForm] = useState(false);
- const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("super_grok_monthly");
+ const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("sam_flash_light");
  const [subReason, setSubReason] = useState("");
  const [showSubConfirm, setShowSubConfirm] = useState(false);
  const [subAdding, setSubAdding] = useState(false);
@@ -1335,17 +1335,17 @@ function AdminPage() {
                   }
                   className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
                  >
-                  <option value="super_grok_monthly">
-                   Super Grok (mensuel — 1 mois)
+                  <option value="sam_flash_light">
+                   Sam Flash Light (1 mois)
                   </option>
-                  <option value="super_grok_annuel">
-                   Super Grok (annuel — 12 mois)
+                  <option value="sam_flash_pro">
+                   Sam Flash Pro (1 mois)
                   </option>
-                  <option value="super_grok_plus">
-                   Super Grok Plus (1 mois)
+                  <option value="sam_flash_pro_annuel">
+                   Sam Flash Pro (annuel — 12 mois)
                   </option>
-                  <option value="superhearly_monthly">
-                   Super Grok Heavy (1 mois)
+                  <option value="pack_essai">
+                   Offre d'essai (40 crédits, sans abonnement)
                   </option>
                  </select>
                 </div>
