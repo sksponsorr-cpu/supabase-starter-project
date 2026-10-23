@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
-import { generateMedia, checkGenerationStatus, cancelGeneration } from "@/lib/generation.functions";
+import { generateMedia, checkGenerationStatus, cancelGeneration, getVideoMaxSeconds } from "@/lib/generation.functions";
 import { launchLongVideo } from "@/lib/long-jobs.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
 import { DEFAULT_CREDIT_CONFIG, creditCostFor, type CreditConfig, type Resolution } from "@/lib/credits";
@@ -19,7 +19,7 @@ import { NoticeBanner, noticeKind } from "@/components/samflash/NoticeBanner";
 import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
 import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf } from "@/lib/creator-selection";
 import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload, type VideoMode } from "@/lib/creator-models";
-import { isPricedModel, samCreditsFor } from "@/lib/creator-pricing";
+import { isPricedModel, generationCreditsFor } from "@/lib/creator-pricing";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -581,7 +581,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   let costCredits: number | null = null;
   try {
     if (mode === "video" && creatorSel.active && isPricedModel(creatorSel.modelId)) {
-      costCredits = samCreditsFor(creatorSel.modelId, (res === "1080p" ? "1080p" : res === "480p" ? "480p" : "720p"), costSeconds);
+      costCredits = generationCreditsFor(creatorSel.modelId, (res === "1080p" ? "1080p" : res === "480p" ? "480p" : "720p"), costSeconds);
     }
     if (costCredits === null) {
       costCredits = creditCostFor(mode, costSeconds, res, creditCfg);
@@ -601,8 +601,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   // Options de la feuille Paramètres : elles dépendent du modèle et du mode choisis.
   const cModel = mode === "video" && creatorSel.active ? modelOf(creatorSel) : null;
-  // Durée max par vidéo : celle du modèle (jusqu'à 30 s). Le quota quotidien par plan est vérifié côté serveur.
-  const planMaxSec = 30;
+  const fetchMaxSeconds = useServerFn(getVideoMaxSeconds);
+  const [serverMaxSec, setServerMaxSec] = useState<number | null>(null);
+  useEffect(() => {
+    void fetchMaxSeconds({}).then((r) => setServerMaxSec(r.maxSeconds)).catch(() => setServerMaxSec(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const planMaxSec =
+    serverMaxSec ?? (userPlan === "superhearly_monthly" || userPlan === "superhearly" ? 15 : userPlan === "super_grok_plus" ? 10 : 8);
   const baseDurs = [5, 8, 10, 15].filter((d) => d <= planMaxSec);
   const durOptions = cModel ? cModel.durations.filter((d) => d <= planMaxSec) : baseDurs;
   const safeDurOptions = durOptions.length > 0 ? durOptions : baseDurs.slice(0, 1);
@@ -620,6 +626,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     if (!safeDurOptions.includes(d)) {
       setDur(`${safeDurOptions[0]}s`);
       setLongSec(safeDurOptions[0]);
+      // Ajustement visible, jamais silencieux.
+      setSent(`Durée ajustée à ${safeDurOptions[0]} s : votre offre permet jusqu'à ${planMaxSec} s.`);
     }
     if (!safeResOptions.includes(res)) setRes(safeResOptions[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -715,7 +723,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         <div className="relative flex w-full items-center justify-between gap-1 overflow-visible">
           {/* Indicateur : il reste des options à faire défiler vers la droite */}
           {showScrollHint && (
-            <span aria-hidden className="pointer-events-none absolute left-1/2 -bottom-3 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-lg animate-pulse sm:hidden">
+            <span aria-hidden className="pointer-events-none absolute right-14 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground shadow-lg animate-pulse sm:hidden">
               Glisse
               <ChevronRight className="h-3.5 w-3.5" />
             </span>
@@ -850,7 +858,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
             </button>
           </div>
-
         </div>
       </div>
       {ideasOn && !text && (
@@ -870,7 +877,26 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           ))}
         </div>
       )}
-
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            window.localStorage.setItem("sam-flash-profile", "seller");
+          } catch {
+            /* ignoré */
+          }
+          window.location.reload();
+        }}
+        className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left backdrop-blur-xl transition-transform active:scale-[0.98]"
+      >
+        <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold text-[#d4ff00]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#d4ff00] opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d4ff00]" />
+          </span>
+          Passer en mode vendeur
+        </span>
+      </button>
 
       {settingsOpen && typeof document !== "undefined" &&
         createPortal(
