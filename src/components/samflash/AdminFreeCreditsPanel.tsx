@@ -4,7 +4,7 @@ import { Loader2, Coins } from "lucide-react";
 import { getFreeCreditMode, setFreeCreditMode } from "@/lib/free-credits.functions";
 import { toast } from "@/lib/toast";
 
-/** Interrupteur : 250 crédits offerts à l'inscription (activé) ou aucun crédit (désactivé). */
+/** Interrupteur : 10 crédits offerts à l'inscription (activé) ou aucun crédit (désactivé). */
 export function AdminFreeCreditsPanel() {
   const fetchMode = useServerFn(getFreeCreditMode);
   const save = useServerFn(setFreeCreditMode);
@@ -40,7 +40,7 @@ export function AdminFreeCreditsPanel() {
     <section className="pt-5">
       <h2 className="text-[22px] font-semibold tracking-tight">Crédits gratuits</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Les nouveaux comptes gratuits reçoivent 250 crédits (une seconde de vidéo = 50 crédits, les images sont gratuites). Les abonnés ne sont pas concernés.
+        Les nouveaux comptes gratuits reçoivent 10 crédits. Les abonnés ne sont pas concernés.
       </p>
 
       <div className="mt-4 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
@@ -54,7 +54,7 @@ export function AdminFreeCreditsPanel() {
             </p>
             <p className="text-sm text-muted-foreground">
               {enabled
-                ? "250 crédits à l'inscription, 3 comptes maximum par téléphone et par adresse IP."
+                ? "10 crédits à l'inscription, 3 comptes maximum par téléphone et par adresse IP."
                 : "Aucun crédit offert aux nouveaux comptes. Les comptes déjà créés ne sont pas touchés."}
             </p>
           </div>

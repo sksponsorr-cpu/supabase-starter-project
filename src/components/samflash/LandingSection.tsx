@@ -234,11 +234,11 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Puis-je essayer gratuitement ?",
-    a: "Oui. À l'inscription, tu reçois 250 crédits offerts, soit une vidéo de 5 secondes (la génération d'images est gratuite), sans abonnement. L'offre d'essai est limitée par appareil.",
+    a: "Oui. À l'inscription, tu reçois 10 crédits offerts pour tester, sans abonnement. L'offre d'essai est limitée par appareil.",
   },
   {
     q: "Combien de vidéo puis-je créer par jour ?",
-    a: `Avec Super grok, tu disposes de ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)} de vidéo sur 24 h glissantes. Les crédits achetés restent valables 10 jours.`,
+    a: `Avec Super grok, tu disposes de ${formatDuration(PLAN_VIDEO_SECONDS.super_grok_monthly)} de vidéo sur 24 h glissantes. Les crédits achetés restent valables 1 mois, puis encore 10 jours après la fin du mois.`,
   },
   {
     q: "Quelle qualité de vidéo ?",
@@ -324,7 +324,7 @@ export function LandingSection() {
             >
               Créer ma première vidéo
             </button>
-            <p className="mt-3 text-xs text-muted-foreground">Essaie gratuitement : 250 crédits offerts.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Essaie gratuitement : 10 crédits offerts.</p>
           </Reveal>
         </div>
       )}
