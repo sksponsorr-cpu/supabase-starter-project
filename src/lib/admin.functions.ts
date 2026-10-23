@@ -983,6 +983,25 @@ export const sendAdminEmailToUser = createServerFn({ method: "POST" })
     return { ok: true as const, message: `Email envoyé avec succès à ${targetEmail}.` };
   });
 
+
+/** Prévient l'utilisateur par e-mail (Brevo). Retourne true si l'e-mail est parti. */
+async function notifyUserByEmail(userId: string, subject: string, messageBody: string): Promise<boolean> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile } = await (supabaseAdmin as any).from("profiles").select("email").eq("id", userId).maybeSingle();
+    const email = (profile as { email?: string | null } | null)?.email;
+    if (!email) return false;
+    const { sendAdminDirectEmail } = await import("@/lib/services/brevo.server");
+    const res = await sendAdminDirectEmail({ toEmail: email, subject, messageBody });
+    if (!res.ok) console.error("[ADMIN] E-mail non envoyé:", res.error);
+    return res.ok;
+  } catch (e) {
+    console.error("[ADMIN] Erreur e-mail:", e);
+    return false;
+  }
+}
+
 export type AdminAddSubscriptionInput = {
   userId: string;
   /** Abonnement (super_grok_*) OU pack de crédits (ex. pack_essai, pass_*). */
@@ -1133,10 +1152,19 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
       console.error("[ADMIN] Erreur log admin_actions:", logErr);
     }
 
+    const sent = await notifyUserByEmail(
+      data.userId,
+      isSubscription ? "Votre abonnement Sam Flash est actif" : `${creditsGranted} crédits ajoutés à votre compte Sam Flash`,
+      isSubscription
+        ? `Votre abonnement Sam Flash est actif jusqu'au ${new Date(endsAt as string).toLocaleDateString("fr-FR")}.\n\n${creditsGranted} crédits ont été ajoutés à votre compte.`
+        : `${creditsGranted} crédits viennent d'être ajoutés à votre compte Sam Flash 2.0.`,
+    );
+    const mailNote = sent ? " E-mail envoyé." : " (E-mail non envoyé.)";
     return {
       ok: true as const,
-      message: isSubscription
-        ? `Abonnement ${tier} activé jusqu'au ${new Date(endsAt as string).toLocaleDateString("fr-FR")} · ${creditsGranted} crédits ajoutés.`
-        : `${creditsGranted} crédits ajoutés.`,
+      message:
+        (isSubscription
+          ? `Abonnement ${tier} activé jusqu'au ${new Date(endsAt as string).toLocaleDateString("fr-FR")} · ${creditsGranted} crédits ajoutés.`
+          : `${creditsGranted} crédits ajoutés.`) + mailNote,
     };
   });
