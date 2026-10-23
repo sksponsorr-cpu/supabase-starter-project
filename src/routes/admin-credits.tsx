@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { adminFindUserByEmail, adminAddCredits, adminGrantCustomPlan } from "@/lib/admin-credits.functions";
+import { adminFindUserByEmail, adminAddCredits, adminGrantCustomPlan, type CreditUserInfo } from "@/lib/admin-credits.functions";
 
 export const Route = createFileRoute("/admin-credits")({
   component: AdminCreditsPage,
@@ -17,7 +17,7 @@ function AdminCreditsPage() {
   const grantCustom = useServerFn(adminGrantCustomPlan);
 
   const [email, setEmail] = useState("");
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null } | null>(null);
+  const [user, setUser] = useState<CreditUserInfo | null>(null);
   const [mode, setMode] = useState<"credits" | "custom">("credits");
   const [credits, setCredits] = useState("10");
   const [months, setMonths] = useState("1");
@@ -25,12 +25,18 @@ function AdminCreditsPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const refresh = async (userId: string) => {
+    const res = await findUser({ data: { userId } });
+    if (res.ok) setUser(res.user);
+  };
+
   const run = async (fn: () => Promise<{ ok: boolean; message?: string }>) => {
     setBusy(true);
     setNotice(null);
     try {
       const res = await fn();
       setNotice(res.message ?? (res.ok ? "Terminé." : "Échec."));
+      if (res.ok && user) await refresh(user.id);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Erreur.");
     } finally {
@@ -38,16 +44,20 @@ function AdminCreditsPage() {
     }
   };
 
-  const onFind = () =>
-    run(async () => {
-      setUser(null);
+  const onFind = async () => {
+    setBusy(true);
+    setNotice(null);
+    setUser(null);
+    try {
       const res = await findUser({ data: { email } });
-      if (res.ok) {
-        setUser(res.user);
-        return { ok: true, message: `Compte trouvé : ${res.user.email}` };
-      }
-      return res;
-    });
+      if (res.ok) setUser(res.user);
+      else setNotice(res.message);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Erreur.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const nCredits = Number.parseInt(credits, 10);
   const valid = user && Number.isInteger(nCredits) && nCredits > 0 && reason.trim().length >= 3;
@@ -77,7 +87,26 @@ function AdminCreditsPage() {
         <button type="button" className={`${btn} bg-secondary`} disabled={busy || !email.includes("@")} onClick={() => void onFind()}>
           Rechercher
         </button>
-        {user && <p className="text-sm">✓ {user.email}{user.name ? ` — ${user.name}` : ""}</p>}
+        {user && (
+          <div className="space-y-2 rounded-2xl border border-border p-4 text-sm">
+            <p className="font-semibold">{user.email}{user.name ? ` — ${user.name}` : ""}</p>
+            <p>Solde actuel : <strong>{user.balance} crédits</strong></p>
+            <p>
+              Offre : <strong>{user.plan}</strong>
+              {user.planEndsAt ? ` (jusqu'au ${new Date(user.planEndsAt).toLocaleDateString("fr-FR")})` : ""}
+            </p>
+            {user.history.length > 0 && (
+              <div className="pt-1">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">Derniers mouvements</p>
+                {user.history.map((h, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    {new Date(h.at).toLocaleString("fr-FR")} · {h.delta > 0 ? "+" : ""}{h.delta} ({h.kind})
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {user && (
