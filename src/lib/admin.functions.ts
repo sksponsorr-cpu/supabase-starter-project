@@ -985,13 +985,25 @@ export const sendAdminEmailToUser = createServerFn({ method: "POST" })
 
 export type AdminAddSubscriptionInput = {
   userId: string;
-  plan: "super_grok_monthly" | "super_grok_annuel" | "super_grok_plus" | "superhearly_monthly";
+  /** Abonnement (super_grok_*) OU pack de crédits (ex. pack_essai, pass_*). */
+  plan: string;
   reason: string;
+  /** Optionnel : nombre de crédits exact à ajouter (remplace le nombre de l'offre). */
+  credits?: number;
 };
 
+const SUBSCRIPTION_PLANS = [
+  "super_grok_monthly",
+  "super_grok_annuel",
+  "super_grok_plus",
+  "superhearly_monthly",
+] as const;
+
 /**
- * Active manuellement un abonnement pour un utilisateur avec motif obligatoire.
- * Reprend EXACTEMENT la logique de applyOrderOutcome (select -> update si existe, sinon insert).
+ * Attribue manuellement une offre avec motif obligatoire :
+ *  - abonnement : active l'abonnement + ajoute les crédits de l'offre ;
+ *  - pack (pack_essai, pass_...) : ajoute seulement les crédits, sans abonnement ;
+ *  - `credits` renseigné : ce nombre exact est ajouté (ex. 10 crédits).
  */
 export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -999,13 +1011,9 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
     z
       .object({
         userId: z.string().uuid("Identifiant utilisateur invalide"),
-        plan: z.enum([
-          "super_grok_monthly",
-          "super_grok_annuel",
-          "super_grok_plus",
-          "superhearly_monthly",
-        ]),
+        plan: z.string().trim().min(1).max(60),
         reason: z.string().trim().min(3, "Un motif d'au moins 3 caractères est obligatoire").max(500, "Motif trop long"),
+        credits: z.number().int().min(1).max(1000000).optional(),
       })
       .parse(input),
   )
@@ -1014,102 +1022,121 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { expiryFor } = await import("@/lib/plans");
 
-    const planType = data.plan;
-    const tier =
-      planType === "superhearly_monthly"
-        ? "superhearly"
-        : planType === "super_grok_plus"
-          ? "super_grok_plus"
-          : "super_grok";
-
-    // expiryFor(planType) calcule la date d'échéance et retourne une chaîne ISO
-    const endsAt = expiryFor(planType);
-
-    // 1. Recherche de l'abonnement existant (EXACTEMENT comme applyOrderOutcome)
-    const { data: existing } = await supabaseAdmin
-      .from("subscriptions")
-      .select("id")
-      .eq("user_id", data.userId)
-      .maybeSingle();
-
-    if (existing) {
-      const { error: updateError } = await supabaseAdmin
-        .from("subscriptions")
-        .update({
-          tier,
-          plan_type: planType,
-          status: "active",
-          is_active: true,
-          started_at: new Date().toISOString(),
-          ends_at: endsAt,
-        })
-        .eq("id", existing.id);
-
-      if (updateError) {
-        console.error("[ADMIN] Erreur update subscriptions:", updateError);
-        throw new Error("Échec de la mise à jour de l'abonnement en base.");
+    const isSubscription = (SUBSCRIPTION_PLANS as readonly string[]).includes(data.plan);
+    // Offre sans abonnement (ex. « Offre d'essai ») : on retrouve son identifiant dans product_prices,
+    // quel que soit le nom envoyé par la page (pack_essai, essai, trial...).
+    let packId: string | null = null;
+    if (!isSubscription) {
+      const wanted = data.plan.trim();
+      const candidates = /essai|trial/i.test(wanted)
+        ? ["pack_essai", wanted]
+        : wanted.startsWith("pack_") || wanted.startsWith("pass_")
+          ? [wanted]
+          : [wanted, "pack_" + wanted, "pass_" + wanted];
+      for (const id of candidates) {
+        const { data: row } = await supabaseAdmin.from("product_prices").select("id").eq("id", id).maybeSingle();
+        if (row) {
+          packId = id;
+          break;
+        }
       }
-    } else {
-      const { error: insertError } = await supabaseAdmin.from("subscriptions").insert({
-        user_id: data.userId,
+      if (!packId) throw new Error("Offre inconnue : " + data.plan);
+    }
+    const isPack = packId !== null;
+
+    let endsAt: string | null = null;
+    let tier = "pack";
+    let productId = packId ?? data.plan;
+    let yearly = false;
+
+    if (isSubscription) {
+      const planType = data.plan as (typeof SUBSCRIPTION_PLANS)[number];
+      tier =
+        planType === "superhearly_monthly"
+          ? "superhearly"
+          : planType === "super_grok_plus"
+            ? "super_grok_plus"
+            : "super_grok";
+      productId = planType === "superhearly_monthly" ? "heavy" : planType === "super_grok_plus" ? "plus" : "base";
+      yearly = planType === "super_grok_annuel";
+      endsAt = expiryFor(planType);
+
+      const { data: existing } = await supabaseAdmin
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", data.userId)
+        .maybeSingle();
+
+      const row = {
         tier,
         plan_type: planType,
         status: "active",
         is_active: true,
         started_at: new Date().toISOString(),
         ends_at: endsAt,
-      });
-
-      if (insertError) {
-        console.error("[ADMIN] Erreur insert subscriptions:", insertError);
-        throw new Error("Échec de l'activation de l'abonnement en base.");
+      };
+      if (existing) {
+        const { error } = await supabaseAdmin.from("subscriptions").update(row).eq("id", existing.id);
+        if (error) {
+          console.error("[ADMIN] Erreur update subscriptions:", error);
+          throw new Error("Échec de la mise à jour de l'abonnement en base.");
+        }
+      } else {
+        const { error } = await supabaseAdmin.from("subscriptions").insert({ user_id: data.userId, ...row });
+        if (error) {
+          console.error("[ADMIN] Erreur insert subscriptions:", error);
+          throw new Error("Échec de l'activation de l'abonnement en base.");
+        }
       }
     }
 
-    // 1 bis. Crédits de l'abonnement : même calcul que lors d'un achat (RPC monthly_credits),
-    // pour que l'abonné reçoive exactement les crédits inscrits dans son offre.
-    const productId =
-      planType === "superhearly_monthly" ? "heavy" : planType === "super_grok_plus" ? "plus" : "base";
-    const yearly = planType === "super_grok_annuel";
-    const { data: creditsData } = await supabaseAdmin.rpc("monthly_credits", {
-      p_product: productId,
-      p_yearly: yearly,
-    });
-    const creditsGranted = Number(creditsData ?? 0);
+    // Crédits : nombre saisi par l'admin, sinon celui de l'offre (même calcul qu'un achat).
+    let creditsGranted = data.credits ?? 0;
+    if (creditsGranted === 0 && isPack) {
+      const { data: priceRow } = await supabaseAdmin
+        .from("product_prices")
+        .select("credits_fixed")
+        .eq("id", productId)
+        .maybeSingle();
+      creditsGranted = Math.round(Number((priceRow as { credits_fixed?: number | null } | null)?.credits_fixed ?? 0));
+    }
+    if (creditsGranted === 0) {
+      const { data: fromOffer } = await supabaseAdmin.rpc("monthly_credits", {
+        p_product: productId,
+        p_yearly: yearly,
+      });
+      creditsGranted = Number(fromOffer ?? 0);
+    }
     if (creditsGranted > 0) {
       const { error: creditError } = await supabaseAdmin.rpc("add_credits", {
         p_user: data.userId,
         p_amount: creditsGranted,
-        p_kind: yearly ? "annuel_mensuel" : "abonnement",
+        p_kind: isSubscription ? (yearly ? "annuel_mensuel" : "abonnement") : productId.startsWith("pass_") ? "pass" : "recharge",
         p_ref: crypto.randomUUID(),
       });
       if (creditError) {
         console.error("[ADMIN] Erreur add_credits:", creditError);
-        throw new Error("Abonnement activé, mais l'ajout des crédits a échoué.");
+        throw new Error("L'ajout des crédits a échoué.");
       }
+    } else if (!isSubscription) {
+      throw new Error("Aucun crédit à ajouter : renseignez un nombre de crédits.");
     }
 
-    // 2. Journalisation dans admin_actions
     try {
       await supabaseAdmin.from("admin_actions").insert({
         admin_id: context.userId,
         target_user_id: data.userId,
-        action: "add_subscription",
-        details: {
-          plan: planType,
-          tier,
-          reason: data.reason.trim(),
-          ends_at: endsAt,
-          credits_granted: creditsGranted,
-        },
+        action: isSubscription ? "add_subscription" : "add_credits",
+        details: { plan: data.plan, product: productId, tier, reason: data.reason.trim(), ends_at: endsAt, credits_granted: creditsGranted },
       });
     } catch (logErr) {
-      console.error("[ADMIN] Erreur log admin_actions add_subscription:", logErr);
+      console.error("[ADMIN] Erreur log admin_actions:", logErr);
     }
 
     return {
       ok: true as const,
-      message: `Abonnement ${tier} activé jusqu'au ${new Date(endsAt).toLocaleDateString("fr-FR")} · ${creditsGranted} crédits ajoutés.`,
+      message: isSubscription
+        ? `Abonnement ${tier} activé jusqu'au ${new Date(endsAt as string).toLocaleDateString("fr-FR")} · ${creditsGranted} crédits ajoutés.`
+        : `${creditsGranted} crédits ajoutés.`,
     };
   });
-
