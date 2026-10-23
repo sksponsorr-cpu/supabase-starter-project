@@ -40,8 +40,8 @@ function normalize(input: GenerateInput) {
   // Les vidéos sont limitées à 720p et 10 secondes maximum.
   if (mediaType === "video" && resolution !== "480p") resolution = "720p";
   const rawSeconds = Number.parseInt(String(input.duration ?? "5"), 10);
-  const allowed = [5, 8, 10];
-  const seconds = allowed.includes(rawSeconds) ? rawSeconds : 5;
+  // Durées acceptées : de 4 à 30 s (Seedance, Veo, Grok). Le modèle et le forfait vérifient ensuite.
+  const seconds = Number.isInteger(rawSeconds) && rawSeconds >= 4 && rawSeconds <= 30 ? rawSeconds : 5;
   return {
     prompt: input.prompt.trim().slice(0, 2000),
     mediaType,
