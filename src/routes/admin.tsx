@@ -2,104 +2,104 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
- Area,
- AreaChart,
- ResponsiveContainer,
- Tooltip as RechartsTooltip,
- XAxis,
- YAxis,
- PieChart,
- Pie,
- Cell,
- Legend,
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import {
- ArrowLeft,
- RefreshCw,
- ShieldCheck,
- Gauge,
- Tag,
- Users,
- User,
- LifeBuoy,
- CreditCard,
- Images,
- Image as ImageIcon,
- Video,
- Check,
- X,
- Trash2,
- Wallet,
- Crown,
- AlertCircle,
- Clock,
- TrendingUp,
- Play,
- Mail,
- PlusCircle,
- Send,
- Megaphone,
+  ArrowLeft,
+  RefreshCw,
+  ShieldCheck,
+  Gauge,
+  Tag,
+  Users,
+  User,
+  LifeBuoy,
+  CreditCard,
+  Images,
+  Image as ImageIcon,
+  Video,
+  Check,
+  X,
+  Trash2,
+  Wallet,
+  Crown,
+  AlertCircle,
+  Clock,
+  TrendingUp,
+  Play,
+  Mail,
+  PlusCircle,
+  Send,
+  Megaphone,
 } from "lucide-react";
 import { listOnboardingResponses, type OnboardingReport } from "@/lib/onboarding.functions";
 import { SOURCE_LABELS } from "@/components/samflash/OnboardingSurvey";
 import {
- getAdminAccess,
- getAdminStats,
- listRecentGenerations,
- finalizeStuckGenerations,
- listAdminPrices,
- updateAdminPrice,
- listAdminOrders,
- listAdminSubscriptions,
- getAdminTimeSeries,
- getFinancialDashboard,
- listAdminUsers,
- getAdminUserDetail,
- sendAdminEmailToUser,
- addAdminSubscriptionToUser,
- type AdminGeneration,
- type AdminStats,
- type AdminPrice,
- type AdminOrder,
- type AdminSubscription,
- type TimeSeriesData,
- type StaffRole,
- type FinancialMetrics,
- type AdminUserItem,
- type AdminUserDetail,
- type AdminAddSubscriptionInput,
+  getAdminAccess,
+  getAdminStats,
+  listRecentGenerations,
+  finalizeStuckGenerations,
+  listAdminPrices,
+  updateAdminPrice,
+  listAdminOrders,
+  listAdminSubscriptions,
+  getAdminTimeSeries,
+  getFinancialDashboard,
+  listAdminUsers,
+  getAdminUserDetail,
+  sendAdminEmailToUser,
+  addAdminSubscriptionToUser,
+  type AdminGeneration,
+  type AdminStats,
+  type AdminPrice,
+  type AdminOrder,
+  type AdminSubscription,
+  type TimeSeriesData,
+  type StaffRole,
+  type FinancialMetrics,
+  type AdminUserItem,
+  type AdminUserDetail,
+  type AdminAddSubscriptionInput,
 } from "@/lib/admin.functions";
 import { isOwnerEmail } from "@/lib/owners";
 import {
- listTeamMembers,
- listInvitations,
- inviteTeamMember,
- revokeTeamRole,
- cancelInvitation,
- type TeamMember,
- type TeamInvitation,
- type TeamRole,
+  listTeamMembers,
+  listInvitations,
+  inviteTeamMember,
+  revokeTeamRole,
+  cancelInvitation,
+  type TeamMember,
+  type TeamInvitation,
+  type TeamRole,
 } from "@/lib/team.functions";
 import {
- listSupportMessages,
- listSupportReplies,
- replyToSupportMessage,
- updateSupportStatus,
- type SupportMessage,
- type SupportReply,
+  listSupportMessages,
+  listSupportReplies,
+  replyToSupportMessage,
+  updateSupportStatus,
+  type SupportMessage,
+  type SupportReply,
 } from "@/lib/support.functions";
 import {
- listModerationQueue,
- moderateGeneration,
- deleteGalleryItem,
- type ModerationItem,
+  listModerationQueue,
+  moderateGeneration,
+  deleteGalleryItem,
+  type ModerationItem,
 } from "@/lib/community.functions";
 import { getPromoSettings, setPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
 import {
- listPayoutRequests,
- decidePayout,
- getCommissionSummary,
- type PayoutRequest,
+  listPayoutRequests,
+  decidePayout,
+  getCommissionSummary,
+  type PayoutRequest,
 } from "@/lib/developer.functions";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -119,2129 +119,1961 @@ import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPan
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
+import { AdminFormationsPanel } from "@/components/samflash/AdminFormationsPanel";
 import { formatSeconds } from "@/lib/quota";
 
 export const Route = createFileRoute("/admin")({
- head: () => ({
-  meta: [
-   { title: "Administration — Sam Flash" },
-   {
-    name: "description",
-    content:
-     "Tableau de bord d'administration Sam flash 2.0 : utilisateurs, générations, quotas, abonnements, collaborateurs et support.",
-   },
-   { property: "og:title", content: "Administration — Sam Flash" },
-   {
-    property: "og:description",
-    content: "Statistiques, prix, collaborateurs et support Sam flash 2.0.",
-   },
-   { property: "og:type", content: "website" },
-   { name: "twitter:card", content: "summary_large_image" },
-  ],
- }),
- component: AdminPage,
+  head: () => ({
+    meta: [
+      { title: "Bureau d'administration — Sam flash 2.0" },
+      {
+        name: "description",
+        content:
+          "Tableau de bord d'administration Sam flash 2.0 : utilisateurs, générations, quotas, abonnements, collaborateurs et support.",
+      },
+      { property: "og:title", content: "Bureau d'administration — Sam flash 2.0" },
+      {
+        property: "og:description",
+        content: "Statistiques, prix, collaborateurs et support Sam flash 2.0.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: AdminPage,
 });
 
 const ROLE_LABEL: Record<TeamRole, string> = {
- admin: "Administrateur",
- moderator: "Modérateur",
- support: "Support",
- finance: "Finance",
- developer: "Développeur",
+  admin: "Administrateur",
+  moderator: "Modérateur",
+  support: "Support",
+  finance: "Finance",
+  developer: "Développeur",
 };
 
 function AdminPage() {
- const { session, user, loading: authLoading } = useAuth();
- const owner = isOwnerEmail(user?.email);
- const navigate = useNavigate();
- const fetchAccess = useServerFn(getAdminAccess);
- const fetchStats = useServerFn(getAdminStats);
- const fetchRecent = useServerFn(listRecentGenerations);
- const sweepStuck = useServerFn(finalizeStuckGenerations);
- const fetchPrices = useServerFn(listAdminPrices);
- const savePrice = useServerFn(updateAdminPrice);
- const fetchOrders = useServerFn(listAdminOrders);
- const fetchMembers = useServerFn(listTeamMembers);
- const fetchInvites = useServerFn(listInvitations);
- const invite = useServerFn(inviteTeamMember);
- const revoke = useServerFn(revokeTeamRole);
- const cancelInvite = useServerFn(cancelInvitation);
- const fetchTickets = useServerFn(listSupportMessages);
- const fetchReplies = useServerFn(listSupportReplies);
- const sendReply = useServerFn(replyToSupportMessage);
- const setTicketStatus = useServerFn(updateSupportStatus);
- const fetchQueue = useServerFn(listModerationQueue);
- const moderate = useServerFn(moderateGeneration);
- const removeItem = useServerFn(deleteGalleryItem);
- const fetchPromo = useServerFn(getPromoSettings);
- const savePromo = useServerFn(setPromoSettings);
- const fetchPayouts = useServerFn(listPayoutRequests);
- const fetchCommissions = useServerFn(getCommissionSummary);
- const decide = useServerFn(decidePayout);
- const fetchSubscriptions = useServerFn(listAdminSubscriptions);
- const fetchTimeSeries = useServerFn(getAdminTimeSeries);
- const fetchFinancial = useServerFn(getFinancialDashboard);
- const fetchUsers = useServerFn(listAdminUsers);
- const fetchUserDetail = useServerFn(getAdminUserDetail);
- const sendEmailToUser = useServerFn(sendAdminEmailToUser);
- const addSubscriptionToUser = useServerFn(addAdminSubscriptionToUser);
+  const { session, user, loading: authLoading } = useAuth();
+  const owner = isOwnerEmail(user?.email);
+  const navigate = useNavigate();
+  const fetchAccess = useServerFn(getAdminAccess);
+  const fetchStats = useServerFn(getAdminStats);
+  const fetchRecent = useServerFn(listRecentGenerations);
+  const sweepStuck = useServerFn(finalizeStuckGenerations);
+  const fetchPrices = useServerFn(listAdminPrices);
+  const savePrice = useServerFn(updateAdminPrice);
+  const fetchOrders = useServerFn(listAdminOrders);
+  const fetchMembers = useServerFn(listTeamMembers);
+  const fetchInvites = useServerFn(listInvitations);
+  const invite = useServerFn(inviteTeamMember);
+  const revoke = useServerFn(revokeTeamRole);
+  const cancelInvite = useServerFn(cancelInvitation);
+  const fetchTickets = useServerFn(listSupportMessages);
+  const fetchReplies = useServerFn(listSupportReplies);
+  const sendReply = useServerFn(replyToSupportMessage);
+  const setTicketStatus = useServerFn(updateSupportStatus);
+  const fetchQueue = useServerFn(listModerationQueue);
+  const moderate = useServerFn(moderateGeneration);
+  const removeItem = useServerFn(deleteGalleryItem);
+  const fetchPromo = useServerFn(getPromoSettings);
+  const savePromo = useServerFn(setPromoSettings);
+  const fetchPayouts = useServerFn(listPayoutRequests);
+  const fetchCommissions = useServerFn(getCommissionSummary);
+  const decide = useServerFn(decidePayout);
+  const fetchSubscriptions = useServerFn(listAdminSubscriptions);
+  const fetchTimeSeries = useServerFn(getAdminTimeSeries);
+  const fetchFinancial = useServerFn(getFinancialDashboard);
+  const fetchUsers = useServerFn(listAdminUsers);
+  const fetchUserDetail = useServerFn(getAdminUserDetail);
+  const sendEmailToUser = useServerFn(sendAdminEmailToUser);
+  const addSubscriptionToUser = useServerFn(addAdminSubscriptionToUser);
 
- const [roles, setRoles] = useState<StaffRole[]>([]);
- const [isStaff, setIsStaff] = useState<boolean | null>(null);
- const [stats, setStats] = useState<AdminStats | null>(null);
- const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([]);
- const [items, setItems] = useState<AdminGeneration[]>([]);
- const [openGen, setOpenGen] = useState<string | null>(null);
- const [sweeping, setSweeping] = useState(false);
- const didSweep = useRef(false);
- const [prices, setPrices] = useState<AdminPrice[]>([]);
- const [orders, setOrders] = useState<AdminOrder[]>([]);
- const [subscriptions, setSubscriptions] = useState<AdminSubscription[]>([]);
- const [members, setMembers] = useState<TeamMember[]>([]);
- const [invites, setInvites] = useState<TeamInvitation[]>([]);
- const [tickets, setTickets] = useState<SupportMessage[]>([]);
- const [openTicket, setOpenTicket] = useState<string | null>(null);
- const [replies, setReplies] = useState<SupportReply[]>([]);
- const [replyText, setReplyText] = useState("");
- const [inviteEmail, setInviteEmail] = useState("");
- const [inviteRole, setInviteRole] = useState<TeamRole>("support");
- const [notice, setNotice] = useState<string | null>(null);
- const [priceNotice, setPriceNotice] = useState<string | null>(null);
- const [loading, setLoading] = useState(true);
- const [tab, setTab] = useState<string>("financial");
- const [queue, setQueue] = useState<ModerationItem[]>([]);
- const [modBusy, setModBusy] = useState<string | null>(null);
- const [promoEnabled, setPromoEnabled] = useState(false);
- const [promoSaving, setPromoSaving] = useState(false);
- const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
- const [commissionTotal, setCommissionTotal] = useState(0);
- const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
+  const [roles, setRoles] = useState<StaffRole[]>([]);
+  const [isStaff, setIsStaff] = useState<boolean | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([]);
+  const [items, setItems] = useState<AdminGeneration[]>([]);
+  const [openGen, setOpenGen] = useState<string | null>(null);
+  const [sweeping, setSweeping] = useState(false);
+  const didSweep = useRef(false);
+  const [prices, setPrices] = useState<AdminPrice[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [subscriptions, setSubscriptions] = useState<AdminSubscription[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [invites, setInvites] = useState<TeamInvitation[]>([]);
+  const [tickets, setTickets] = useState<SupportMessage[]>([]);
+  const [openTicket, setOpenTicket] = useState<string | null>(null);
+  const [replies, setReplies] = useState<SupportReply[]>([]);
+  const [replyText, setReplyText] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<TeamRole>("support");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<string>("financial");
+  const [queue, setQueue] = useState<ModerationItem[]>([]);
+  const [modBusy, setModBusy] = useState<string | null>(null);
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
+  const [commissionTotal, setCommissionTotal] = useState(0);
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
 
- const fetchOnboarding = useServerFn(listOnboardingResponses);
- const [onboarding, setOnboarding] = useState<OnboardingReport | null>(null);
- const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const fetchOnboarding = useServerFn(listOnboardingResponses);
+  const [onboarding, setOnboarding] = useState<OnboardingReport | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
 
- const [userList, setUserList] = useState<AdminUserItem[]>([]);
- const [userListTotal, setUserListTotal] = useState(0);
- const [userListPage, setUserListPage] = useState(1);
- const [userListTotalPages, setUserListTotalPages] = useState(1);
- const [userSearch, setUserSearch] = useState("");
- const [userListLoading, setUserListLoading] = useState(false);
- const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
- const [detailLoading, setDetailLoading] = useState(false);
+  const [userList, setUserList] = useState<AdminUserItem[]>([]);
+  const [userListTotal, setUserListTotal] = useState(0);
+  const [userListPage, setUserListPage] = useState(1);
+  const [userListTotalPages, setUserListTotalPages] = useState(1);
+  const [userSearch, setUserSearch] = useState("");
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
- // Admin action states
- const [showEmailForm, setShowEmailForm] = useState(false);
- const [emailSubject, setEmailSubject] = useState("");
- const [emailBody, setEmailBody] = useState("");
- const [emailSending, setEmailSending] = useState(false);
+  // Admin action states
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
 
- const [showSubForm, setShowSubForm] = useState(false);
- const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("sam_flash_light");
- const [subReason, setSubReason] = useState("");
- const [showSubConfirm, setShowSubConfirm] = useState(false);
- const [subAdding, setSubAdding] = useState(false);
+  const [showSubForm, setShowSubForm] = useState(false);
+  const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("super_grok_monthly");
+  const [subReason, setSubReason] = useState("");
+  const [showSubConfirm, setShowSubConfirm] = useState(false);
+  const [subAdding, setSubAdding] = useState(false);
 
- const isAdmin = owner || roles.includes("admin");
- const canModerate = isAdmin || roles.includes("moderator");
- const canPrices = isAdmin || roles.includes("finance");
- const canSupport = isAdmin || roles.includes("support");
+  const isAdmin = owner || roles.includes("admin");
+  const canModerate = isAdmin || roles.includes("moderator");
+  const canPrices = isAdmin || roles.includes("finance");
+  const canSupport = isAdmin || roles.includes("support");
 
- useEffect(() => {
-  if (!authLoading && !session) void navigate({ to: "/" });
- }, [authLoading, session, navigate]);
+  useEffect(() => {
+    if (!authLoading && !session) void navigate({ to: "/" });
+  }, [authLoading, session, navigate]);
 
- const load = useCallback(async () => {
-  if (!session) return;
-  setLoading(true);
-  try {
-   const access = await fetchAccess({}).catch(() => ({
-    isAdmin: owner,
-    isStaff: owner,
-    roles: (owner ? ["admin"] : []) as StaffRole[],
-   }));
-   setRoles(access.roles);
-   setIsStaff(access.isStaff || owner);
-   const admin = owner || access.isAdmin;
-   const finance = admin || access.roles.includes("finance");
-   const support = admin || access.roles.includes("support");
+  const load = useCallback(async () => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const access = await fetchAccess({}).catch(() => ({
+        isAdmin: owner,
+        isStaff: owner,
+        roles: (owner ? ["admin"] : []) as StaffRole[],
+      }));
+      setRoles(access.roles);
+      setIsStaff(access.isStaff || owner);
+      const admin = owner || access.isAdmin;
+      const finance = admin || access.roles.includes("finance");
+      const support = admin || access.roles.includes("support");
 
-   try {
-    if (admin) {
-     const [s, r, o, m, i, p, c, subs, ts, fin] = await Promise.all([
-      fetchStats({}),
-      fetchRecent({}),
-      fetchOrders({}),
-      fetchMembers({}),
-      fetchInvites({}),
-      fetchPayouts({}),
-      fetchCommissions({}),
-      fetchSubscriptions({}),
-      fetchTimeSeries({}),
-      fetchFinancial({}),
-     ]);
-     setStats(s as AdminStats);
-     setItems(r as AdminGeneration[]);
-     setOrders(o as AdminOrder[]);
-     setMembers(m as TeamMember[]);
-     setInvites(i as TeamInvitation[]);
-     setPayouts(p as PayoutRequest[]);
-     setCommissionTotal((c as { total: number }).total);
-     setSubscriptions(subs as AdminSubscription[]);
-     setTimeSeries(ts as TimeSeriesData[]);
-     setFinancialMetrics(fin as FinancialMetrics);
+      try {
+        if (admin) {
+          const [s, r, o, m, i, p, c, subs, ts, fin] = await Promise.all([
+            fetchStats({}),
+            fetchRecent({}),
+            fetchOrders({}),
+            fetchMembers({}),
+            fetchInvites({}),
+            fetchPayouts({}),
+            fetchCommissions({}),
+            fetchSubscriptions({}),
+            fetchTimeSeries({}),
+            fetchFinancial({}),
+          ]);
+          setStats(s as AdminStats);
+          setItems(r as AdminGeneration[]);
+          setOrders(o as AdminOrder[]);
+          setMembers(m as TeamMember[]);
+          setInvites(i as TeamInvitation[]);
+          setPayouts(p as PayoutRequest[]);
+          setCommissionTotal((c as { total: number }).total);
+          setSubscriptions(subs as AdminSubscription[]);
+          setTimeSeries(ts as TimeSeriesData[]);
+          setFinancialMetrics(fin as FinancialMetrics);
+        }
+      } catch {
+        // ignore errors
+      }
+
+      try {
+        if (finance && !admin) {
+          const [o, p, c] = await Promise.all([
+            fetchOrders({}),
+            fetchPayouts({}),
+            fetchCommissions({}),
+          ]);
+          setOrders(o as AdminOrder[]);
+          setPayouts(p as PayoutRequest[]);
+          setCommissionTotal((c as { total: number }).total);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (support) {
+          const t = await fetchTickets({});
+          setTickets(t as SupportMessage[]);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (canModerate) {
+          const q = await fetchQueue({});
+          setQueue(q as ModerationItem[]);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (canPrices) {
+          const pr = await fetchPrices({});
+          setPrices(pr as AdminPrice[]);
+          const promo = await fetchPromo({});
+          setPromoEnabled((promo as { enabled: boolean }).enabled);
+        }
+      } catch {
+        // ignore
+      }
+    } catch {
+      setIsStaff(owner);
+    } finally {
+      setLoading(false);
     }
-   } catch {
-    // ignore errors
-   }
+  }, [
+    session,
+    owner,
+    fetchAccess,
+    fetchStats,
+    fetchRecent,
+    fetchPrices,
+    fetchOrders,
+    fetchMembers,
+    fetchInvites,
+    fetchTickets,
+    fetchQueue,
+    fetchPromo,
+    fetchPayouts,
+    fetchCommissions,
+    fetchSubscriptions,
+    fetchTimeSeries,
+    fetchFinancial,
+    isAdmin,
+    canModerate,
+    canPrices,
+    canSupport,
+  ]);
 
-   try {
-    if (finance && !admin) {
-     const [o, p, c] = await Promise.all([
-      fetchOrders({}),
-      fetchPayouts({}),
-      fetchCommissions({}),
-     ]);
-     setOrders(o as AdminOrder[]);
-     setPayouts(p as PayoutRequest[]);
-     setCommissionTotal((c as { total: number }).total);
-    }
-   } catch {
-    // ignore
-   }
-
-   try {
-    if (support) {
-     const t = await fetchTickets({});
-     setTickets(t as SupportMessage[]);
-    }
-   } catch {
-    // ignore
-   }
-
-   try {
-    if (canModerate) {
-     const q = await fetchQueue({});
-     setQueue(q as ModerationItem[]);
-    }
-   } catch {
-    // ignore
-   }
-
-   try {
-    if (canPrices) {
-     const pr = await fetchPrices({});
-     setPrices(pr as AdminPrice[]);
-     const promo = await fetchPromo({});
-     setPromoEnabled((promo as { enabled: boolean }).enabled);
-    }
-   } catch {
-    // ignore
-   }
-  } catch {
-   setIsStaff(owner);
-  } finally {
-   setLoading(false);
-  }
- }, [
-  session,
-  owner,
-  fetchAccess,
-  fetchStats,
-  fetchRecent,
-  fetchPrices,
-  fetchOrders,
-  fetchMembers,
-  fetchInvites,
-  fetchTickets,
-  fetchQueue,
-  fetchPromo,
-  fetchPayouts,
-  fetchCommissions,
-  fetchSubscriptions,
-  fetchTimeSeries,
-  fetchFinancial,
-  isAdmin,
-  canModerate,
-  canPrices,
-  canSupport,
- ]);
-
- useEffect(() => {
-  void load();
-  const interval = setInterval(() => void load(), 120000);
-  return () => clearInterval(interval);
- }, [load]);
+  useEffect(() => {
+    void load();
+    const interval = setInterval(() => void load(), 120000);
+    return () => clearInterval(interval);
+  }, [load]);
 
 
- const actOnItem = useCallback(
-  async (id: string, action: "approve" | "reject" | "delete") => {
-   setModBusy(id);
-   try {
-    if (action === "delete") {
-     await removeItem({ data: { id } });
-     toast.success("Création supprimée.");
-    } else {
-     await moderate({
-      data:
-       action === "reject"
-        ? { id, action, reason: "Contenu inapproprié" }
-        : { id, action },
-     });
-     toast.success(action === "approve" ? "Création publiée." : "Création rejetée.");
-    }
-    setQueue((await fetchQueue({})) as ModerationItem[]);
-   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Action impossible.");
-   } finally {
-    setModBusy(null);
-   }
-  },
-  [moderate, removeItem, fetchQueue],
- );
-
- const togglePromo = useCallback(
-  async (next: boolean) => {
-   setPromoSaving(true);
-   try {
-    const res = await savePromo({
-     data: { enabled: next, prices: { base: 0, plus: null, heavy: null } },
-    });
-    if (res.ok) {
-     setPromoEnabled(next);
-     toast.success(
-      next ? "Offre de lancement activée." : "Offre de lancement désactivée.",
-     );
-    } else {
-     toast.error(res.message);
-    }
-   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Enregistrement impossible.");
-   } finally {
-    setPromoSaving(false);
-   }
-  },
-  [savePromo],
- );
-
- const commitPrice = useCallback(
-  async (row: AdminPrice) => {
-   setPriceNotice(null);
-   const res = await savePrice({
-    data: {
-     id: row.id,
-     amountFcfa: row.amount_fcfa ?? Math.round((row.amount_eur ?? 0) * 655.957),
-     amountFcfaYearly: row.amount_fcfa_yearly ?? (row.amount_eur_yearly == null ? null : Math.round(row.amount_eur_yearly * 655.957)),
-     active: row.active,
-     creditsRate: row.credits_rate,
-     creditsBonus: row.credits_bonus,
-     creditsFixed: row.credits_fixed,
-     imagesFree: row.images_free,
+  const actOnItem = useCallback(
+    async (id: string, action: "approve" | "reject" | "delete") => {
+      setModBusy(id);
+      try {
+        if (action === "delete") {
+          await removeItem({ data: { id } });
+          toast.success("Création supprimée.");
+        } else {
+          await moderate({
+            data:
+              action === "reject"
+                ? { id, action, reason: "Contenu inapproprié" }
+                : { id, action },
+          });
+          toast.success(action === "approve" ? "Création publiée." : "Création rejetée.");
+        }
+        setQueue((await fetchQueue({})) as ModerationItem[]);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Action impossible.");
+      } finally {
+        setModBusy(null);
+      }
     },
-   });
-   setPriceNotice(res.ok ? `Prix de « ${row.label} » enregistré.` : res.message);
-  },
-  [savePrice],
- );
+    [moderate, removeItem, fetchQueue],
+  );
 
- const openThread = useCallback(
-  async (id: string) => {
-   if (openTicket === id) {
-    setOpenTicket(null);
-    return;
-   }
-   setOpenTicket(id);
-   setReplyText("");
-   setReplies((await fetchReplies({ data: { messageId: id } })) as SupportReply[]);
-  },
-  [openTicket, fetchReplies],
- );
-
- const loadUserList = useCallback(
-  async (page = 1, search = "") => {
-   if (!isAdmin) return;
-   setUserListLoading(true);
-   try {
-    const res = await fetchUsers({ data: { page, search } });
-    setUserList(res.users);
-    setUserListTotal(res.total);
-    setUserListPage(res.page);
-    setUserListTotalPages(res.totalPages);
-   } catch {
-    setUserList([]);
-    setUserListTotal(0);
-   } finally {
-    setUserListLoading(false);
-   }
-  },
-  [isAdmin, fetchUsers],
- );
-
- const loadOnboarding = useCallback(async () => {
-  setOnboardingLoading(true);
-  try {
-   setOnboarding(await fetchOnboarding());
-  } catch {
-   setOnboarding({ total: 0, counts: {}, items: [] });
-  } finally {
-   setOnboardingLoading(false);
-  }
- }, [fetchOnboarding]);
-
- useEffect(() => {
-  if (tab === "acquisition" && isAdmin) void loadOnboarding();
- }, [tab, isAdmin, loadOnboarding]);
-
- useEffect(() => {
-  if (tab === "users" && isAdmin) {
-   void loadUserList(userListPage, userSearch);
-  }
- }, [tab, isAdmin, userListPage, userSearch, loadUserList]);
-
- const closeUserModal = useCallback(() => {
-  setSelectedUserDetail(null);
-  setShowEmailForm(false);
-  setEmailSubject("");
-  setEmailBody("");
-  setShowSubForm(false);
-  setShowSubConfirm(false);
-  setSubReason("");
- }, []);
-
- const openUserModal = useCallback(
-  async (userId: string) => {
-   setDetailLoading(true);
-   setSelectedUserDetail(null);
-   setShowEmailForm(false);
-   setEmailSubject("");
-   setEmailBody("");
-   setShowSubForm(false);
-   setShowSubConfirm(false);
-   setSubReason("");
-   try {
-    const detail = await fetchUserDetail({ data: { userId } });
-    setSelectedUserDetail(detail);
-   } catch (err) {
-    toast.error(
-     err instanceof Error ? err.message : "Impossible de charger la fiche utilisateur.",
-    );
-   } finally {
-    setDetailLoading(false);
-   }
-  },
-  [fetchUserDetail],
- );
-
- const handleSendEmail = useCallback(async () => {
-  if (!selectedUserDetail) return;
-  if (!emailSubject.trim() || !emailBody.trim()) {
-   toast.error("Veuillez remplir l'objet et le message.");
-   return;
-  }
-  setEmailSending(true);
-  try {
-   const res = await sendEmailToUser({
-    data: {
-     userId: selectedUserDetail.id,
-     subject: emailSubject.trim(),
-     message: emailBody.trim(),
+  const togglePromo = useCallback(
+    async (next: boolean) => {
+      setPromoSaving(true);
+      try {
+        const res = await savePromo({
+          data: { enabled: next, prices: { base: 0, plus: null, heavy: null } },
+        });
+        if (res.ok) {
+          setPromoEnabled(next);
+          toast.success(
+            next ? "Offre de lancement activée." : "Offre de lancement désactivée.",
+          );
+        } else {
+          toast.error(res.message);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Enregistrement impossible.");
+      } finally {
+        setPromoSaving(false);
+      }
     },
-   });
-   if (res.ok) {
-    toast.success(res.message);
+    [savePromo],
+  );
+
+  const commitPrice = useCallback(
+    async (row: AdminPrice) => {
+      setPriceNotice(null);
+      const res = await savePrice({
+        data: {
+          id: row.id,
+          amountFcfa: row.amount_fcfa ?? Math.round((row.amount_eur ?? 0) * 655.957),
+          amountFcfaYearly: row.amount_fcfa_yearly ?? (row.amount_eur_yearly == null ? null : Math.round(row.amount_eur_yearly * 655.957)),
+          active: row.active,
+          creditsRate: row.credits_rate,
+          creditsBonus: row.credits_bonus,
+          creditsFixed: row.credits_fixed,
+          imagesFree: row.images_free,
+        },
+      });
+      setPriceNotice(res.ok ? `Prix de « ${row.label} » enregistré.` : res.message);
+    },
+    [savePrice],
+  );
+
+  const openThread = useCallback(
+    async (id: string) => {
+      if (openTicket === id) {
+        setOpenTicket(null);
+        return;
+      }
+      setOpenTicket(id);
+      setReplyText("");
+      setReplies((await fetchReplies({ data: { messageId: id } })) as SupportReply[]);
+    },
+    [openTicket, fetchReplies],
+  );
+
+  const loadUserList = useCallback(
+    async (page = 1, search = "") => {
+      if (!isAdmin) return;
+      setUserListLoading(true);
+      try {
+        const res = await fetchUsers({ data: { page, search } });
+        setUserList(res.users);
+        setUserListTotal(res.total);
+        setUserListPage(res.page);
+        setUserListTotalPages(res.totalPages);
+      } catch {
+        setUserList([]);
+        setUserListTotal(0);
+      } finally {
+        setUserListLoading(false);
+      }
+    },
+    [isAdmin, fetchUsers],
+  );
+
+  const loadOnboarding = useCallback(async () => {
+    setOnboardingLoading(true);
+    try {
+      setOnboarding(await fetchOnboarding());
+    } catch {
+      setOnboarding({ total: 0, counts: {}, items: [] });
+    } finally {
+      setOnboardingLoading(false);
+    }
+  }, [fetchOnboarding]);
+
+  useEffect(() => {
+    if (tab === "acquisition" && isAdmin) void loadOnboarding();
+  }, [tab, isAdmin, loadOnboarding]);
+
+  useEffect(() => {
+    if (tab === "users" && isAdmin) {
+      void loadUserList(userListPage, userSearch);
+    }
+  }, [tab, isAdmin, userListPage, userSearch, loadUserList]);
+
+  const closeUserModal = useCallback(() => {
+    setSelectedUserDetail(null);
     setShowEmailForm(false);
     setEmailSubject("");
     setEmailBody("");
-   } else {
-    toast.error(res.message);
-   }
-  } catch (err) {
-   toast.error(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email.");
-  } finally {
-   setEmailSending(false);
-  }
- }, [selectedUserDetail, emailSubject, emailBody, sendEmailToUser]);
-
- const handleAddSubscription = useCallback(async () => {
-  if (!selectedUserDetail) return;
-  if (!subReason.trim()) {
-   toast.error("Le motif est obligatoire pour ajouter un abonnement.");
-   return;
-  }
-  setSubAdding(true);
-  try {
-   const res = await addSubscriptionToUser({
-    data: {
-     userId: selectedUserDetail.id,
-     plan: subPlan,
-     reason: subReason.trim(),
-    },
-   });
-   if (res.ok) {
-    toast.success(res.message);
-    setShowSubConfirm(false);
     setShowSubForm(false);
+    setShowSubConfirm(false);
     setSubReason("");
-    // Reload details, list, and stats
-    await openUserModal(selectedUserDetail.id);
-    void loadUserList(userListPage, userSearch);
-    void load();
-   } else {
-    toast.error(res.message);
-   }
-  } catch (err) {
-   toast.error(err instanceof Error ? err.message : "Erreur lors de l'attribution de l'abonnement.");
-  } finally {
-   setSubAdding(false);
-  }
- }, [selectedUserDetail, subReason, subPlan, addSubscriptionToUser, openUserModal, loadUserList, userListPage, userSearch, load]);
+  }, []);
 
- const runSweep = useCallback(
-  async (silent: boolean) => {
-   setSweeping(true);
-   try {
-    const r = await sweepStuck({});
-    if (r.ready || r.failed) {
-     toast.success(`${r.ready} création(s) terminée(s), ${r.failed} échec(s) remboursé(s).`);
-     await load();
-    } else if (!silent) {
-     toast.success(
-      r.waiting > 0
-       ? `${r.waiting} création(s) toujours en cours chez fal.`
-       : "Aucune création bloquée.",
-     );
+  const openUserModal = useCallback(
+    async (userId: string) => {
+      setDetailLoading(true);
+      setSelectedUserDetail(null);
+      setShowEmailForm(false);
+      setEmailSubject("");
+      setEmailBody("");
+      setShowSubForm(false);
+      setShowSubConfirm(false);
+      setSubReason("");
+      try {
+        const detail = await fetchUserDetail({ data: { userId } });
+        setSelectedUserDetail(detail);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Impossible de charger la fiche utilisateur.",
+        );
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [fetchUserDetail],
+  );
+
+  const handleSendEmail = useCallback(async () => {
+    if (!selectedUserDetail) return;
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      toast.error("Veuillez remplir l'objet et le message.");
+      return;
     }
-   } catch {
-    if (!silent) toast.error("Impossible de terminer les créations bloquées.");
-   } finally {
-    setSweeping(false);
-   }
-  },
-  [sweepStuck, load],
- );
+    setEmailSending(true);
+    try {
+      const res = await sendEmailToUser({
+        data: {
+          userId: selectedUserDetail.id,
+          subject: emailSubject.trim(),
+          message: emailBody.trim(),
+        },
+      });
+      if (res.ok) {
+        toast.success(res.message);
+        setShowEmailForm(false);
+        setEmailSubject("");
+        setEmailBody("");
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email.");
+    } finally {
+      setEmailSending(false);
+    }
+  }, [selectedUserDetail, emailSubject, emailBody, sendEmailToUser]);
 
- useEffect(() => {
-  if (isAdmin && !didSweep.current) {
-   didSweep.current = true;
-   void runSweep(true);
-  }
- }, [isAdmin, runSweep]);
+  const handleAddSubscription = useCallback(async () => {
+    if (!selectedUserDetail) return;
+    if (!subReason.trim()) {
+      toast.error("Le motif est obligatoire pour ajouter un abonnement.");
+      return;
+    }
+    setSubAdding(true);
+    try {
+      const res = await addSubscriptionToUser({
+        data: {
+          userId: selectedUserDetail.id,
+          plan: subPlan,
+          reason: subReason.trim(),
+        },
+      });
+      if (res.ok) {
+        toast.success(res.message);
+        setShowSubConfirm(false);
+        setShowSubForm(false);
+        setSubReason("");
+        // Reload details, list, and stats
+        await openUserModal(selectedUserDetail.id);
+        void loadUserList(userListPage, userSearch);
+        void load();
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'attribution de l'abonnement.");
+    } finally {
+      setSubAdding(false);
+    }
+  }, [selectedUserDetail, subReason, subPlan, addSubscriptionToUser, openUserModal, loadUserList, userListPage, userSearch, load]);
 
- const cards = stats
-  ? [
-    { label: "En ligne (5 min)", value: String(stats.onlineNow), icon: User, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { label: "Actifs (24 h)", value: String(stats.active24h), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-500/10" },
-    { label: "Utilisateurs", value: String(stats.users), icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Générations", value: String(stats.generations), icon: Images, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { label: "Aujourd'hui", value: String(stats.generationsToday), icon: Clock, color: "text-teal-500", bg: "bg-teal-500/10" },
-    { label: "Échecs", value: String(stats.errors), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
-    { label: "En modération", value: String(stats.pendingModeration), icon: ShieldCheck, color: "text-orange-500", bg: "bg-orange-500/10" },
-    { label: "Abonnements actifs", value: String(stats.activeSubscriptions), icon: Crown, color: "text-green-500", bg: "bg-green-500/10" },
-   ]
-  : [];
-
- const sections = [
-  { id: "overview", label: "Vue d'ensemble", icon: Gauge, show: isAdmin },
-  { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
-  { id: "users", label: "Utilisateurs", icon: User, show: isAdmin },
-  { id: "acquisition", label: "Acquisition", icon: Megaphone, show: isAdmin },
-  { id: "landing", label: "Page d'accueil", icon: Megaphone, show: isAdmin },
-  { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
-  { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
-  { id: "publication", label: "Publication", icon: MaintenanceIcon, show: isAdmin },
-  { id: "generation", label: "Génération", icon: GenerationIcon, show: isAdmin },
-  { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
-  { id: "promos", label: "Codes promo", icon: Tag, show: isAdmin },
-  { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
-  { id: "team", label: "Équipe", icon: Users, show: isAdmin },
-  { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
-  { id: "subscriptions", label: "Abonnements", icon: Crown, show: isAdmin },
-  {
-   id: "orders",
-   label: "Paiements",
-   icon: CreditCard,
-   show: isAdmin || roles.includes("finance"),
-  },
-  { id: "moderation", label: "Modération", icon: ShieldCheck, show: canModerate },
-  { id: "content", label: "Créations", icon: Images, show: isAdmin },
-  { id: "monetise", label: "Partenaires & gains", icon: Wallet, show: isAdmin },
-  { id: "payouts", label: "Développeurs", icon: Wallet, show: isAdmin },
- ].filter((s) => s.show);
-
- const active = sections.some((s) => s.id === tab) ? tab : (sections[0]?.id ?? "overview");
-
- // Données pour le PieChart (calcul sur les 14 jours)
- const pieData = [
-  { name: "Images", value: timeSeries.reduce((acc, curr) => acc + curr.images, 0), color: "#a855f7" }, // purple-500
-  { name: "Vidéos", value: timeSeries.reduce((acc, curr) => acc + curr.videos, 0), color: "#3b82f6" }, // blue-500
-  { name: "Échecs", value: timeSeries.reduce((acc, curr) => acc + curr.failed, 0), color: "#ef4444" }, // red-500
- ].filter(d => d.value > 0);
-
- return (
-  <div
-   className="min-h-screen bg-background pb-24"
-   style={{ background: "var(--gradient-hero)" }}
-  >
-   <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-2xl">
-    <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-     <Link
-      to="/app"
-      aria-label="Retour au studio"
-      className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
-     >
-      <ArrowLeft className="h-5 w-5" />
-     </Link>
-     <div className="min-w-0">
-      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-       <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Administration
-      </p>
-      <h1 className="truncate text-[19px] font-semibold tracking-tight">
-       Sam Flash
-      </h1>
-     </div>
-     <button
-      type="button"
-      onClick={() => void load()}
-      aria-label="Actualiser"
-      className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-secondary transition-transform active:scale-95"
-     >
-      <RefreshCw className="h-4 w-4" />
-     </button>
-     <Link
-      to="/admin-challenge"
-      className="rounded-full bg-secondary px-3.5 py-2 text-xs font-medium transition-transform active:scale-95"
-     >
-      Challenge
-     </Link>
-    </div>
-   </header>
-
-   <div className="mx-auto flex max-w-6xl flex-col md:flex-row items-start w-full">
-    {sections.length > 0 && (
-     <nav className="w-full md:w-64 flex-shrink-0 md:sticky md:top-[70px] md:h-[calc(100vh-70px)] md:border-r md:border-border/60 md:px-4 md:py-6 overflow-y-auto z-10 bg-background/50 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-b border-border/60 md:border-b-0 sticky top-[60px]">
-      {/* Conteneur interne pour le style glassmorphism sur desktop */}
-      <div className="flex md:flex-col gap-1 md:gap-2 overflow-x-auto md:overflow-visible px-4 py-3 md:p-4 hide-scrollbar md:rounded-3xl md:bg-card/30 md:border md:border-border/50 md:backdrop-blur-xl">
-       {sections.map((s) => (
-        <button
-         key={s.id}
-         type="button"
-         onClick={() => setTab(s.id)}
-         className={`flex items-center gap-3 whitespace-nowrap rounded-full md:rounded-xl px-4 py-2 md:py-3 text-[13px] md:text-[14px] font-medium transition-all ${
-          active === s.id 
-           ? "bg-card border border-border/70 text-foreground shadow-sm md:shadow-md" 
-           : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-         }`}
-        >
-         <s.icon className="h-4 w-4 md:h-[18px] md:w-[18px]" />
-         {s.label}
-        </button>
-       ))}
-      </div>
-     </nav>
-    )}
-
-    <main className="flex-1 min-w-0 w-full px-4 py-6 md:px-8">
-    {loading ? (
-     <div className="grid grid-cols-2 gap-3 pt-6 sm:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-       <div key={i} className="h-24 animate-pulse rounded-3xl bg-secondary/50" />
-      ))}
-     </div>
-    ) : !owner && isStaff === false ? (
-     <p className="pt-24 text-center text-sm text-muted-foreground">
-      Accès réservé à l'équipe.
-     </p>
-    ) : (
-     <>
-      {roles.length > 0 && (
-       <p className="pt-5 text-xs text-muted-foreground">
-        Vos accès :{" "}
-        {roles
-         .filter((r) => r !== "user")
-         .map((r) => ROLE_LABEL[r as TeamRole] ?? r)
-         .join(" · ")}
-       </p>
-      )}
-
-      {active === "financial" && isAdmin && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Tableau de bord financier</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         Métriques SaaS et revenus.
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-         <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
-          <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
-          <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
-           {(financialMetrics?.mrr ?? 0).toFixed(2)} €
-          </span>
-         </div>
-         <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
-          <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
-          <span className="mt-2 text-2xl font-bold tracking-tight">
-           {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
-          </span>
-         </div>
-         <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
-          <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
-          <span className="mt-2 text-2xl font-bold tracking-tight">
-           {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
-          </span>
-         </div>
-         <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
-          <span className="text-sm font-medium text-muted-foreground">Taux de désabonnement</span>
-          <span className="mt-2 text-2xl font-bold tracking-tight">
-           {(financialMetrics?.churnRate ?? 0).toFixed(1)} %
-          </span>
-         </div>
-         <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-3">
-          <span className="text-sm font-medium text-muted-foreground">Abonnés actifs par offre</span>
-          <div className="mt-3 flex flex-wrap gap-4 justify-center">
-           {Object.entries(financialMetrics?.activeSubscribersByTier || {}).map(([tier, count]) => (
-            <div key={tier} className="flex flex-col items-center">
-             <span className="text-xl font-bold">{count}</span>
-             <span className="text-[11px] uppercase text-muted-foreground">{tier}</span>
-            </div>
-           ))}
-           {Object.keys(financialMetrics?.activeSubscribersByTier || {}).length === 0 && (
-            <span className="text-sm text-muted-foreground">Aucun abonné actif</span>
-           )}
-          </div>
-         </div>
-        </div>
-
-        <div className="mt-8 rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl">
-         <h3 className="text-lg font-semibold tracking-tight mb-4">Évolution du revenu (6 derniers mois)</h3>
-         <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-           <AreaChart data={financialMetrics?.monthlyRevenueHistory || []}>
-            <defs>
-             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-             </linearGradient>
-            </defs>
-            <XAxis
-             dataKey="month"
-             stroke="hsl(var(--muted-foreground))"
-             fontSize={12}
-             tickLine={false}
-             axisLine={false}
-            />
-            <YAxis
-             stroke="hsl(var(--muted-foreground))"
-             fontSize={12}
-             tickLine={false}
-             axisLine={false}
-             tickFormatter={(value) => `${value} FCFA`}
-            />
-            <RechartsTooltip
-             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              borderColor: "hsl(var(--border))",
-              borderRadius: "0.75rem",
-              color: "hsl(var(--foreground))",
-             }}
-            />
-            <Area
-             type="monotone"
-             dataKey="revenue"
-             stroke="hsl(var(--primary))"
-             fillOpacity={1}
-             fill="url(#colorRev)"
-            />
-           </AreaChart>
-          </ResponsiveContainer>
-         </div>
-        </div>
-       </section>
-      )}
-
-      {active === "overview" && isAdmin && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Vue d'ensemble</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         Activité en temps réel de la plateforme.
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-         {cards.map((c) => (
-          <div
-           key={c.label}
-           className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col"
-          >
-           <div className="flex items-center gap-2 mb-3">
-            <div className={`flex items-center justify-center h-8 w-8 rounded-full ${c.bg} ${c.color}`}>
-             <c.icon className="h-4 w-4" />
-            </div>
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-             {c.label}
-            </p>
-           </div>
-           <p className="mt-auto text-3xl font-semibold tracking-tight">{c.value}</p>
-          </div>
-         ))}
-        </div>
-
-        {timeSeries.length > 0 && (
-         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
-           <h3 className="text-sm font-medium mb-4">Générations sur les 14 derniers jours</h3>
-           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-             <AreaChart data={timeSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-               <linearGradient id="colorImages" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-               </linearGradient>
-               <linearGradient id="colorVideos" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-               </linearGradient>
-              </defs>
-              <XAxis 
-               dataKey="date" 
-               tickFormatter={(val: string) => new Date(val).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit' })}
-               axisLine={false} 
-               tickLine={false} 
-               tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
-              />
-              <YAxis 
-               axisLine={false} 
-               tickLine={false} 
-               tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
-              />
-              <RechartsTooltip 
-               contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
-               labelFormatter={(label) => new Date(label as string).toLocaleDateString("fr-FR")}
-              />
-              <Area type="monotone" dataKey="images" name="Images" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorImages)" />
-              <Area type="monotone" dataKey="videos" name="Vidéos" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorVideos)" />
-             </AreaChart>
-            </ResponsiveContainer>
-           </div>
-          </div>
-
-          <div className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col">
-           <h3 className="text-sm font-medium mb-4">Répartition</h3>
-           <div className="flex-1 min-h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-             <PieChart>
-              <Pie
-               data={pieData}
-               cx="50%"
-               cy="50%"
-               innerRadius={60}
-               outerRadius={80}
-               paddingAngle={5}
-               dataKey="value"
-               stroke="none"
-              >
-               {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-               ))}
-              </Pie>
-              <RechartsTooltip 
-               contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} 
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-             </PieChart>
-            </ResponsiveContainer>
-           </div>
-          </div>
-         </div>
-        )}
-       </section>
-      )}
-
-      {active === "users" && isAdmin && (
-       <section className="pt-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-         <div>
-          <h2 className="text-[22px] font-semibold tracking-tight">Utilisateurs inscrits</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-           {userListTotal} utilisateur{userListTotal > 1 ? "s" : ""} au total · 50 par page
-          </p>
-         </div>
-         <div className="w-full sm:w-72">
-          <input
-           type="search"
-           placeholder="Rechercher par email…"
-           value={userSearch}
-           onChange={(e) => {
-            setUserSearch(e.target.value);
-            setUserListPage(1);
-           }}
-           className="w-full rounded-2xl border border-border bg-card/60 px-4 py-2 text-sm backdrop-blur-xl outline-none focus:border-primary"
-          />
-         </div>
-        </div>
-
-        {userListLoading ? (
-         <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Chargement des utilisateurs…
-         </div>
-        ) : (
-         <>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-border/70 bg-card/50 backdrop-blur-xl">
-           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-             <thead className="border-b border-border/60 bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <tr>
-               <th className="px-4 py-3">Utilisateur</th>
-               <th className="px-4 py-3">Offre</th>
-               <th className="px-4 py-3">Inscription</th>
-               <th className="px-4 py-3">Dernière connexion</th>
-               <th className="px-4 py-3 text-right">Fin d'abonnement</th>
-              </tr>
-             </thead>
-             <tbody className="divide-y divide-border/40">
-              {userList.map((u) => (
-               <tr
-                key={u.id}
-                onClick={() => void openUserModal(u.id)}
-                className="cursor-pointer transition-colors hover:bg-muted/40"
-               >
-                <td className="px-4 py-3">
-                 <div className="font-medium text-foreground">{u.email || "Non renseigné"}</div>
-                 {u.full_name && (
-                  <div className="text-[11px] text-muted-foreground">{u.full_name}</div>
-                 )}
-                </td>
-                <td className="px-4 py-3">
-                 <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                   u.plan_label === "Gratuit"
-                    ? "bg-secondary text-muted-foreground"
-                    : "bg-primary/20 text-primary font-semibold"
-                  }`}
-                 >
-                  {u.plan_label}
-                 </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">
-                 {new Date(u.created_at).toLocaleDateString("fr-FR")}
-                </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">
-                 {u.last_sign_in_at
-                  ? new Date(u.last_sign_in_at).toLocaleString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                   })
-                  : "Jamais"}
-                </td>
-                <td className="px-4 py-3 text-right text-xs">
-                 {u.ends_at ? (
-                  <span
-                   className={
-                    new Date(u.ends_at) < new Date()
-                     ? "text-muted-foreground"
-                     : "font-medium text-foreground"
-                   }
-                  >
-                   {new Date(u.ends_at).toLocaleDateString("fr-FR")}
-                  </span>
-                 ) : (
-                  <span className="text-muted-foreground">—</span>
-                 )}
-                </td>
-               </tr>
-              ))}
-              {userList.length === 0 && (
-               <tr>
-                <td colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
-                 Aucun utilisateur trouvé.
-                </td>
-               </tr>
-              )}
-             </tbody>
-            </table>
-           </div>
-          </div>
-
-          {userListTotalPages > 1 && (
-           <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-             Page {userListPage} sur {userListTotalPages}
-            </span>
-            <div className="flex gap-2">
-             <button
-              type="button"
-              disabled={userListPage <= 1}
-              onClick={() => setUserListPage((p) => Math.max(1, p - 1))}
-              className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
-             >
-              Précédent
-             </button>
-             <button
-              type="button"
-              disabled={userListPage >= userListTotalPages}
-              onClick={() => setUserListPage((p) => Math.min(userListTotalPages, p + 1))}
-              className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
-             >
-              Suivant
-             </button>
-            </div>
-           </div>
-          )}
-         </>
-        )}
-
-        {/* Modale Fiche Détail Utilisateur */}
-        {(detailLoading || selectedUserDetail) && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border/80 bg-card p-6 shadow-2xl">
-           <button
-            type="button"
-            aria-label="Fermer"
-            onClick={closeUserModal}
-            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground"
-           >
-            <X className="h-4 w-4" />
-           </button>
-
-           {detailLoading ? (
-            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-             <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Chargement de la fiche…
-            </div>
-           ) : selectedUserDetail ? (
-            <div className="space-y-6">
-             <div>
-              <div className="flex items-center gap-2">
-               <h3 className="text-xl font-bold tracking-tight">
-                {selectedUserDetail.full_name || selectedUserDetail.email || "Utilisateur"}
-               </h3>
-               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                 selectedUserDetail.is_subscribed
-                  ? "bg-primary/20 text-primary"
-                  : "bg-secondary text-muted-foreground"
-                }`}
-               >
-                {selectedUserDetail.plan_label}
-               </span>
-              </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">{selectedUserDetail.email}</p>
-             </div>
-
-             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Date d'inscription
-               </span>
-               <p className="mt-1 text-sm font-semibold">
-                {new Date(selectedUserDetail.created_at).toLocaleString("fr-FR")}
-               </p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Dernière connexion
-               </span>
-               <p className="mt-1 text-sm font-semibold">
-                {selectedUserDetail.last_sign_in_at
-                 ? new Date(selectedUserDetail.last_sign_in_at).toLocaleString("fr-FR")
-                 : "Jamais"}
-               </p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Méthode d'inscription
-               </span>
-               <p className="mt-1 text-sm font-semibold">{selectedUserDetail.signup_method}</p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Fin d'abonnement
-               </span>
-               <p className="mt-1 text-sm font-semibold">
-                {selectedUserDetail.subscription_ends_at
-                 ? new Date(selectedUserDetail.subscription_ends_at).toLocaleDateString("fr-FR")
-                 : selectedUserDetail.is_subscribed
-                  ? "Actif"
-                  : "Aucun"}
-               </p>
-              </div>
-             </div>
-
-             {selectedUserDetail.is_subscribed &&
-              selectedUserDetail.remaining_seconds_today !== null && (
-               <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                <div className="flex items-center justify-between">
-                 <span className="text-xs font-semibold uppercase text-primary">
-                  Secondes restantes aujourd'hui
-                 </span>
-                 <span className="text-sm font-bold text-primary">
-                  {selectedUserDetail.remaining_seconds_today}s / {selectedUserDetail.limit_seconds_today}s (
-                  {formatSeconds(selectedUserDetail.remaining_seconds_today)})
-                 </span>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
-                 <div
-                  className="h-full bg-primary transition-all"
-                  style={{
-                   width: `${Math.min(
-                    100,
-                    Math.max(
-                     0,
-                     ((selectedUserDetail.remaining_seconds_today ?? 0) /
-                      (selectedUserDetail.limit_seconds_today || 1)) *
-                      100,
-                    ),
-                   )}%`,
-                  }}
-                 />
-                </div>
-               </div>
-              )}
-
-             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Images créées
-               </span>
-               <p className="mt-1 text-xl font-bold text-purple-400">
-                {selectedUserDetail.total_images}
-               </p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Vidéos créées
-               </span>
-               <p className="mt-1 text-xl font-bold text-blue-400">
-                {selectedUserDetail.total_videos}
-               </p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
-               <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                Tickets Support
-               </span>
-               <p className="mt-1 text-xl font-bold text-orange-400">
-                {selectedUserDetail.support_tickets_count}
-               </p>
-              </div>
-             </div>
-
-             {/* Actions Administrateur */}
-             <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-               Actions administrateur
-              </h4>
-
-              <div className="flex flex-wrap gap-2">
-               <button
-                type="button"
-                onClick={() => {
-                 setShowEmailForm((prev) => !prev);
-                 setShowSubForm(false);
-                 setShowSubConfirm(false);
-                }}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                 showEmailForm
-                  ? "bg-foreground text-background"
-                  : "bg-secondary text-foreground hover:bg-secondary/80"
-                }`}
-               >
-                <Mail className="h-4 w-4" />
-                Envoyer un email
-               </button>
-
-               <button
-                type="button"
-                onClick={() => {
-                 setShowSubForm((prev) => !prev);
-                 setShowEmailForm(false);
-                 setShowSubConfirm(false);
-                }}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                 showSubForm
-                  ? "bg-foreground text-background"
-                  : "bg-secondary text-foreground hover:bg-secondary/80"
-                }`}
-               >
-                <PlusCircle className="h-4 w-4" />
-                Ajouter un abonnement
-               </button>
-              </div>
-
-              {/* Formulaire Envoi Email */}
-              {showEmailForm && (
-               <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
-                <h5 className="text-xs font-semibold text-foreground">
-                 Envoyer un email à {selectedUserDetail.email}
-                </h5>
-                <div>
-                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Objet
-                 </label>
-                 <input
-                  type="text"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  placeholder="Ex. Information sur votre compte Sam Flash"
-                  className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                 />
-                </div>
-                <div>
-                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Message
-                 </label>
-                 <textarea
-                  rows={4}
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  placeholder="Rédigez votre message ici..."
-                  className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                 />
-                </div>
-                <div className="flex items-center justify-end gap-2 pt-1">
-                 <button
-                  type="button"
-                  onClick={() => setShowEmailForm(false)}
-                  className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                 >
-                  Annuler
-                 </button>
-                 <button
-                  type="button"
-                  disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
-                  onClick={() => void handleSendEmail()}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
-                 >
-                  <Send className="h-3.5 w-3.5" />
-                  {emailSending ? "Envoi en cours…" : "Envoyer"}
-                 </button>
-                </div>
-               </div>
-              )}
-
-              {/* Formulaire Ajout Abonnement */}
-              {showSubForm && (
-               <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
-                <h5 className="text-xs font-semibold text-foreground">
-                 Ajouter un abonnement manuel
-                </h5>
-
-                <div>
-                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Offre
-                 </label>
-                 <select
-                  value={subPlan}
-                  onChange={(e) =>
-                   setSubPlan(e.target.value as AdminAddSubscriptionInput["plan"])
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
-                 >
-                  <option value="sam_flash_light">
-                   Sam Flash Light (1 mois)
-                  </option>
-                  <option value="sam_flash_pro">
-                   Sam Flash Pro (1 mois)
-                  </option>
-                  <option value="sam_flash_pro_annuel">
-                   Sam Flash Pro (annuel — 12 mois)
-                  </option>
-                  <option value="pack_essai">
-                   Offre d'essai (40 crédits, sans abonnement)
-                  </option>
-                 </select>
-                </div>
-
-                <div>
-                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Motif <span className="text-destructive">*</span>
-                 </label>
-                 <input
-                  type="text"
-                  value={subReason}
-                  onChange={(e) => setSubReason(e.target.value)}
-                  placeholder="Ex. Paiement bloqué commande n°..., geste commercial..."
-                  className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                 />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-1">
-                 <button
-                  type="button"
-                  onClick={() => {
-                   setShowSubForm(false);
-                   setShowSubConfirm(false);
-                  }}
-                  className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                 >
-                  Annuler
-                 </button>
-                 <button
-                  type="button"
-                  disabled={!subReason.trim()}
-                  onClick={() => {
-                   if (!subReason.trim()) {
-                    toast.error("Le motif est obligatoire.");
-                    return;
-                   }
-                   setShowSubConfirm(true);
-                  }}
-                  className="rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
-                 >
-                  Valider l'attribution
-                 </button>
-                </div>
-
-                {/* Confirmation Dialog */}
-                {showSubConfirm && (
-                 <div className="mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-4 text-xs">
-                  <p className="font-semibold text-orange-400">
-                   Confirmation requise
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                   Voulez-vous vraiment attribuer l'offre{" "}
-                   <strong className="text-foreground">
-                    {subPlan === "super_grok_monthly" && "Super Grok (mensuel)"}
-                    {subPlan === "super_grok_annuel" && "Super Grok (annuel)"}
-                    {subPlan === "super_grok_plus" && "Super Grok Plus"}
-                    {subPlan === "superhearly_monthly" && "Super Grok Heavy"}
-                   </strong>{" "}
-                   à <strong className="text-foreground">{selectedUserDetail.email}</strong> ?
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                   Motif enregistré : <em>« {subReason} »</em>
-                  </p>
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                   <button
-                    type="button"
-                    onClick={() => setShowSubConfirm(false)}
-                    className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium hover:bg-secondary"
-                   >
-                    Retour
-                   </button>
-                   <button
-                    type="button"
-                    disabled={subAdding}
-                    onClick={() => void handleAddSubscription()}
-                    className="rounded-full bg-primary px-4 py-1.5 font-semibold text-primary-foreground disabled:opacity-50"
-                   >
-                    {subAdding ? "Activation…" : "Confirmer l'ajout"}
-                   </button>
-                  </div>
-                 </div>
-                )}
-               </div>
-              )}
-             </div>
-
-             <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-               10 dernières commandes
-              </h4>
-              {selectedUserDetail.recent_orders.length > 0 ? (
-               <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/40">
-                <table className="w-full text-left text-xs">
-                 <thead className="border-b border-border/60 bg-muted/20 text-[10px] uppercase text-muted-foreground">
-                  <tr>
-                   <th className="px-3 py-2">Date</th>
-                   <th className="px-3 py-2">Montant</th>
-                   <th className="px-3 py-2">Méthode</th>
-                   <th className="px-3 py-2 text-right">Statut</th>
-                  </tr>
-                 </thead>
-                 <tbody className="divide-y divide-border/30">
-                  {selectedUserDetail.recent_orders.map((o) => (
-                   <tr key={o.transaction_id}>
-                    <td className="px-3 py-2 text-muted-foreground">
-                     {new Date(o.created_at).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="px-3 py-2 font-medium">
-                     {o.amount_eur.toFixed(2)} {o.currency}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                     {o.payment_method}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                       o.status === "payee"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-secondary text-muted-foreground"
-                      }`}
-                     >
-                      {o.status}
-                     </span>
-                    </td>
-                   </tr>
-                  ))}
-                 </tbody>
-                </table>
-               </div>
-              ) : (
-               <p className="rounded-2xl border border-border/40 bg-muted/10 py-4 text-center text-xs text-muted-foreground">
-                Aucune commande effectuée.
-               </p>
-              )}
-             </div>
-            </div>
-           ) : null}
-          </div>
-         </div>
-        )}
-       </section>
-      )}
-
-      {active === "pricing" && canPrices && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Tarifs des offres</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         Montants en euros, convertis automatiquement à l'achat.
-        </p>
-
-        <ul className="mt-4 space-y-3">
-         {prices.map((p) => (
-          <li
-           key={p.id}
-           className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl"
-          >
-           <div className="flex items-center gap-3">
-            <div className="min-w-0">
-             <p className="truncate text-[17px] font-medium">{p.label}</p>
-             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              {p.tier}
-             </p>
-            </div>
-            <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-             <input
-              type="checkbox"
-              checked={p.active}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id ? { ...r, active: e.target.checked } : r,
-                ),
-               )
-              }
-             />
-             Actif
-            </label>
-            <button
-             type="button"
-             onClick={() => void commitPrice(p)}
-             className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition-transform active:scale-95"
-            >
-             Enregistrer
-            </button>
-           </div>
-           <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="text-[11px] text-muted-foreground">
-             {p.id === "custom" ? "Prix d'UN crédit (FCFA), ex. 1,2" : "Mensuel (FCFA)"}
-             <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              aria-label={`Prix mensuel en FCFA pour ${p.label}`}
-              value={p.amount_fcfa ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id ? { ...r, amount_fcfa: Number(e.target.value) } : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-            <label className="text-[11px] text-muted-foreground">
-             Annuel (FCFA)
-             <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              aria-label={`Prix annuel en FCFA pour ${p.label}`}
-              value={p.amount_fcfa_yearly ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id
-                  ? {
-                    ...r,
-                    amount_fcfa_yearly:
-                     e.target.value === "" ? null : Number(e.target.value),
-                   }
-                  : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-           </div>
-           <div className="mt-3 grid grid-cols-3 gap-3">
-            <label className="text-[11px] text-muted-foreground">
-             Crédits par € (taux)
-             <input
-              type="number"
-              min={0}
-              step="0.01"
-              aria-label={`Taux de crédits pour ${p.label}`}
-              value={p.credits_rate ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id
-                  ? { ...r, credits_rate: e.target.value === "" ? null : Number(e.target.value) }
-                  : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-            <label className="text-[11px] text-muted-foreground">
-             Bonus (crédits)
-             <input
-              type="number" step="any"
-              min={0}
-              aria-label={`Bonus de crédits pour ${p.label}`}
-              value={p.credits_bonus ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id
-                  ? { ...r, credits_bonus: e.target.value === "" ? 0 : Number(e.target.value) }
-                  : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-            <label className="text-[11px] text-muted-foreground">
-             Crédits fixes (vide = calcul)
-             <input
-              type="number" step="any"
-              min={0}
-              aria-label={`Crédits fixes pour ${p.label}`}
-              value={p.credits_fixed ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id
-                  ? { ...r, credits_fixed: e.target.value === "" ? null : Number(e.target.value) }
-                  : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-           </div>
-           <div className="mt-3">
-            <label className="block text-[11px] text-muted-foreground">
-             Images gratuites (vide = calcul : crédits ÷ 5)
-             <input
-              type="number" step="any"
-              min={0}
-              aria-label={`Images gratuites pour ${p.label}`}
-              value={p.images_free ?? ""}
-              onChange={(e) =>
-               setPrices((prev) =>
-                prev.map((r) =>
-                 r.id === p.id
-                  ? { ...r, images_free: e.target.value === "" ? null : Number(e.target.value) }
-                  : r,
-                ),
-               )
-              }
-              className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
-             />
-            </label>
-           </div>
-          </li>
-         ))}
-        </ul>
-        {priceNotice && <p className="mt-3 text-sm text-primary">{priceNotice}</p>}
-       </section>
-      )}
-
-      {active === "team" && isAdmin && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Collaborateurs</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         Invitez votre équipe et gérez les rôles.
-        </p>
-        <div className="mt-4 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
-         <label htmlFor="inv-email" className="text-xs text-muted-foreground">
-          Inviter par e-mail
-         </label>
-         <input
-          id="inv-email"
-          type="email"
-          value={inviteEmail}
-          onChange={(e) => setInviteEmail(e.target.value)}
-          placeholder="collaborateur@exemple.com"
-          className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-4 py-3"
-         />
-         <div className="mt-3 flex items-center gap-2">
-          <select
-           aria-label="Rôle du collaborateur"
-           value={inviteRole}
-           onChange={(e) => setInviteRole(e.target.value as TeamRole)}
-           className="rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-sm"
-          >
-           {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => (
-            <option key={r} value={r}>
-             {ROLE_LABEL[r]}
-            </option>
-           ))}
-          </select>
-          <button
-           type="button"
-           onClick={() =>
-            void invite({ data: { email: inviteEmail.trim(), role: inviteRole } })
-             .then((r) => {
-              setNotice(r.message);
-              if (r.ok) setInviteEmail("");
-              return load();
-             })
-             .catch(() => setNotice("Invitation impossible."))
-           }
-           disabled={inviteEmail.trim().length < 5}
-           className="ml-auto rounded-full bg-foreground px-5 py-2.5 text-xs font-semibold text-background disabled:opacity-50"
-          >
-           Inviter
-          </button>
-         </div>
-         {notice && <p className="mt-2 text-xs text-primary">{notice}</p>}
-        </div>
-
-        <ul className="mt-3 space-y-2">
-         {members.map((m) => (
-          <li
-           key={m.user_id}
-           className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-          >
-           <p className="truncate font-medium">{m.email ?? m.full_name ?? m.user_id}</p>
-           <div className="mt-2 flex flex-wrap gap-2">
-            {m.roles.map((r) => (
-             <button
-              key={r}
-              type="button"
-              onClick={() =>
-               void revoke({ data: { userId: m.user_id, role: r } })
-                .then((res) => {
-                 setNotice(res.message);
-                 return load();
-                })
-                .catch(() => setNotice("Retrait impossible."))
-              }
-              className="rounded-full bg-secondary px-3 py-1 text-[11px]"
-              aria-label={`Retirer le rôle ${ROLE_LABEL[r]} à ${m.email ?? m.user_id}`}
-             >
-              {ROLE_LABEL[r]} ✕
-             </button>
-            ))}
-           </div>
-          </li>
-         ))}
-         {members.length === 0 && (
-          <li className="py-6 text-center text-sm text-muted-foreground">
-           Aucun collaborateur.
-          </li>
-         )}
-        </ul>
-
-        {invites.filter((i) => !i.accepted_at).length > 0 && (
-         <>
-          <h3 className="mt-6 text-sm font-medium text-muted-foreground">
-           Invitations en attente
-          </h3>
-          <ul className="mt-2 space-y-2">
-           {invites
-            .filter((i) => !i.accepted_at)
-            .map((i) => (
-             <li
-              key={i.id}
-              className="flex items-center gap-2 rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-             >
-              <span className="truncate">{i.email}</span>
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-               {ROLE_LABEL[i.role]}
-              </span>
-              <button
-               type="button"
-               onClick={() =>
-                void cancelInvite({ data: { id: i.id } })
-                 .then((r) => {
-                  setNotice(r.message);
-                  return load();
-                 })
-                 .catch(() => setNotice("Annulation impossible."))
-               }
-               className="ml-auto text-[11px] text-destructive"
-              >
-               Annuler
-              </button>
-             </li>
-            ))}
-          </ul>
-         </>
-        )}
-       </section>
-      )}
-
-      {active === "support" && canSupport && <AdminSupportPanel />}
-
-      {active === "reviews" && isAdmin && <AdminReviewsPanel />}
-
-      {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
-      {active === "publication" && isAdmin && <AdminFeaturesPanel />}
-      {active === "generation" && isAdmin && <AdminGenerationPanel />}
-      {active === "generation" && isAdmin && <AdminVoicePanel />}
-      {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
-      {active === "credits_gratuits" && isAdmin && <AdminFreeVideoPanel />}
-      {active === "promos" && isAdmin && <AdminPromoPanel />}
-      {active === "monetise" && isAdmin && <AdminMonetizePanel />}
-
-      {active === "subscriptions" && isAdmin && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Abonnements</h2>
-        <ul className="mt-4 space-y-2">
-         {subscriptions.map((sub) => {
-          let colorClass = "text-foreground";
-          let statusLabel = sub.status;
-          let pillClass = "bg-secondary";
-
-          if (sub.ends_at) {
-           const end = new Date(sub.ends_at);
-           const now = new Date();
-           const diffDays = (end.getTime() - now.getTime()) / (1000 * 3600 * 24);
-
-           if (diffDays < 0) {
-            colorClass = "text-muted-foreground";
-            statusLabel = "expiré";
-            pillClass = "bg-secondary text-muted-foreground";
-           } else if (diffDays <= 7) {
-            colorClass = "text-orange-500";
-            pillClass = "bg-orange-500/20 text-orange-500";
-           }
-          }
-
-          return (
-           <li
-            key={sub.id}
-            className={`rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl ${colorClass}`}
-           >
-            <div className="flex flex-wrap items-center gap-2">
-             <span className={`rounded-full px-2 py-0.5 text-[11px] ${pillClass}`}>
-              {statusLabel}
-             </span>
-             <span className="text-[11px] uppercase tracking-wider opacity-80">
-              {sub.tier}
-             </span>
-             <span className="ml-auto text-[11px] opacity-70">
-              {sub.ends_at ? new Date(sub.ends_at).toLocaleDateString("fr-FR") : "À vie"}
-             </span>
-            </div>
-            <p className="mt-1 truncate font-medium">{sub.email ?? sub.user_id}</p>
-            <p className="text-[11px] opacity-70">
-             Depuis le {new Date(sub.created_at).toLocaleDateString("fr-FR")}
-            </p>
-           </li>
+  const runSweep = useCallback(
+    async (silent: boolean) => {
+      setSweeping(true);
+      try {
+        const r = await sweepStuck({});
+        if (r.ready || r.failed) {
+          toast.success(`${r.ready} création(s) terminée(s), ${r.failed} échec(s) remboursé(s).`);
+          await load();
+        } else if (!silent) {
+          toast.success(
+            r.waiting > 0
+              ? `${r.waiting} création(s) toujours en cours chez fal.`
+              : "Aucune création bloquée.",
           );
-         })}
-         {subscriptions.length === 0 && (
-          <li className="py-6 text-center text-sm text-muted-foreground">
-           Aucun abonnement trouvé.
-          </li>
-         )}
-        </ul>
-       </section>
-      )}
+        }
+      } catch {
+        if (!silent) toast.error("Impossible de terminer les créations bloquées.");
+      } finally {
+        setSweeping(false);
+      }
+    },
+    [sweepStuck, load],
+  );
 
-      {active === "orders" && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Paiements récents</h2>
-        <ul className="mt-4 space-y-2">
-         {orders.map((o) => (
-          <li
-           key={o.transaction_id}
-           className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-          >
-           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-             {o.status}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-             {o.country_code} · {o.payment_method}
-            </span>
-            <span className="ml-auto text-[11px] text-muted-foreground">
-             {new Date(o.created_at).toLocaleString("fr-FR")}
-            </span>
-           </div>
-           <p className="mt-1 truncate">{o.customer_email}</p>
-           <p className="text-[11px] text-muted-foreground">
-            {o.amount_local} {o.currency} · {o.amount_eur.toFixed(2)} €
-           </p>
-          </li>
-         ))}
-         {orders.length === 0 && (
-          <li className="py-6 text-center text-sm text-muted-foreground">
-           Aucune commande enregistrée.
-          </li>
-         )}
-        </ul>
-       </section>
-      )}
+  useEffect(() => {
+    if (isAdmin && !didSweep.current) {
+      didSweep.current = true;
+      void runSweep(true);
+    }
+  }, [isAdmin, runSweep]);
 
-      {active === "moderation" && canModerate && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">
-         Modération de la galerie
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         Toutes les créations arrivent ici automatiquement. Publiez, rejetez ou supprimez.
-        </p>
-        <ul className="mt-4 space-y-3">
-         {queue.map((g) => (
-          <li
-           key={g.id}
-           className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card/50 p-3 backdrop-blur-xl"
+  const cards = stats
+    ? [
+        { label: "En ligne (5 min)", value: String(stats.onlineNow), icon: User, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+        { label: "Actifs (24 h)", value: String(stats.active24h), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-500/10" },
+        { label: "Utilisateurs", value: String(stats.users), icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { label: "Générations", value: String(stats.generations), icon: Images, color: "text-purple-500", bg: "bg-purple-500/10" },
+        { label: "Aujourd'hui", value: String(stats.generationsToday), icon: Clock, color: "text-teal-500", bg: "bg-teal-500/10" },
+        { label: "Échecs", value: String(stats.errors), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+        { label: "En modération", value: String(stats.pendingModeration), icon: ShieldCheck, color: "text-orange-500", bg: "bg-orange-500/10" },
+        { label: "Abonnements actifs", value: String(stats.activeSubscriptions), icon: Crown, color: "text-green-500", bg: "bg-green-500/10" },
+      ]
+    : [];
+
+  const sections = [
+    { id: "overview", label: "Vue d'ensemble", icon: Gauge, show: isAdmin },
+    { id: "financial", label: "Tableau de bord", icon: TrendingUp, show: isAdmin },
+    { id: "users", label: "Utilisateurs", icon: User, show: isAdmin },
+    { id: "acquisition", label: "Acquisition", icon: Megaphone, show: isAdmin },
+    { id: "landing", label: "Page d'accueil", icon: Megaphone, show: isAdmin },
+    { id: "reviews", label: "Avis", icon: ReviewStarIcon, show: isAdmin },
+    { id: "maintenance", label: "Maintenance", icon: MaintenanceIcon, show: isAdmin },
+    { id: "publication", label: "Publication", icon: MaintenanceIcon, show: isAdmin },
+    { id: "generation", label: "Génération", icon: GenerationIcon, show: isAdmin },
+    { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
+    { id: "promos", label: "Codes promo", icon: Tag, show: isAdmin },
+    { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
+    { id: "team", label: "Équipe", icon: Users, show: isAdmin },
+    { id: "support", label: "Support", icon: LifeBuoy, show: canSupport },
+    { id: "subscriptions", label: "Abonnements", icon: Crown, show: isAdmin },
+    {
+      id: "orders",
+      label: "Paiements",
+      icon: CreditCard,
+      show: isAdmin || roles.includes("finance"),
+    },
+    { id: "moderation", label: "Modération", icon: ShieldCheck, show: canModerate },
+    { id: "content", label: "Créations", icon: Images, show: isAdmin },
+    { id: "monetise", label: "Monétisation", icon: Wallet, show: isAdmin },
+    { id: "formations", label: "Formations", icon: Video, show: isAdmin },
+    { id: "payouts", label: "Développeurs", icon: Wallet, show: isAdmin },
+  ].filter((s) => s.show);
+
+  const active = sections.some((s) => s.id === tab) ? tab : (sections[0]?.id ?? "overview");
+
+  // Données pour le PieChart (calcul sur les 14 jours)
+  const pieData = [
+    { name: "Images", value: timeSeries.reduce((acc, curr) => acc + curr.images, 0), color: "#a855f7" }, // purple-500
+    { name: "Vidéos", value: timeSeries.reduce((acc, curr) => acc + curr.videos, 0), color: "#3b82f6" }, // blue-500
+    { name: "Échecs", value: timeSeries.reduce((acc, curr) => acc + curr.failed, 0), color: "#ef4444" }, // red-500
+  ].filter(d => d.value > 0);
+
+  return (
+    <div
+      className="min-h-screen bg-background pb-24"
+      style={{ background: "var(--gradient-hero)" }}
+    >
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <Link
+            to="/app"
+            aria-label="Retour au studio"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
           >
-           <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-secondary">
-            {g.media_url &&
-             (g.media_type === "video" ? (
-              <>
-               <video
-                src={g.media_url}
-                muted
-                playsInline
-                preload="metadata"
-                className="h-full w-full object-cover"
-               />
-               <span className="absolute inset-0 flex items-center justify-center bg-background/40">
-                <Play className="h-6 w-6" />
-               </span>
-              </>
-             ) : (
-              <img
-               src={g.media_url}
-               alt={g.prompt}
-               loading="lazy"
-               className="h-full w-full object-cover"
-              />
-             ))}
-           </div>
-           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-sm">{g.prompt}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-             {g.media_type} · {g.status} ·{" "}
-             {new Date(g.created_at).toLocaleString("fr-FR")}
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Espace équipe
             </p>
-           </div>
-           <button
+            <h1 className="truncate text-[19px] font-semibold tracking-tight">
+              Bureau d'administration
+            </h1>
+          </div>
+          <button
             type="button"
-            aria-label="Publier"
-            disabled={modBusy === g.id}
-            onClick={() => void actOnItem(g.id, "approve")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-           >
-            <Check className="h-5 w-5" />
-           </button>
-           <button
-            type="button"
-            aria-label="Rejeter"
-            disabled={modBusy === g.id}
-            onClick={() => void actOnItem(g.id, "reject")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary disabled:opacity-40"
-           >
-            <X className="h-5 w-5" />
-           </button>
-           <button
-            type="button"
-            aria-label="Supprimer"
-            disabled={modBusy === g.id}
-            onClick={() => void actOnItem(g.id, "delete")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-40"
-           >
-            <Trash2 className="h-5 w-5" />
-           </button>
-          </li>
-         ))}
-         {queue.length === 0 && (
-          <li className="py-10 text-center text-sm text-muted-foreground">
-           Aucune création à modérer.
-          </li>
-         )}
-        </ul>
-       </section>
-      )}
-
-      {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
-
-      {active === "landing" && isAdmin && <AdminLandingPanel />}
-      {active === "landing" && isAdmin && <AdminRevenuePanel />}
-
-      {active === "content" && isAdmin && (
-       <section className="pt-5">
-        <div className="flex items-center gap-2">
-         <h2 className="text-[22px] font-semibold tracking-tight">Créations récentes</h2>
-         <button
-          type="button"
-          disabled={sweeping}
-          onClick={() => void runSweep(false)}
-          className="rounded-full bg-secondary px-3 py-2 text-[11px] font-medium disabled:opacity-50"
-         >
-          {sweeping ? "Vérification…" : "Terminer les bloquées"}
-         </button>
-         <Link
-          to="/galerie"
-          className="ml-auto rounded-full bg-secondary px-4 py-2 text-xs font-medium"
-         >
-          Modération
-         </Link>
+            onClick={() => void load()}
+            aria-label="Actualiser"
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-secondary transition-transform active:scale-95"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+          <Link
+            to="/admin-challenge"
+            className="rounded-full bg-secondary px-3.5 py-2 text-xs font-medium transition-transform active:scale-95"
+          >
+            Challenge
+          </Link>
         </div>
-        <ul className="mt-4 space-y-2">
-         {items.map((g) => (
-          <li
-           key={g.id}
-           className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-          >
-           <button
-            type="button"
-            onClick={() => setOpenGen(openGen === g.id ? null : g.id)}
-            className="block w-full text-left"
-           >
-            <div className="flex items-center gap-2">
-             <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] uppercase">
-              {g.media_type}
-             </span>
-             <span
-              className={`text-[11px] ${g.status === "error" ? "text-destructive" : "text-muted-foreground"}`}
-             >
-              {g.status}
-             </span>
-             <span className="ml-auto text-[11px] text-muted-foreground">
-              {new Date(g.created_at).toLocaleString("fr-FR")}
-             </span>
+      </header>
+
+      <div className="mx-auto flex max-w-6xl flex-col md:flex-row items-start w-full">
+        {sections.length > 0 && (
+          <nav className="w-full md:w-64 flex-shrink-0 md:sticky md:top-[70px] md:h-[calc(100vh-70px)] md:border-r md:border-border/60 md:px-4 md:py-6 overflow-y-auto z-10 bg-background/50 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-b border-border/60 md:border-b-0 sticky top-[60px]">
+            {/* Conteneur interne pour le style glassmorphism sur desktop */}
+            <div className="flex md:flex-col gap-1 md:gap-2 overflow-x-auto md:overflow-visible px-4 py-3 md:p-4 hide-scrollbar md:rounded-3xl md:bg-card/30 md:border md:border-border/50 md:backdrop-blur-xl">
+              {sections.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setTab(s.id)}
+                  className={`flex items-center gap-3 whitespace-nowrap rounded-full md:rounded-xl px-4 py-2 md:py-3 text-[13px] md:text-[14px] font-medium transition-all ${
+                    active === s.id 
+                      ? "bg-card border border-border/70 text-foreground shadow-sm md:shadow-md" 
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                  }`}
+                >
+                  <s.icon className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+                  {s.label}
+                </button>
+              ))}
             </div>
-            <p
-             className={`mt-1 ${openGen === g.id ? "whitespace-pre-wrap break-words" : "line-clamp-2"}`}
-            >
-             {g.prompt}
-            </p>
-            {g.error_message?.startsWith("fal:") ? (
-             <p className="mt-1 text-[11px] text-muted-foreground">
-              En cours de traitement chez fal…
-             </p>
-            ) : (
-             g.error_message && (
-              <p className="mt-1 text-[11px] text-destructive">{g.error_message}</p>
-             )
+          </nav>
+        )}
+
+        <main className="flex-1 min-w-0 w-full px-4 py-6 md:px-8">
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3 pt-6 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-24 animate-pulse rounded-3xl bg-secondary/50" />
+            ))}
+          </div>
+        ) : !owner && isStaff === false ? (
+          <p className="pt-24 text-center text-sm text-muted-foreground">
+            Accès réservé à l'équipe.
+          </p>
+        ) : (
+          <>
+            {roles.length > 0 && (
+              <p className="pt-5 text-xs text-muted-foreground">
+                Vos accès :{" "}
+                {roles
+                  .filter((r) => r !== "user")
+                  .map((r) => ROLE_LABEL[r as TeamRole] ?? r)
+                  .join(" · ")}
+              </p>
             )}
-           </button>
-           {openGen === g.id && (
-            <div className="mt-3 space-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-             <p>Utilisateur : {g.user_email ?? "—"}</p>
-             <p>
-              Réglages :{" "}
-              {[g.resolution, g.duration, g.aspect_ratio].filter(Boolean).join(" · ") || "—"}
-             </p>
-             <button
-              type="button"
-              onClick={() =>
-               void navigator.clipboard
-                .writeText(g.prompt)
-                .then(() => toast.success("Prompt copié"))
-                .catch(() => toast.error("Copie impossible."))
-              }
-              className="mt-1 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-medium text-foreground"
-             >
-              Copier le prompt
-             </button>
-            </div>
-           )}
-          </li>
-         ))}
-         {items.length === 0 && (
-          <li className="py-10 text-center text-sm text-muted-foreground">
-           Aucune génération enregistrée.
-          </li>
-         )}
-        </ul>
-       </section>
-      )}
 
-      {active === "payouts" && isAdmin && (
-       <section className="pt-5">
-        <h2 className="text-[22px] font-semibold tracking-tight">Développeurs</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-         20 % de chaque paiement réussi sont crédités à l'équipe de développeurs. Total
-         attribué : {commissionTotal.toFixed(2)} €.
-        </p>
-        <ul className="mt-4 space-y-2">
-         {payouts.map((p) => (
-          <li
-           key={p.id}
-           className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-          >
-           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">
-             {Number(p.amount_fcfa ?? 0).toLocaleString("fr-FR")} FCFA
-            </span>
-            <span className="truncate text-muted-foreground">
-             {p.developer_email ?? p.developer_name ?? p.developer_id}
-            </span>
-            <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-             {p.status.replace("_", " ")}
-            </span>
-           </div>
-           <p className="mt-1 text-[11px] text-muted-foreground">
-            {p.method} · {p.mobile ?? "—"} ·{" "}
-            {new Date(p.created_at).toLocaleString("fr-FR")}
-           </p>
-           {p.note && <p className="mt-1 text-[11px]">{p.note}</p>}
-           {p.status === "en_attente" && (
-            <div className="mt-3 flex gap-2">
-             <button
-              type="button"
-              onClick={() =>
-               void decide({ data: { id: p.id, status: "payee" } })
-                .then((r) => {
-                 toast.success(r.message);
-                 return load();
-                })
-                .catch(() => toast.error("Mise à jour impossible."))
-              }
-              className="rounded-full bg-foreground px-4 py-2 text-[11px] font-semibold text-background"
-             >
-              Marquer payé
-             </button>
-             <button
-              type="button"
-              onClick={() =>
-               void decide({ data: { id: p.id, status: "refusee" } })
-                .then((r) => {
-                 toast.success(r.message);
-                 return load();
-                })
-                .catch(() => toast.error("Mise à jour impossible."))
-              }
-              className="rounded-full bg-secondary px-4 py-2 text-[11px] font-semibold"
-             >
-              Refuser
-             </button>
-            </div>
-           )}
-          </li>
-         ))}
-         {payouts.length === 0 && (
-          <li className="py-10 text-center text-sm text-muted-foreground">
-           Aucune demande de versement.
-          </li>
-         )}
-        </ul>
-       </section>
-      )}
-     </>
-    )}
-   </main>
-   </div>
-  </div>
- );
-}
+            {active === "financial" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Tableau de bord financier</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Métriques SaaS et revenus.
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
+                    <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
+                    <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
+                      {(financialMetrics?.mrr ?? 0).toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Taux de désabonnement</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {(financialMetrics?.churnRate ?? 0).toFixed(1)} %
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-3">
+                    <span className="text-sm font-medium text-muted-foreground">Abonnés actifs par offre</span>
+                    <div className="mt-3 flex flex-wrap gap-4 justify-center">
+                      {Object.entries(financialMetrics?.activeSubscribersByTier || {}).map(([tier, count]) => (
+                        <div key={tier} className="flex flex-col items-center">
+                          <span className="text-xl font-bold">{count}</span>
+                          <span className="text-[11px] uppercase text-muted-foreground">{tier}</span>
+                        </div>
+                      ))}
+                      {Object.keys(financialMetrics?.activeSubscribersByTier || {}).length === 0 && (
+                        <span className="text-sm text-muted-foreground">Aucun abonné actif</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-/** Bascule du moteur de génération vidéo : KIE (activé) ou Fal (désactivé). Effet immédiat. */
-export function AdminGenerationPanel() {
- const fetchProvider = useServerFn(getGenerationProvider);
- const save = useServerFn(setGenerationProvider);
- const [provider, setProvider] = useState<GenerationProvider>("fal");
- const [loading, setLoading] = useState(true);
- const [busy, setBusy] = useState(false);
+                <div className="mt-8 rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl">
+                  <h3 className="text-lg font-semibold tracking-tight mb-4">Évolution du revenu (6 derniers mois)</h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={financialMetrics?.monthlyRevenueHistory || []}>
+                        <defs>
+                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis
+                          dataKey="month"
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value} FCFA`}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            borderRadius: "0.75rem",
+                            color: "hsl(var(--foreground))",
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--primary))"
+                          fillOpacity={1}
+                          fill="url(#colorRev)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
+            )}
 
- useEffect(() => {
-  void fetchProvider()
-   .then((p) => setProvider(p))
-   .catch(() => undefined)
-   .finally(() => setLoading(false));
- }, [fetchProvider]);
+            {active === "overview" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Vue d'ensemble</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Activité en temps réel de la plateforme.
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {cards.map((c) => (
+                    <div
+                      key={c.label}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`flex items-center justify-center h-8 w-8 rounded-full ${c.bg} ${c.color}`}>
+                          <c.icon className="h-4 w-4" />
+                        </div>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {c.label}
+                        </p>
+                      </div>
+                      <p className="mt-auto text-3xl font-semibold tracking-tight">{c.value}</p>
+                    </div>
+                  ))}
+                </div>
 
- const useKie = provider === "kie";
+                {timeSeries.length > 0 && (
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
+                      <h3 className="text-sm font-medium mb-4">Générations sur les 14 derniers jours</h3>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={timeSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorImages" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="colorVideos" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis 
+                              dataKey="date" 
+                              tickFormatter={(val: string) => new Date(val).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit' })}
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
+                            />
+                            <YAxis 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
+                            />
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
+                              labelFormatter={(label) => new Date(label as string).toLocaleDateString("fr-FR")}
+                            />
+                            <Area type="monotone" dataKey="images" name="Images" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorImages)" />
+                            <Area type="monotone" dataKey="videos" name="Vidéos" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorVideos)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
 
- const toggle = async () => {
-  const next: GenerationProvider = useKie ? "fal" : "kie";
-  setBusy(true);
-  try {
-   const res = await save({ data: { provider: next } });
-   if (!res.ok) {
-    toast.error(res.message);
-    return;
-   }
-   setProvider(next);
-   toast.success(next === "kie" ? "Génération vidéo : KIE activé." : "Génération vidéo : Fal activé.");
-  } catch {
-   toast.error("Action impossible pour le moment.");
-  } finally {
-   setBusy(false);
-  }
- };
+                    <div className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl flex flex-col">
+                      <h3 className="text-sm font-medium mb-4">Répartition</h3>
+                      <div className="flex-1 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} 
+                            />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
- return (
-  <section className="pt-5">
-   <h2 className="text-[22px] font-semibold tracking-tight">Moteur de génération</h2>
-   <p className="mt-1 text-sm text-muted-foreground">
-    Choisissez où partent les demandes de génération vidéo. Le changement s'applique aux nouvelles demandes.
-   </p>
+            {active === "users" && isAdmin && (
+              <section className="pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-[22px] font-semibold tracking-tight">Utilisateurs inscrits</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {userListTotal} utilisateur{userListTotal > 1 ? "s" : ""} au total · 50 par page
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-72">
+                    <input
+                      type="search"
+                      placeholder="Rechercher par email…"
+                      value={userSearch}
+                      onChange={(e) => {
+                        setUserSearch(e.target.value);
+                        setUserListPage(1);
+                      }}
+                      className="w-full rounded-2xl border border-border bg-card/60 px-4 py-2 text-sm backdrop-blur-xl outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
 
-   <div
-    className={`mt-4 flex items-center gap-4 rounded-3xl border p-5 backdrop-blur-xl ${
-     useKie ? "border-primary/50 bg-primary/10" : "border-border/70 bg-card/50"
-    }`}
-   >
-    <span
-     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
-      useKie ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
-     }`}
-    >
-     <Video className="h-5 w-5" />
-    </span>
+                {userListLoading ? (
+                  <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Chargement des utilisateurs…
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 overflow-hidden rounded-3xl border border-border/70 bg-card/50 backdrop-blur-xl">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="border-b border-border/60 bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            <tr>
+                              <th className="px-4 py-3">Utilisateur</th>
+                              <th className="px-4 py-3">Offre</th>
+                              <th className="px-4 py-3">Inscription</th>
+                              <th className="px-4 py-3">Dernière connexion</th>
+                              <th className="px-4 py-3 text-right">Fin d'abonnement</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {userList.map((u) => (
+                              <tr
+                                key={u.id}
+                                onClick={() => void openUserModal(u.id)}
+                                className="cursor-pointer transition-colors hover:bg-muted/40"
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-foreground">{u.email || "Non renseigné"}</div>
+                                  {u.full_name && (
+                                    <div className="text-[11px] text-muted-foreground">{u.full_name}</div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                                      u.plan_label === "Gratuit"
+                                        ? "bg-secondary text-muted-foreground"
+                                        : "bg-primary/20 text-primary font-semibold"
+                                    }`}
+                                  >
+                                    {u.plan_label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {new Date(u.created_at).toLocaleDateString("fr-FR")}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {u.last_sign_in_at
+                                    ? new Date(u.last_sign_in_at).toLocaleString("fr-FR", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "Jamais"}
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs">
+                                  {u.ends_at ? (
+                                    <span
+                                      className={
+                                        new Date(u.ends_at) < new Date()
+                                          ? "text-muted-foreground"
+                                          : "font-medium text-foreground"
+                                      }
+                                    >
+                                      {new Date(u.ends_at).toLocaleDateString("fr-FR")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                            {userList.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                                  Aucun utilisateur trouvé.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
 
-    <div className="min-w-0 flex-1">
-     <p className="text-[15px] font-semibold">{loading ? "Chargement…" : useKie ? "KIE" : "Fal"}</p>
-     <p className="text-sm text-muted-foreground">
-      {useKie
-       ? "Les vidéos sont générées par KIE (Grok Imagine)."
-       : "Les vidéos sont générées par Fal.ai."}
-     </p>
-    </div>
+                    {userListTotalPages > 1 && (
+                      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          Page {userListPage} sur {userListTotalPages}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={userListPage <= 1}
+                            onClick={() => setUserListPage((p) => Math.max(1, p - 1))}
+                            className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
+                          >
+                            Précédent
+                          </button>
+                          <button
+                            type="button"
+                            disabled={userListPage >= userListTotalPages}
+                            onClick={() => setUserListPage((p) => Math.min(userListTotalPages, p + 1))}
+                            className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium disabled:opacity-40"
+                          >
+                            Suivant
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
 
-    <button
-     type="button"
-     role="switch"
-     aria-checked={useKie}
-     aria-label={`Utiliser KIE pour les vidéos : ${useKie ? "activé" : "désactivé"}`}
-     disabled={loading || busy}
-     onClick={() => void toggle()}
-     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-      useKie ? "bg-primary" : "bg-muted"
-     }`}
-    >
-     {busy ? (
-      <GenLoader className="mx-auto h-4 w-4 animate-spin text-white" />
-     ) : (
-      <span
-       className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-        useKie ? "translate-x-6" : "translate-x-1"
-       }`}
-      />
-     )}
-    </button>
-   </div>
+                {/* Modale Fiche Détail Utilisateur */}
+                {(detailLoading || selectedUserDetail) && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border/80 bg-card p-6 shadow-2xl">
+                      <button
+                        type="button"
+                        aria-label="Fermer"
+                        onClick={closeUserModal}
+                        className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
 
-   <p className="mt-3 px-1 text-xs text-muted-foreground">
-    Les images restent générées par Fal.ai pour l'instant : le moteur KIE image n'est pas encore branché.
-   </p>
-  </section>
- );
-}
+                      {detailLoading ? (
+                        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+                          <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Chargement de la fiche…
+                        </div>
+                      ) : selectedUserDetail ? (
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-xl font-bold tracking-tight">
+                                {selectedUserDetail.full_name || selectedUserDetail.email || "Utilisateur"}
+                              </h3>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                  selectedUserDetail.is_subscribed
+                                    ? "bg-primary/20 text-primary"
+                                    : "bg-secondary text-muted-foreground"
+                                }`}
+                              >
+                                {selectedUserDetail.plan_label}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{selectedUserDetail.email}</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Date d'inscription
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {new Date(selectedUserDetail.created_at).toLocaleString("fr-FR")}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Dernière connexion
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {selectedUserDetail.last_sign_in_at
+                                  ? new Date(selectedUserDetail.last_sign_in_at).toLocaleString("fr-FR")
+                                  : "Jamais"}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Méthode d'inscription
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">{selectedUserDetail.signup_method}</p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Fin d'abonnement
+                              </span>
+                              <p className="mt-1 text-sm font-semibold">
+                                {selectedUserDetail.subscription_ends_at
+                                  ? new Date(selectedUserDetail.subscription_ends_at).toLocaleDateString("fr-FR")
+                                  : selectedUserDetail.is_subscribed
+                                    ? "Actif"
+                                    : "Aucun"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {selectedUserDetail.is_subscribed &&
+                            selectedUserDetail.remaining_seconds_today !== null && (
+                              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold uppercase text-primary">
+                                    Secondes restantes aujourd'hui
+                                  </span>
+                                  <span className="text-sm font-bold text-primary">
+                                    {selectedUserDetail.remaining_seconds_today}s / {selectedUserDetail.limit_seconds_today}s (
+                                    {formatSeconds(selectedUserDetail.remaining_seconds_today)})
+                                  </span>
+                                </div>
+                                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                                  <div
+                                    className="h-full bg-primary transition-all"
+                                    style={{
+                                      width: `${Math.min(
+                                        100,
+                                        Math.max(
+                                          0,
+                                          ((selectedUserDetail.remaining_seconds_today ?? 0) /
+                                            (selectedUserDetail.limit_seconds_today || 1)) *
+                                            100,
+                                        ),
+                                      )}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Images créées
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-purple-400">
+                                {selectedUserDetail.total_images}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Vidéos créées
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-blue-400">
+                                {selectedUserDetail.total_videos}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card/60 p-3.5 text-center">
+                              <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                                Tickets Support
+                              </span>
+                              <p className="mt-1 text-xl font-bold text-orange-400">
+                                {selectedUserDetail.support_tickets_count}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Actions Administrateur */}
+                          <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+                            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Actions administrateur
+                            </h4>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowEmailForm((prev) => !prev);
+                                  setShowSubForm(false);
+                                  setShowSubConfirm(false);
+                                }}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                                  showEmailForm
+                                    ? "bg-foreground text-background"
+                                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                <Mail className="h-4 w-4" />
+                                Envoyer un email
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowSubForm((prev) => !prev);
+                                  setShowEmailForm(false);
+                                  setShowSubConfirm(false);
+                                }}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                                  showSubForm
+                                    ? "bg-foreground text-background"
+                                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                <PlusCircle className="h-4 w-4" />
+                                Ajouter un abonnement
+                              </button>
+                            </div>
+
+                            {/* Formulaire Envoi Email */}
+                            {showEmailForm && (
+                              <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <h5 className="text-xs font-semibold text-foreground">
+                                  Envoyer un email à {selectedUserDetail.email}
+                                </h5>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Objet
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={emailSubject}
+                                    onChange={(e) => setEmailSubject(e.target.value)}
+                                    placeholder="Ex. Information sur votre compte Sam Flash"
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Message
+                                  </label>
+                                  <textarea
+                                    rows={4}
+                                    value={emailBody}
+                                    onChange={(e) => setEmailBody(e.target.value)}
+                                    placeholder="Rédigez votre message ici..."
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowEmailForm(false)}
+                                    className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                                    onClick={() => void handleSendEmail()}
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                    {emailSending ? "Envoi en cours…" : "Envoyer"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Formulaire Ajout Abonnement */}
+                            {showSubForm && (
+                              <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <h5 className="text-xs font-semibold text-foreground">
+                                  Ajouter un abonnement manuel
+                                </h5>
+
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Offre
+                                  </label>
+                                  <select
+                                    value={subPlan}
+                                    onChange={(e) =>
+                                      setSubPlan(e.target.value as AdminAddSubscriptionInput["plan"])
+                                    }
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
+                                  >
+                                    <option value="super_grok_monthly">
+                                      Super Grok (mensuel — 1 mois)
+                                    </option>
+                                    <option value="super_grok_annuel">
+                                      Super Grok (annuel — 12 mois)
+                                    </option>
+                                    <option value="super_grok_plus">
+                                      Super Grok Plus (1 mois)
+                                    </option>
+                                    <option value="superhearly_monthly">
+                                      Super Grok Heavy (1 mois)
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">
+                                    Motif <span className="text-destructive">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subReason}
+                                    onChange={(e) => setSubReason(e.target.value)}
+                                    placeholder="Ex. Paiement bloqué commande n°..., geste commercial..."
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowSubForm(false);
+                                      setShowSubConfirm(false);
+                                    }}
+                                    className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={!subReason.trim()}
+                                    onClick={() => {
+                                      if (!subReason.trim()) {
+                                        toast.error("Le motif est obligatoire.");
+                                        return;
+                                      }
+                                      setShowSubConfirm(true);
+                                    }}
+                                    className="rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
+                                  >
+                                    Valider l'attribution
+                                  </button>
+                                </div>
+
+                                {/* Confirmation Dialog */}
+                                {showSubConfirm && (
+                                  <div className="mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-4 text-xs">
+                                    <p className="font-semibold text-orange-400">
+                                      Confirmation requise
+                                    </p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      Voulez-vous vraiment attribuer l'offre{" "}
+                                      <strong className="text-foreground">
+                                        {subPlan === "super_grok_monthly" && "Super Grok (mensuel)"}
+                                        {subPlan === "super_grok_annuel" && "Super Grok (annuel)"}
+                                        {subPlan === "super_grok_plus" && "Super Grok Plus"}
+                                        {subPlan === "superhearly_monthly" && "Super Grok Heavy"}
+                                      </strong>{" "}
+                                      à <strong className="text-foreground">{selectedUserDetail.email}</strong> ?
+                                    </p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      Motif enregistré : <em>« {subReason} »</em>
+                                    </p>
+                                    <div className="mt-3 flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowSubConfirm(false)}
+                                        className="rounded-full border border-border bg-card/60 px-3 py-1.5 font-medium hover:bg-secondary"
+                                      >
+                                        Retour
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={subAdding}
+                                        onClick={() => void handleAddSubscription()}
+                                        className="rounded-full bg-primary px-4 py-1.5 font-semibold text-primary-foreground disabled:opacity-50"
+                                      >
+                                        {subAdding ? "Activation…" : "Confirmer l'ajout"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              10 dernières commandes
+                            </h4>
+                            {selectedUserDetail.recent_orders.length > 0 ? (
+                              <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/40">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="border-b border-border/60 bg-muted/20 text-[10px] uppercase text-muted-foreground">
+                                    <tr>
+                                      <th className="px-3 py-2">Date</th>
+                                      <th className="px-3 py-2">Montant</th>
+                                      <th className="px-3 py-2">Méthode</th>
+                                      <th className="px-3 py-2 text-right">Statut</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border/30">
+                                    {selectedUserDetail.recent_orders.map((o) => (
+                                      <tr key={o.transaction_id}>
+                                        <td className="px-3 py-2 text-muted-foreground">
+                                          {new Date(o.created_at).toLocaleDateString("fr-FR")}
+                                        </td>
+                                        <td className="px-3 py-2 font-medium">
+                                          {o.amount_eur.toFixed(2)} {o.currency}
+                                        </td>
+                                        <td className="px-3 py-2 text-muted-foreground">
+                                          {o.payment_method}
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                          <span
+                                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                              o.status === "payee"
+                                                ? "bg-green-500/20 text-green-400"
+                                                : "bg-secondary text-muted-foreground"
+                                            }`}
+                                          >
+                                            {o.status}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="rounded-2xl border border-border/40 bg-muted/10 py-4 text-center text-xs text-muted-foreground">
+                                Aucune commande effectuée.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {active === "pricing" && canPrices && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Tarifs des offres</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Montants en euros, convertis automatiquement à l'achat.
+                </p>
+
+                <ul className="mt-4 space-y-3">
+                  {prices.map((p) => (
+                    <li
+                      key={p.id}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[17px] font-medium">{p.label}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {p.tier}
+                          </p>
+                        </div>
+                        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={p.active}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id ? { ...r, active: e.target.checked } : r,
+                                ),
+                              )
+                            }
+                          />
+                          Actif
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => void commitPrice(p)}
+                          className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition-transform active:scale-95"
+                        >
+                          Enregistrer
+                        </button>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <label className="text-[11px] text-muted-foreground">
+                          {p.id === "custom" ? "Prix d'UN crédit (FCFA), ex. 1,2" : "Mensuel (FCFA)"}
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            inputMode="decimal"
+                            aria-label={`Prix mensuel en FCFA pour ${p.label}`}
+                            value={p.amount_fcfa ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id ? { ...r, amount_fcfa: Number(e.target.value) } : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Annuel (FCFA)
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            inputMode="decimal"
+                            aria-label={`Prix annuel en FCFA pour ${p.label}`}
+                            value={p.amount_fcfa_yearly ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? {
+                                        ...r,
+                                        amount_fcfa_yearly:
+                                          e.target.value === "" ? null : Number(e.target.value),
+                                      }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-3">
+                        <label className="text-[11px] text-muted-foreground">
+                          Crédits par € (taux)
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            aria-label={`Taux de crédits pour ${p.label}`}
+                            value={p.credits_rate ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_rate: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Bonus (crédits)
+                          <input
+                            type="number" step="any"
+                            min={0}
+                            aria-label={`Bonus de crédits pour ${p.label}`}
+                            value={p.credits_bonus ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_bonus: e.target.value === "" ? 0 : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Crédits fixes (vide = calcul)
+                          <input
+                            type="number" step="any"
+                            min={0}
+                            aria-label={`Crédits fixes pour ${p.label}`}
+                            value={p.credits_fixed ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, credits_fixed: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-3">
+                        <label className="block text-[11px] text-muted-foreground">
+                          Images gratuites (vide = calcul : crédits ÷ 5)
+                          <input
+                            type="number" step="any"
+                            min={0}
+                            aria-label={`Images gratuites pour ${p.label}`}
+                            value={p.images_free ?? ""}
+                            onChange={(e) =>
+                              setPrices((prev) =>
+                                prev.map((r) =>
+                                  r.id === p.id
+                                    ? { ...r, images_free: e.target.value === "" ? null : Number(e.target.value) }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-right text-foreground"
+                          />
+                        </label>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {priceNotice && <p className="mt-3 text-sm text-primary">{priceNotice}</p>}
+              </section>
+            )}
+
+            {active === "team" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Collaborateurs</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Invitez votre équipe et gérez les rôles.
+                </p>
+                <div className="mt-4 rounded-3xl border border-border/70 bg-card/50 p-5 backdrop-blur-xl">
+                  <label htmlFor="inv-email" className="text-xs text-muted-foreground">
+                    Inviter par e-mail
+                  </label>
+                  <input
+                    id="inv-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="collaborateur@exemple.com"
+                    className="mt-1 w-full rounded-2xl border border-border bg-background/60 px-4 py-3"
+                  />
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      aria-label="Rôle du collaborateur"
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as TeamRole)}
+                      className="rounded-2xl border border-border bg-background/60 px-3 py-2.5 text-sm"
+                    >
+                      {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABEL[r]}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void invite({ data: { email: inviteEmail.trim(), role: inviteRole } })
+                          .then((r) => {
+                            setNotice(r.message);
+                            if (r.ok) setInviteEmail("");
+                            return load();
+                          })
+                          .catch(() => setNotice("Invitation impossible."))
+                      }
+                      disabled={inviteEmail.trim().length < 5}
+                      className="ml-auto rounded-full bg-foreground px-5 py-2.5 text-xs font-semibold text-background disabled:opacity-50"
+                    >
+                      Inviter
+                    </button>
+                  </div>
+                  {notice && <p className="mt-2 text-xs text-primary">{notice}</p>}
+                </div>
+
+                <ul className="mt-3 space-y-2">
+                  {members.map((m) => (
+                    <li
+                      key={m.user_id}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
+                    >
+                      <p className="truncate font-medium">{m.email ?? m.full_name ?? m.user_id}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {m.roles.map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() =>
+                              void revoke({ data: { userId: m.user_id, role: r } })
+                                .then((res) => {
+                                  setNotice(res.message);
+                                  return load();
+                                })
+                                .catch(() => setNotice("Retrait impossible."))
+                            }
+                            className="rounded-full bg-secondary px-3 py-1 text-[11px]"
+                            aria-label={`Retirer le rôle ${ROLE_LABEL[r]} à ${m.email ?? m.user_id}`}
+                          >
+                            {ROLE_LABEL[r]} ✕
+                          </button>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                  {members.length === 0 && (
+                    <li className="py-6 text-center text-sm text-muted-foreground">
+                      Aucun collaborateur.
+                    </li>
+                  )}
+                </ul>
+
+                {invites.filter((i) => !i.accepted_at).length > 0 && (
+                  <>
+                    <h3 className="mt-6 text-sm font-medium text-muted-foreground">
+                      Invitations en attente
+                    </h3>
+                    <ul className="mt-2 space-y-2">
+                      {invites
+                        .filter((i) => !i.accepted_at)
+                        .map((i) => (
+                          <li
+                            key={i.id}
+                            className="flex items-center gap-2 rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
+                          >
+                            <span className="truncate">{i.email}</span>
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
+                              {ROLE_LABEL[i.role]}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void cancelInvite({ data: { id: i.id } })
+                                  .then((r) => {
+                                    setNotice(r.message);
+                                    return load();
+                                  })
+                                  .catch(() => setNotice("Annulation impossible."))
+                              }
+                              className="ml-auto text-[11px] text-destructive"
+                            >
+                              Annuler
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                )}
+              </section>
+            )}
+
+            {active === "support" && canSupport && <AdminSupportPanel />}
+
+            {active === "reviews" && isAdmin && <AdminReviewsPanel />}
+
+            {active === "maintenance" && isAdmin && <AdminMaintenancePanel />}
+            {active === "publication" && isAdmin && <AdminFeaturesPanel />}
+            {active === "generation" && isAdmin && <AdminGenerationPanel />}
+            {active === "generation" && isAdmin && <AdminVoicePanel />}
+            {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
+            {active === "credits_gratuits" && isAdmin && <AdminFreeVideoPanel />}
+            {active === "promos" && isAdmin && <AdminPromoPanel />}
+            {active === "monetise" && isAdmin && <AdminMonetizePanel />}
+            {active === "formations" && isAdmin && <AdminFormationsPanel />}
+
+            {active === "subscriptions" && isAdmin && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Abonnements</h2>
+                <ul className="mt-4 space-y-2">
+                  {subscriptions.map((sub) => {
+                    let colorClass = "text-foreground";
+                    let statusLabel = sub.status;
+                    let pillClass = "bg-secondary";
+
+                    if (sub.ends_at) {
+                      const end = new Date(sub.ends_at);
+                      const now = new Date();
+                      const diffDays = (end.getTime() - now.getTime()) / (1000 * 3600 * 24);
+
+                      if (diffDays < 0) {
+                        colorClass = "text-muted-foreground";
+                        statusLabel = "expiré";
+                        pillClass = "bg-secondary text-muted-foreground";
+                      } else if (diffDays <= 7) {
+                        colorClass = "text-orange-500";
+                        pillClass = "bg-orange-500/20 text-orange-500";
+                      }
+                    }
+
+                    return (
+                      <li
+                        key={sub.id}
+                        className={`rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl ${colorClass}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] ${pillClass}`}>
+                            {statusLabel}
+                          </span>
+                          <span className="text-[11px] uppercase tracking-wider opacity-80">
+                            {sub.tier}
+                          </span>
+                          <span className="ml-auto text-[11px] opacity-70">
+                            {sub.ends_at ? new Date(sub.ends_at).toLocaleDateString("fr-FR") : "À vie"}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate font-medium">{sub.email ?? sub.user_id}</p>
+                        <p className="text-[11px] opacity-70">
+                          Depuis le {new Date(sub.created_at).toLocaleDateString("fr-FR")}
+                        </p>
+                      </li>
+                    );
+                  })}
+                  {subscriptions.length === 0 && (
+                    <li className="py-6 text-center text-sm text-muted-foreground">
+                      Aucun abonnement trouvé.
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {active === "orders" && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">Paiements récents</h2>
+                <ul className="mt-4 space-y-2">
+                  {orders.map((o) => (
+                    <li
+                      key={o.transaction_id}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
+                          {o.status}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {o.country_code} · {o.payment_method}
+                        </span>
+                        <span className="ml-auto text-[11px] text-muted-foreground">
+                          {new Date(o.created_at).toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate">{o.customer_email}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {o.amount_local} {o.currency} · {o.amount_eur.toFixed(2)} €
+                      </p>
+                    </li>
+                  ))}
+                  {orders.length === 0 && (
+                    <li className="py-6 text-center text-sm text-muted-foreground">
+                      Aucune commande enregistrée.
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {active === "moderation" && canModerate && (
+              <section className="pt-5">
+                <h2 className="text-[22px] font-semibold tracking-tight">
+                  Modération de la galerie
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Toutes les créations arrivent ici automatiquement. Publiez, rejetez ou supprimez.
+                </p>
+                <ul className="mt-4 space-y-3">
+                  {queue.map((g) => (
+                    <li
+                      key={g.id}
+                      className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card/50 p-3 backdrop-blur-xl"
+                    >
+                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-secondary">
+                        {g.media_url &&
+                          (g.media_type === "video" ? (
+                            <>
+                              <video
+                                src={g.media_url}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="h-full w-full object-cover"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-background/40">
+                                <Play className="h-6 w-6" />
+                              </span>
+                            </>
+                          ) : (
+                            <img
+                              src={g.media_url}
+                              alt={g.prompt}
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                            />
+                          ))}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm">{g.prompt}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {g.media_type} · {g.status} ·{" "}
+                          {new Date(g.created_at).toLocaleString("fr-FR")}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Publier"
+                        disabled={modBusy === g.id}
+                        onClick={() => void actOnItem(g.id, "approve")}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Rejeter"
+                        disabled={modBusy === g.id}
+                        onClick={() => void actOnItem(g.id, "reject")}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary disabled:opacity-40"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Supprimer"
+                        disabled={modBusy === g.id}
+                        onClick={() => void actOnItem(g.id, "delete")}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-40"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </li>
+                  ))}
+                  {queue.length === 0 && (
+                    <li className="py-10 text-center text-sm text-muted-foreground">
+                      Aucune création à modérer.
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
+
+            {active === "landing" && isAdmin && <AdminLandingPanel />}
+            {active === "landing" && isAdmin && <AdminRevenuePanel />}
+
+            {active === "content" && isAdmin && (
+              <section className="pt-5">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[22px] font-semibold tracking-tight">Créations récentes</h2>
+                  <button
+                    type="button"
+                    disabled={sweeping}
+                    onClick={() => void runSweep(false)}
+                    className="rounded-full bg-secondary px-3 py-2 text-[11px] font-medium disabled:opacity-50"
+                  >
+                    {sweeping ? "Vérification…" : "Terminer les bloquées"}
+                  </button>
+                  <Link
+                    to="/galerie"
+                    className="ml-auto rounded-full bg-secondary px-4 py-2 text-xs font-medium"
+                  >
+                    Modération
+                  </Link>
+                </div>
+                <ul className="mt-4 space-y-2">
+                  {items.map((g) => (
+                    <li
+                      key={g.id}
+                      className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenGen(openGen === g.id ? null : g.id)}
+                        className="block w-full text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] uppercase">
+                            {g.media_type}
+                          </span>
+                          <span
+                            className={`text-[11px] ${g.status === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                          >
+                            {g.status}
+                          </span>
+                          <span className="ml-auto text-[11px] text-muted-foreground">
+                            {new Date(g.created_at).toLocaleString("fr-FR")}
+                          </span>
+                        </div>
+                        <p
+                          className={`mt-1 ${openGen === g.id ? "whitespace-pre-wrap break-words" : "line-clamp-2"}`}
+                        >
+                          {g.prompt}
+                        </p>
+                        {g.error_message?.startsWith("fal:") ? (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            En cours de traitement chez fal…
+                          </p>
+                        ) : (
+                          g.error_message && (
+                            <p className="mt-1 text-[11px] text-destructive">{g.error_message}</p>
+                          )
+                        )}
+                      </button>
+                      {openGen === g.id && (
+                        <div className="mt-3 space-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                          <p>Utilisateur : {g.user_email ?? "—"}</p>
+                          <p>
+                            Réglages :{" "}
+                            {[g.resolution, g.duration, g.aspect_ratio].filter(Boolean).join(" · ") || "—"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void navigator.clipboard
+                                .writeText(g.prompt)
+                                .then(() => toast.success("Prompt copié"))
+                                .catch(() => toast.error("Copie impossible."))
+                            }
+                            className="mt-1 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-medium text-foreground"
+                          >
+                            Copier le prompt
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                  {items.length === 0 && (
+                    <li className="py-10 text-center text-sm text-muted-foreground">
+                      Aucune génération enregistrée.
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {active
