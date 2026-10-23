@@ -92,10 +92,28 @@ export function freeCreditCost(mediaType: "image" | "video"): number {
   return mediaType === "video" ? FREE_VIDEO_CREDITS : 0;
 }
 
+/** Prix exact d'une génération : même calcul pour la vérification du solde et pour le débit. */
+export async function exactCreditCost(input: {
+  mediaType: "image" | "video";
+  model?: string | null;
+  resolution?: string;
+  seconds: number;
+}): Promise<number> {
+  const { isPricedModel, samCreditsFor } = await import("@/lib/creator-pricing");
+  const res = input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p";
+  const config = await getCreditConfig();
+  if (input.mediaType === "video" && input.model && isPricedModel(input.model)) {
+    const c = samCreditsFor(input.model, res as never, input.seconds);
+    if (c !== null) return c;
+  }
+  return creditCostFor(input.mediaType, input.seconds, input.resolution ?? "720p", config);
+}
+
 export async function checkGenerationAccess(
   userId: string,
   mediaType: "image" | "video",
   seconds = 0,
+  price?: { model?: string | null; resolution?: string },
 ): Promise<AccessResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -134,6 +152,41 @@ export async function checkGenerationAccess(
 
   let videoLimit = maxVideoSeconds;
   if (!isSubscribed) {
+    if (mediaType === "video") {
+      // Vidéo réservée à ceux qui ont déjà acheté quelque chose (recharge ou abonnement)
+      const { data: bought } = await supabaseAdmin
+        .from("credit_ledger")
+        .select("id")
+        .eq("user_id", userId)
+        .in("kind", ["recharge", "pass", "abonnement", "annuel_mensuel"])
+        .limit(1);
+      if (bought && bought.length > 0) videoLimit = 10; // offre « Croc » (recharge / pack) : 10 s
+      if (!bought || bought.length === 0) {
+        // Option du bureau d'administration : vidéos autorisées aux gratuits (limitées à la durée de l'offre gratuite)
+        const { data: setting } = await supabaseAdmin
+          .from("app_settings")
+          .select("free_video_enabled")
+          .eq("id", "global")
+          .maybeSingle();
+        const freeVideoOn = setting?.free_video_enabled === true;
+        if (!freeVideoOn || planKey !== "free") {
+          return {
+            ...base,
+            allowed: false,
+            code: "subscription_required",
+            message: "La génération vidéo est réservée aux abonnés. Rechargez votre compte ou abonnez-vous pour continuer.",
+          };
+        }
+      }
+    }
+    if (mediaType === "video" && seconds > videoLimit) {
+      return {
+        ...base,
+        allowed: false,
+        code: "subscription_required",
+        message: `Votre offre permet des vidéos jusqu'à ${videoLimit} secondes. Passez à un abonnement supérieur pour aller plus loin.`,
+      };
+    }
     await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
@@ -145,7 +198,7 @@ export async function checkGenerationAccess(
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.",
+        message: "L'offre gratuite est terminée pour l'instant. Réessayez plus tard ou passez à un forfait supérieur.",
       };
     }
     return { ...base, allowed: true, code: "ok", message: null };
@@ -163,7 +216,7 @@ export async function checkGenerationAccess(
 
   // Abonnés : contrôle du solde de crédits
   {
-    const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
+    const cost = await exactCreditCost({ mediaType, model: price?.model ?? null, resolution: price?.resolution, seconds });
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
       .select("credits_balance")
