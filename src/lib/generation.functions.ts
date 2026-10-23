@@ -282,3 +282,24 @@ export const cancelGeneration = createServerFn({ method: "POST" })
 
     return { ok: true as const };
   });
+
+/**
+ * Durée maximale de vidéo autorisée pour ce compte, selon son offre et ses achats.
+ * Même règle que la vérification au lancement (access.server.ts).
+ */
+export const getVideoMaxSeconds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { activePlan } = await import("@/lib/access.server");
+    const { PLAN_VIDEO_SECONDS, toPlanType } = await import("@/lib/plans");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { plan } = await activePlan(context.userId);
+    if (plan !== "free") return { maxSeconds: PLAN_VIDEO_SECONDS[toPlanType(plan)] };
+    const { data: bought } = await supabaseAdmin
+      .from("credit_ledger")
+      .select("id")
+      .eq("user_id", context.userId)
+      .in("kind", ["recharge", "pass", "abonnement", "annuel_mensuel"])
+      .limit(1);
+    return { maxSeconds: bought && bought.length > 0 ? 10 : PLAN_VIDEO_SECONDS.free };
+  });
