@@ -20,6 +20,15 @@ function VoixOffPage() {
   const [busy, setBusy] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
+  const previewRef = useRef<HTMLAudioElement | null>(null);
+
+  /** Aperçu officiel de la voix, fourni par KIE. */
+  const playPreview = (id: string) => {
+    previewRef.current?.pause();
+    const a = new Audio(`https://static.aiquickdraw.com/elevenlabs/voice/${id}.mp3`);
+    previewRef.current = a;
+    void a.play().catch(() => toast("Aperçu indisponible pour cette voix."));
+  };
 
   const cost = useMemo(() => (text.trim() ? voiceCostFor(text.trim().length) : 0), [text]);
 
@@ -79,15 +88,34 @@ function VoixOffPage() {
 
         <div>
           <label className="text-sm font-medium text-foreground">La voix</label>
-          <select
-            value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm outline-none"
-          >
+          <p className="mt-1 text-xs text-muted-foreground">Écoute une voix avant de la choisir.</p>
+          <ul className="mt-2 max-h-72 space-y-2 overflow-y-auto">
             {KIE_VOICES.map((v) => (
-              <option key={v.id} value={v.id}>{v.name} — {v.style}</option>
+              <li
+                key={v.id}
+                className={`flex items-center gap-3 rounded-2xl border p-3 ${
+                  voice === v.id ? "border-primary bg-primary/10" : "border-border bg-card"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setVoice(v.id)}
+                  className="flex-1 text-left"
+                >
+                  <span className="block text-sm font-semibold text-foreground">{v.name}</span>
+                  <span className="block text-xs text-muted-foreground">{v.style}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Écouter ${v.name}`}
+                  onClick={() => playPreview(v.id)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                >
+                  ▶
+                </button>
+              </li>
             ))}
-          </select>
+          </ul>
         </div>
 
         <button
