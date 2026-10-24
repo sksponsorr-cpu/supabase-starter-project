@@ -1,3 +1,4 @@
+import { TransferCredits } from "@/components/samflash/TransferCredits";
 import { useState } from "react";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { ImageIcon, Video, Info } from "lucide-react";
@@ -188,6 +189,7 @@ export function SellerStudio() {
 
   return (
     <div className="w-full max-w-2xl px-4 mb-6 space-y-6">
+      <TransferCredits />
       <label className="flex items-start gap-3 rounded-3xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm text-muted-foreground">
         <input
           type="checkbox"
