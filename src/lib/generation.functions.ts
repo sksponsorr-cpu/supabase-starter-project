@@ -11,6 +11,7 @@ type GenerateInput = {
   imageUrl?: string | null;
   project_id?: string | null;
   model?: string | null;
+  wallet?: "creator" | "seller" | null;
 };
 
 /** Anti-abus : au plus 4 demandes par minute et 3 créations en cours par compte. */
@@ -51,6 +52,7 @@ function normalize(input: GenerateInput) {
     imageUrl: input.imageUrl || null,
     project_id: input.project_id || null,
     model: input.model ? String(input.model).slice(0, 40) : null,
+    wallet: input.wallet === "seller" ? "seller" : "creator",
   };
 }
 
