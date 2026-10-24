@@ -1,79 +1,305 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { TIER_DAILY_SECONDS, type Tier } from "@/lib/quota";
 
-export type Formation = { id: string; title: string; summary: string; videoUrl: string; position: number };
+type GenerateInput = {
+  prompt: string;
+  mediaType: "image" | "video";
+  resolution: string;
+  duration: string;
+  aspectRatio: string;
+  imageUrl?: string | null;
+  project_id?: string | null;
+  model?: string | null;
+};
 
-const toFormation = (r: { id: string; title: string; summary: string | null; video_url: string; position: number }): Formation => ({
-  id: r.id,
-  title: r.title,
-  summary: r.summary ?? "",
-  videoUrl: r.video_url,
-  position: r.position,
-});
-
-/** Modules publics, dans l'ordre d'ajout. */
-export const listFormations = createServerFn({ method: "GET" }).handler(async (): Promise<Formation[]> => {
+/** Anti-abus : au plus 4 demandes par minute et 3 créations en cours par compte. */
+async function assertRateLimit(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabaseAdmin as any;
-  const { data } = await db.from("formations").select("id, title, summary, video_url, position").order("position", { ascending: true });
-  return (data ?? []).map(toFormation);
-});
-
-/** Même règle que le bureau administrateur : e-mail propriétaire, ou rôle admin. */
-async function assertAdmin(context: { userId: string; claims?: unknown; supabase: unknown }) {
-  const { isOwnerEmail } = await import("@/lib/owners");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const claims = context.claims as { email?: unknown } | null;
-  const email = typeof claims?.email === "string" ? claims.email : null;
-  if (!isOwnerEmail(email)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = context.supabase as any;
-    const { data, error } = await sb.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    if (error || data !== true) throw new Error("Accès refusé");
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return supabaseAdmin as any;
+  const lastMinute = new Date(Date.now() - 60_000).toISOString();
+  const { count: recent } = await supabaseAdmin
+    .from("generations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", lastMinute);
+  if ((recent ?? 0) >= 4) throw new Error("Trop de demandes. Patientez une minute avant de réessayer.");
+  const halfHour = new Date(Date.now() - 30 * 60_000).toISOString();
+  const { count: pending } = await supabaseAdmin
+    .from("generations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .gte("created_at", halfHour);
+  if ((pending ?? 0) >= 3) throw new Error("Vous avez déjà plusieurs créations en cours. Attendez qu'elles se terminent.");
 }
 
-export const adminListFormations = createServerFn({ method: "GET" })
+function normalize(input: GenerateInput) {
+  if (!input?.prompt?.trim()) throw new Error("Prompt requis");
+  const mediaType = input.mediaType === "image" ? ("image" as const) : ("video" as const);
+  let resolution = String(input.resolution ?? "720p");
+  // Les vidéos sont limitées à 720p et 10 secondes maximum.
+  if (mediaType === "video" && resolution !== "480p") resolution = "720p";
+  const rawSeconds = Number.parseInt(String(input.duration ?? "5"), 10);
+  // Durées acceptées : de 4 à 30 s (Seedance, Veo, Grok). Le modèle et le forfait vérifient ensuite.
+  const seconds = Number.isInteger(rawSeconds) && rawSeconds >= 4 && rawSeconds <= 30 ? rawSeconds : 5;
+  return {
+    prompt: input.prompt.trim().slice(0, 2000),
+    mediaType,
+    resolution,
+    duration: `${seconds}s`,
+    aspectRatio: String(input.aspectRatio ?? "2:3"),
+    imageUrl: input.imageUrl || null,
+    project_id: input.project_id || null,
+    model: input.model ? String(input.model).slice(0, 40) : null,
+  };
+}
+
+export const getQuotaStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<Formation[]> => {
-    const db = await assertAdmin(context);
-    const { data } = await db.from("formations").select("id, title, summary, video_url, position").order("position", { ascending: true });
-    return (data ?? []).map(toFormation);
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [{ data: sub }, { data: usage }] = await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("tier, status, ends_at")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("daily_usage")
+        .select("seconds_used")
+        .eq("user_id", userId)
+        .eq("usage_date", today)
+        .maybeSingle(),
+    ]);
+
+    const active =
+      sub && sub.status === "active" && (!sub.ends_at || new Date(sub.ends_at) > new Date());
+    const tier = (active ? (sub.tier as Tier) : "free") satisfies Tier;
+    const limit = TIER_DAILY_SECONDS[tier] ?? TIER_DAILY_SECONDS.free;
+    const used = usage?.seconds_used ?? 0;
+
+    return { tier, limit, used, remaining: Math.max(0, limit - used) };
   });
 
-export const adminAddFormation = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        title: z.string().trim().min(3).max(120),
-        summary: z.string().trim().max(1000).default(""),
-        videoUrl: z.string().trim().url().max(2000),
-      })
-      .parse(input),
-  )
+export const listGenerations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ data, context }) => {
-    const db = await assertAdmin(context);
-    const { data: last } = await db.from("formations").select("position").order("position", { ascending: false }).limit(1).maybeSingle();
-    const { error } = await db.from("formations").insert({
-      title: data.title,
-      summary: data.summary,
-      video_url: data.videoUrl,
-      position: (last?.position ?? 0) + 1,
-    });
-    if (error) return { ok: false, message: "Impossible d'enregistrer le module." };
-    return { ok: true, message: "Module publié." };
+  .handler(async ({ context }) => {
+    const { withFreshUrls } = await import("@/lib/services/generation.server");
+    const { data } = await context.supabase
+      .from("generations")
+      .select(
+        "id, prompt, media_type, resolution, duration, aspect_ratio, media_url, storage_path, status, duration_seconds, error_message, created_at",
+      )
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    // Les URL signées expirent : on les régénère à chaque lecture depuis storage_path.
+    const gens = await withFreshUrls(data ?? []);
+
+    // Clonages vidéo et avatars (table ai_jobs) : affichés aussi dans « Mes créations ».
+    const { data: jobs } = await context.supabase
+      .from("ai_jobs")
+      .select("id, tool, seconds, status, result_url, created_at")
+      .eq("user_id", context.userId)
+      .eq("status", "success")
+      .not("result_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const extra = (jobs ?? []).map((j) => ({
+      id: `ai-${j.id}`,
+      prompt: j.tool === "clone" ? "Clonage vidéo" : "Avatar AI",
+      media_type: "video",
+      resolution: null,
+      duration: `${Number(j.seconds)} s`,
+      aspect_ratio: null,
+      media_url: j.result_url as string,
+      storage_path: null,
+      status: "ready",
+      duration_seconds: Number(j.seconds),
+      error_message: null,
+      created_at: j.created_at as string,
+    }));
+
+    return [...gens, ...extra]
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+      .slice(0, 50);
   });
 
-export const adminDeleteFormation = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+export const generateMedia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .inputValidator(normalize)
   .handler(async ({ data, context }) => {
-    const db = await assertAdmin(context);
-    await db.from("formations").delete().eq("id", data.id);
-    return { ok: true };
+    const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
+    await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
+    await assertRateLimit(context.userId);
+    const { runGeneration } = await import("@/lib/services/generation.server");
+    return await runGeneration(context.userId, data);
+  });
+
+/** Relance une génération en échec à partir de ses paramètres enregistrés. */
+export const retryGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Identifiant manquant");
+    return { id: String(input.id) };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: row } = await context.supabase
+      .from("generations")
+      .select("prompt, media_type, resolution, duration, aspect_ratio, status")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!row) throw new Error("Création introuvable");
+
+    const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
+    await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
+    await assertRateLimit(context.userId);
+    const { runGeneration } = await import("@/lib/services/generation.server");
+    return await runGeneration(
+      context.userId,
+      normalize({
+        prompt: row.prompt,
+        mediaType: row.media_type === "image" ? "image" : "video",
+        resolution: row.resolution ?? "720p",
+        duration: row.duration ?? "5s",
+        aspectRatio: row.aspect_ratio ?? "2:3",
+      }),
+    );
+  });
+
+/** Supprime définitivement une création de l'utilisateur (fichier + enregistrement). */
+export const deleteGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Identifiant manquant");
+    return { id: String(input.id) };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: row } = await context.supabase
+      .from("generations")
+      .select("id, storage_path")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!row) return { ok: false as const, message: "Création introuvable." };
+
+    if (row.storage_path) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.storage.from("generations").remove([row.storage_path]);
+    }
+
+    const { error } = await context.supabase
+      .from("generations")
+      .delete()
+      .eq("id", row.id)
+      .eq("user_id", context.userId);
+
+    if (error) return { ok: false as const, message: "Suppression impossible." };
+    return { ok: true as const };
+  });
+export const checkGenerationStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("ID manquant");
+    return { id: String(input.id) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("generations")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!row) return { ok: false as const, error: "Introuvable" };
+    if (row.status !== "pending") {
+      return { ok: true as const, status: row.status, mediaUrl: row.media_url };
+    }
+
+    if (!row.error_message?.startsWith("fal:")) {
+      return { ok: false as const, error: "Pas de tâche asynchrone associée" };
+    }
+
+    const { finalizePendingRow } = await import("@/lib/services/generation.server");
+    return await finalizePendingRow(row as never, context.userId);
+  });
+export const cancelGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("ID manquant");
+    return { id: String(input.id) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("generations")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!row) return { ok: false as const, error: "Introuvable" };
+    if (row.status !== "pending") return { ok: false as const, error: "Génération déjà terminée" };
+
+    if (row.error_message?.startsWith("fal:")) {
+      try {
+        const payload = JSON.parse(row.error_message.slice(4));
+        const statusUrl = payload.status_url;
+        if (statusUrl) {
+          const { assertFalUrl } = await import("@/lib/services/fal.server");
+          const cancelUrl = assertFalUrl(statusUrl.replace(/\/status$/, "/cancel"));
+          await fetch(cancelUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${process.env["FAL_KEY"]}`,
+              "Content-Type": "application/json",
+            },
+          });
+        }
+      } catch (e) {
+        // Ignorer si l'annulation API échoue, on continue l'annulation en base
+      }
+    }
+
+    const { secondsFor } = await import("@/lib/services/generation.server");
+    const seconds = secondsFor({ mediaType: row.media_type as "image" | "video", duration: row.duration || "6s" } as any);
+    if (row.media_type === "video") {
+      await supabaseAdmin.rpc("refund_video_seconds", { _user_id: context.userId, _seconds: seconds });
+    } else {
+      await supabaseAdmin.rpc("refund_media_quota", { _user_id: context.userId, _media_type: row.media_type });
+    }
+
+    await supabaseAdmin
+      .from("generations")
+      .update({ status: "cancelled", error_message: "Génération annulée" })
+      .eq("id", data.id);
+
+    return { ok: true as const };
+  });
+
+/**
+ * Durée maximale de vidéo autorisée pour ce compte, selon son offre et ses achats.
+ * Même règle que la vérification au lancement (access.server.ts).
+ */
+export const getVideoMaxSeconds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { activePlan } = await import("@/lib/access.server");
+    const { PLAN_VIDEO_SECONDS, toPlanType } = await import("@/lib/plans");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { plan } = await activePlan(context.userId);
+    if (plan !== "free") return { maxSeconds: PLAN_VIDEO_SECONDS[toPlanType(plan)] };
+    const { data: bought } = await supabaseAdmin
+      .from("credit_ledger")
+      .select("id")
+      .eq("user_id", context.userId)
+      .in("kind", ["recharge", "pass", "abonnement", "annuel_mensuel"])
+      .limit(1);
+    return { maxSeconds: bought && bought.length > 0 ? 10 : PLAN_VIDEO_SECONDS.free };
   });
