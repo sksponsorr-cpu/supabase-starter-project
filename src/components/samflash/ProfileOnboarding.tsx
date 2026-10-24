@@ -29,6 +29,16 @@ export function ProfileOnboarding({ onChoose, allowed }: { onChoose: (c: Choice)
     } catch {
       /* navigateur sans stockage : on propose le choix sans mémoire */
     }
+    // Un choix « vendeur » mémorisé alors que l'espace vendeur n'est pas publié
+    // masquait la barre de saisie sans rien afficher : on le retire.
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === "seller" && !allowed.includes("seller")) {
+        localStorage.removeItem(STORAGE_KEY);
+        notifyProfileChanged();
+      }
+    } catch {
+      /* ignoré */
+    }
     if (allowed.length === 1) {
       setSelected(allowed[0]);
       onChoose(allowed[0]);
