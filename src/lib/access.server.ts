@@ -99,11 +99,11 @@ export async function exactCreditCost(input: {
   resolution?: string;
   seconds: number;
 }): Promise<number> {
-  const { isPricedModel, samCreditsFor } = await import("@/lib/creator-pricing");
+  const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
   const res = input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p";
   const config = await getCreditConfig();
   if (input.mediaType === "video" && input.model && isPricedModel(input.model)) {
-    const c = samCreditsFor(input.model, res as never, input.seconds);
+    const c = generationCreditsFor(input.model, res as never, input.seconds);
     if (c !== null) return c;
   }
   return creditCostFor(input.mediaType, input.seconds, input.resolution ?? "720p", config);
@@ -113,7 +113,7 @@ export async function checkGenerationAccess(
   userId: string,
   mediaType: "image" | "video",
   seconds = 0,
-  price?: { model?: string | null; resolution?: string },
+  price?: { model?: string | null; resolution?: string; wallet?: "creator" | "seller" },
 ): Promise<AccessResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -217,12 +217,14 @@ export async function checkGenerationAccess(
   // Abonnés : contrôle du solde de crédits
   {
     const cost = await exactCreditCost({ mediaType, model: price?.model ?? null, resolution: price?.resolution, seconds });
-    const { data: wallet } = await supabaseAdmin
-      .from("profiles")
-      .select("credits_balance")
-      .eq("id", userId)
-      .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < cost) {
+    const sellerWallet = price?.wallet === "seller";
+    const { data: wallet } = sellerWallet
+      ? await supabaseAdmin.from("seller_wallets").select("balance").eq("user_id", userId).maybeSingle()
+      : await supabaseAdmin.from("profiles").select("credits_balance").eq("id", userId).maybeSingle();
+    const available = sellerWallet
+      ? Number((wallet as { balance?: number } | null)?.balance ?? 0)
+      : Number((wallet as { credits_balance?: number } | null)?.credits_balance ?? 0);
+    if (available < cost) {
       return {
         ...base,
         allowed: false,
