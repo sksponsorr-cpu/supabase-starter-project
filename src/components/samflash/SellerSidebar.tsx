@@ -10,7 +10,7 @@ type Item = { label: string; icon: React.ElementType; to?: string; soon?: boolea
 const ITEMS: Item[] = [
   { label: "Accueil", icon: Home, to: "/vendeur" },
   { label: "Créative AI", icon: Wand2, to: "/vendeur" },
-  { label: "Pub Track", icon: BarChart3, to: "/pub-track" },
+  { label: "Pub Track", icon: BarChart3, soon: true },
   { label: "Motion design", icon: Sparkles, soon: true },
   { label: "Voix off", icon: Mic, to: "/voix-off" },
   { label: "Montage", icon: Scissors, soon: true },
@@ -29,6 +29,7 @@ export function SellerSidebar() {
 
   return (
     <>
+      <div className="fixed inset-x-0 top-0 z-20 h-14 bg-[#0a0a14]/95 backdrop-blur-md" aria-hidden />
       <button
         type="button"
         onClick={() => setOpen(true)}
