@@ -96,6 +96,7 @@ export async function checkGenerationAccess(
   userId: string,
   mediaType: "image" | "video",
   seconds = 0,
+  opts?: { model?: string | null; resolution?: string; wallet?: string },
 ): Promise<AccessResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -130,10 +131,12 @@ export async function checkGenerationAccess(
 
   // Durée maximale d'une vidéo selon l'offre (secondes)
   const planKey = plan as string;
-  const maxVideoSeconds =
-    planKey === "superhearly" || planKey === "superhearly_monthly" ? 15
-    : planKey === "super_grok_plus" ? 10
-    : 8;
+  // Durée par vidéo selon l'offre ET le modèle (table de lib/video-duration-limits.ts).
+  const { clipCapFor } = await import("@/lib/video-duration-limits");
+  const maxVideoSeconds = clipCapFor(
+    planKey,
+    (opts?.model ?? undefined) as import("@/lib/creator-models").ModelId | undefined,
+  );
 
   if (!isSubscribed) {
     await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
