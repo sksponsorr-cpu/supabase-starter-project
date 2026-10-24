@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Image as ImageIcon, Video, Package, Monitor } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Image as ImageIcon, Video } from "lucide-react";
 import { SellerSidebar } from "@/components/samflash/SellerSidebar";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { generationCreditsFor } from "@/lib/creator-pricing";
@@ -9,7 +9,12 @@ import { IMAGE_AD_PRESETS, type ImageAdPreset } from "@/lib/image-ad-presets";
 import { ImageAdFlow } from "@/components/samflash/ImageAdFlow";
 import { SellerCreditsPill } from "@/components/samflash/SellerCreditsPanel";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect } from "react";
+
+/**
+ * Créatives vidéo : désactivées pour l'instant (bientôt disponible).
+ * Mettre à true pour réactiver la section vidéo.
+ */
+const VIDEO_ENABLED = false;
 
 export const Route = createFileRoute("/vendeur")({
   head: () => ({ meta: [{ title: "Espace vendeur — Sam flash 2.0" }] }),
@@ -27,7 +32,7 @@ type Style = {
   tint: string;
 };
 
-/** Styles de pub (même présentation que Créative AI). */
+/** Styles de vidéo (conservés pour la réactivation, non affichés pour l'instant). */
 const STYLES: Style[] = [
   { title: "Histoire racontée", desc: "Une personne vit l'histoire avec ton produit, sans parler. Une voix off la raconte, avant et après.", ideal: "beauté, santé, bien-être, tout produit qui change le quotidien", starter: "Une personne vit une histoire avec mon produit, sans parler, avec une voix off qui raconte avant et après : ", needsPerson: true, needsProduct: true, videoMode: "image_to_video", tint: "from-fuchsia-600/40 to-purple-900/40" },
   { title: "UGC", desc: "Une personne montre ton produit au téléphone, dans une vraie pièce, comme une cliente qui filme.", ideal: "mode, cosmétique, gadgets, produits qui se montrent en main", starter: "Une personne montre mon produit au téléphone, dans une vraie pièce, comme une cliente qui filme : ", needsPerson: true, needsProduct: true, videoMode: "image_to_video", tint: "from-amber-500/40 to-orange-900/40" },
@@ -42,16 +47,19 @@ const STYLES: Style[] = [
 const fmt = (n: number | null) => (n === null ? "—" : `${n} crédits`);
 
 function VendeurPage() {
-  const [kind, setKind] = useState<"images" | "videos">("videos");
-  const [product, setProduct] = useState<"physique" | "digital">("physique");
+  // Images par défaut : seule création disponible pour l'instant.
+  const [kind, setKind] = useState<"images" | "videos">("images");
   const [active, setActive] = useState<GuidedFeature | null>(null);
   const [imagePreset, setImagePreset] = useState<ImageAdPreset | null>(null);
   const loadImages = useServerFn(listSellerCardImages);
   const [cardImages, setCardImages] = useState<Record<string, string>>({});
-  useEffect(() => { void loadImages({}).then(setCardImages).catch(() => setCardImages({})); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    void loadImages({}).then(setCardImages).catch(() => setCardImages({}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const slug = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  // Prix de départ affichés sur chaque carte (même barème que la génération).
+  // Prix de départ affichés sur chaque carte vidéo (même barème que la génération).
   const videoFrom = generationCreditsFor("veo-3-1", "720p", 8);
 
   const open = (s: Style) =>
@@ -74,7 +82,7 @@ function VendeurPage() {
           <SellerCreditsPill />
         </div>
         <h1 className="mt-3 text-center text-3xl font-bold tracking-tight">Qu'allons-nous vendre aujourd'hui ?</h1>
-        <p className="mt-2 text-center text-sm text-white/60">Choisis le type de pub : le formulaire s'adapte à ce choix.</p>
+        <p className="mt-2 text-center text-sm text-white/60">Choisis le type de créative : le formulaire s'adapte à ce choix.</p>
 
         <div className="mt-6 grid grid-cols-2 gap-2 rounded-full bg-white/5 p-1">
           <button
@@ -93,25 +101,12 @@ function VendeurPage() {
           </button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-white/50">Ton produit est</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setProduct("physique")}
-            className={`flex items-center justify-center gap-2 rounded-full border py-2.5 text-sm ${product === "physique" ? "border-violet-500 text-violet-300" : "border-white/10 text-white/60"}`}
-          >
-            <Package className="h-4 w-4" /> Un produit physique
-          </button>
-          <button
-            type="button"
-            onClick={() => setProduct("digital")}
-            className={`flex items-center justify-center gap-2 rounded-full border py-2.5 text-sm ${product === "digital" ? "border-violet-500 text-violet-300" : "border-white/10 text-white/60"}`}
-          >
-            <Monitor className="h-4 w-4" /> Un produit digital
-          </button>
-        </div>
-
-        {kind === "videos" ? (
+        {kind === "videos" && !VIDEO_ENABLED ? (
+          <div className="mt-8 rounded-3xl border border-white/10 bg-[#11111c] p-8 text-center">
+            <p className="text-lg font-semibold">Création vidéo</p>
+            <p className="mt-2 text-sm text-white/60">Bientôt disponible, pour tous les types de créatifs.</p>
+          </div>
+        ) : kind === "videos" ? (
           <ul className="mt-8 space-y-5">
             {STYLES.map((s) => (
               <li key={s.title}>
