@@ -62,6 +62,7 @@ export function SellerSidebar() {
               <>
                 <item.icon className={`h-5 w-5 shrink-0 ${active ? "text-primary" : ""}`} />
                 <span className="ml-3 font-medium whitespace-nowrap">{item.label}</span>
+                {item.soon && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/60">Bientôt</span>}
               </>
             );
             if (item.soon || !item.to) {
