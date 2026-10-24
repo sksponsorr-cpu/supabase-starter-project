@@ -111,7 +111,6 @@ import { AdminLandingPanel } from "@/components/samflash/AdminLandingPanel";
 import { AdminRevenuePanel } from "@/components/samflash/AdminRevenuePanel";
 import { AdminMaintenancePanel } from "@/components/samflash/AdminMaintenancePanel";
 import { AdminFeaturesPanel } from "@/components/samflash/AdminFeaturesPanel";
-import { AdminGenerationPanel } from "@/components/samflash/AdminGenerationPanel";
 import { getGenerationProvider, setGenerationProvider, type GenerationProvider } from "@/lib/maintenance.functions";
 import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
 import { Loader2 as GenLoader } from "lucide-react";
@@ -120,6 +119,7 @@ import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPan
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
+import { adminRemoveCredits } from "@/lib/admin-credit-adjust.functions";
 import { AdminFormationsPanel } from "@/components/samflash/AdminFormationsPanel";
 import { formatSeconds } from "@/lib/quota";
 
@@ -239,6 +239,11 @@ function AdminPage() {
   const [emailSending, setEmailSending] = useState(false);
 
   const [showSubForm, setShowSubForm] = useState(false);
+  const [showCreditForm, setShowCreditForm] = useState(false);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [creditBusy, setCreditBusy] = useState(false);
+  const removeCredits = useServerFn(adminRemoveCredits);
   const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("super_grok_monthly");
   const [subReason, setSubReason] = useState("");
   const [showSubConfirm, setShowSubConfirm] = useState(false);
@@ -597,6 +602,36 @@ function AdminPage() {
       setSubAdding(false);
     }
   }, [selectedUserDetail, subReason, subPlan, addSubscriptionToUser, openUserModal, loadUserList, userListPage, userSearch, load]);
+
+  const handleRemoveCredits = useCallback(async () => {
+    if (!selectedUserDetail) return;
+    const amount = Math.floor(Number(creditAmount));
+    if (!Number.isFinite(amount) || amount < 1) {
+      toast.error("Indiquez un nombre de crédits supérieur à 0.");
+      return;
+    }
+    if (creditReason.trim().length < 3) {
+      toast.error("Le motif est obligatoire (3 caractères minimum).");
+      return;
+    }
+    setCreditBusy(true);
+    try {
+      const res = await removeCredits({ data: { userId: selectedUserDetail.id, amount, reason: creditReason.trim() } });
+      if (res.ok) {
+        toast.success(res.message);
+        setShowCreditForm(false);
+        setCreditAmount("");
+        setCreditReason("");
+        await openUserModal(selectedUserDetail.id);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Retrait impossible.");
+    } finally {
+      setCreditBusy(false);
+    }
+  }, [selectedUserDetail, creditAmount, creditReason, removeCredits, openUserModal]);
 
   const runSweep = useCallback(
     async (silent: boolean) => {
@@ -1267,7 +1302,71 @@ function AdminPage() {
                                 <PlusCircle className="h-4 w-4" />
                                 Ajouter un abonnement
                               </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowCreditForm((prev) => !prev);
+                                  setShowEmailForm(false);
+                                  setShowSubForm(false);
+                                  setShowSubConfirm(false);
+                                }}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                                  showCreditForm
+                                    ? "bg-foreground text-background"
+                                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                <Wallet className="h-4 w-4" />
+                                Retirer des crédits
+                              </button>
                             </div>
+
+                            {/* Formulaire Retrait de crédits */}
+                            {showCreditForm && (
+                              <div className="mt-4 space-y-3 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <h5 className="text-xs font-semibold text-foreground">
+                                  Retirer des crédits à {selectedUserDetail.email}
+                                </h5>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">Nombre de crédits</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={creditAmount}
+                                    onChange={(e) => setCreditAmount(e.target.value)}
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[11px] font-medium text-muted-foreground">Motif (obligatoire)</label>
+                                  <input
+                                    type="text"
+                                    value={creditReason}
+                                    onChange={(e) => setCreditReason(e.target.value)}
+                                    placeholder="Ex. Crédits accordés par erreur"
+                                    className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCreditForm(false)}
+                                    className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={creditBusy}
+                                    onClick={() => void handleRemoveCredits()}
+                                    className="rounded-full bg-destructive px-4 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50"
+                                  >
+                                    {creditBusy ? "Retrait…" : "Retirer"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Formulaire Envoi Email */}
                             {showEmailForm && (
@@ -1963,214 +2062,4 @@ function AdminPage() {
                         <X className="h-5 w-5" />
                       </button>
                       <button
-                        type="button"
-                        aria-label="Supprimer"
-                        disabled={modBusy === g.id}
-                        onClick={() => void actOnItem(g.id, "delete")}
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-40"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </li>
-                  ))}
-                  {queue.length === 0 && (
-                    <li className="py-10 text-center text-sm text-muted-foreground">
-                      Aucune création à modérer.
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-
-            {active === "acquisition" && isAdmin && <AdminSurveyPanel />}
-
-            {active === "landing" && isAdmin && <AdminLandingPanel />}
-            {active === "landing" && isAdmin && <AdminRevenuePanel />}
-
-            {active === "content" && isAdmin && (
-              <section className="pt-5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[22px] font-semibold tracking-tight">Créations récentes</h2>
-                  <button
-                    type="button"
-                    disabled={sweeping}
-                    onClick={() => void runSweep(false)}
-                    className="rounded-full bg-secondary px-3 py-2 text-[11px] font-medium disabled:opacity-50"
-                  >
-                    {sweeping ? "Vérification…" : "Terminer les bloquées"}
-                  </button>
-                  <Link
-                    to="/galerie"
-                    className="ml-auto rounded-full bg-secondary px-4 py-2 text-xs font-medium"
-                  >
-                    Modération
-                  </Link>
-                </div>
-                <ul className="mt-4 space-y-2">
-                  {items.map((g) => (
-                    <li
-                      key={g.id}
-                      className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setOpenGen(openGen === g.id ? null : g.id)}
-                        className="block w-full text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] uppercase">
-                            {g.media_type}
-                          </span>
-                          <span
-                            className={`text-[11px] ${g.status === "error" ? "text-destructive" : "text-muted-foreground"}`}
-                          >
-                            {g.status}
-                          </span>
-                          <span className="ml-auto text-[11px] text-muted-foreground">
-                            {new Date(g.created_at).toLocaleString("fr-FR")}
-                          </span>
-                        </div>
-                        <p
-                          className={`mt-1 ${openGen === g.id ? "whitespace-pre-wrap break-words" : "line-clamp-2"}`}
-                        >
-                          {g.prompt}
-                        </p>
-                        {g.error_message?.startsWith("fal:") ? (
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            En cours de traitement chez fal…
-                          </p>
-                        ) : (
-                          g.error_message && (
-                            <p className="mt-1 text-[11px] text-destructive">{g.error_message}</p>
-                          )
-                        )}
-                      </button>
-                      {openGen === g.id && (
-                        <div className="mt-3 space-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                          <p>Utilisateur : {g.user_email ?? "—"}</p>
-                          <p>
-                            Réglages :{" "}
-                            {[g.resolution, g.duration, g.aspect_ratio].filter(Boolean).join(" · ") || "—"}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void navigator.clipboard
-                                .writeText(g.prompt)
-                                .then(() => toast.success("Prompt copié"))
-                                .catch(() => toast.error("Copie impossible."))
-                            }
-                            className="mt-1 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-medium text-foreground"
-                          >
-                            Copier le prompt
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                  {items.length === 0 && (
-                    <li className="py-10 text-center text-sm text-muted-foreground">
-                      Aucune génération enregistrée.
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-
-            {active === "payouts" && isAdmin && (
-              <section className="pt-5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div>
-                    <h2 className="text-[22px] font-semibold tracking-tight">Demandes de retrait</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Commissions enregistrées : {commissionTotal.toFixed(2)} €
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void load()}
-                    className="ml-auto rounded-full bg-secondary px-3 py-2 text-xs font-medium"
-                  >
-                    Actualiser
-                  </button>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {payouts.map((p) => (
-                    <article
-                      key={p.id}
-                      className="rounded-3xl border border-border/70 bg-card/50 p-4"
-                    >
-                      <div className="flex flex-wrap items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">{p.developer_name || p.developer_email || "Développeur"}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {p.developer_email || "E-mail indisponible"} · {new Date(p.created_at).toLocaleString("fr-FR")}
-                          </p>
-                        </div>
-                        <span className="text-lg font-semibold">{Number(p.amount_eur).toFixed(2)} €</span>
-                      </div>
-                      <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-                        <p>Moyen : {p.method || "—"}{p.mobile ? ` · ${p.mobile}` : ""}</p>
-                        {p.note && <p>Note : {p.note}</p>}
-                        <p>Statut : {p.status}</p>
-                        {p.admin_note && <p>Note admin : {p.admin_note}</p>}
-                      </div>
-                      {p.status === "en_attente" && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const result = await decide({ data: { id: p.id, status: "payee" } });
-                                if (result.ok) {
-                                  toast.success("Demande marquée comme payée.");
-                                  await load();
-                                } else {
-                                  toast.error(result.message || "Mise à jour impossible.");
-                                }
-                              } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible.");
-                              }
-                            }}
-                            className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground"
-                          >
-                            Marquer payée
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const result = await decide({ data: { id: p.id, status: "refusee" } });
-                                if (result.ok) {
-                                  toast.success("Demande refusée.");
-                                  await load();
-                                } else {
-                                  toast.error(result.message || "Mise à jour impossible.");
-                                }
-                              } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Mise à jour impossible.");
-                              }
-                            }}
-                            className="rounded-full bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive"
-                          >
-                            Refuser
-                          </button>
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                  {payouts.length === 0 && (
-                    <p className="py-10 text-center text-sm text-muted-foreground">
-                      Aucune demande de retrait enregistrée.
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
-          </>
-        )}
-        </main>
-      </div>
-    </div>
-  );
-            }
+ 
