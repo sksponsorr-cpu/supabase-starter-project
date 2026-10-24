@@ -70,6 +70,7 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
           creatorMode,
           model: feature.modelId ?? null,
           project_id: null,
+          wallet: "seller",
         } as never,
       });
       if (res.ok) {
