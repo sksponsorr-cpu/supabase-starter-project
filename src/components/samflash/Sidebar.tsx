@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Gift, Coins, LayoutDashboard, GraduationCap, Store, TrendingUp } from "lucide-react";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Gift, Coins, LayoutDashboard, GraduationCap, Store } from "lucide-react";
 import { useEffect, useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
@@ -60,7 +60,6 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
     { href: "/outils-ai", icon: LayoutDashboard, label: "Plus outils AI" },
     { href: "/tableau-de-bord", icon: LayoutDashboard, label: "Tableau de bord" },
     { href: "/vendeur", icon: Store, label: "Espace vendeur" },
-    { href: "/pub-track", icon: TrendingUp, label: "Pub Track" },
   ];
 
   const labelClass = `ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`;
@@ -76,6 +75,8 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
           100% { opacity: 0; transform: translateX(-8px); }
         }
         @keyframes sfPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+        @keyframes sfPulseGlow { 0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55); } 50% { box-shadow: 0 0 0 10px hsl(var(--primary) / 0); } }
+        @keyframes sfShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
       `}</style>
 
       <div className="fixed top-4 left-4 z-30 md:hidden">
@@ -193,7 +194,8 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
           <Link
             to="/formations"
             onClick={() => setIsOpen(false)}
-            className="relative block overflow-hidden rounded-xl p-[1.5px]"
+            className="relative block overflow-visible rounded-xl p-[1.5px]"
+            style={{ animation: "sfPulseGlow 2.2s ease-in-out infinite" }}
           >
             <span
               aria-hidden
@@ -203,7 +205,12 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
                 animation: "sfSpin 3s linear infinite",
               }}
             />
-            <span className="relative flex items-center rounded-[10px] bg-background px-4 py-3 font-semibold text-foreground">
+            <span className="relative flex items-center overflow-hidden rounded-[10px] bg-background px-4 py-3 font-semibold text-foreground">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-primary/30 to-transparent"
+                style={{ animation: "sfShimmer 2.4s ease-in-out infinite" }}
+              />
               <GraduationCap className="h-5 w-5 shrink-0 text-primary" />
               <span className={labelClass}>Formations</span>
             </span>
