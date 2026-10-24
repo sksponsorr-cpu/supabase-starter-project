@@ -20,6 +20,7 @@ import { notifyDone, optionOn, speak, usePrefs } from "@/lib/prefs";
 import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf } from "@/lib/creator-selection";
 import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload, type VideoMode } from "@/lib/creator-models";
 import { isPricedModel, generationCreditsFor } from "@/lib/creator-pricing";
+import { notifyProfileChanged } from "@/lib/seller-mode";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -885,7 +886,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
           } catch {
             /* ignoré */
           }
-          window.location.reload();
+          notifyProfileChanged();
+          window.location.assign("/vendeur");
         }}
         className="mx-auto mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left backdrop-blur-xl transition-transform active:scale-[0.98]"
       >
