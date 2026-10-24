@@ -7,6 +7,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ProfileOnboarding } from "@/components/samflash/ProfileOnboarding";
 import { useAuth } from "@/hooks/useAuth";
 import { SellerStudio } from "@/components/samflash/SellerStudio";
+import { QuickAccess } from "@/components/samflash/QuickAccess";
 
 type Profile = "creator" | "seller" | "ecommerce";
 
@@ -58,6 +59,7 @@ export function ProfilePicker() {
       )}
       <ProfileOnboarding onChoose={onOnboardingChoose} allowed={allowedChoices} />
 
+      <QuickAccess />
       {current.id === "creator" && <CreatorModelPicker />}
       {current.id !== "creator" && <SellerStudio />}
     </div>
