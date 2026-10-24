@@ -1012,11 +1012,23 @@ export type AdminAddSubscriptionInput = {
 };
 
 const SUBSCRIPTION_PLANS = [
+  "sam_flash_light",
+  "sam_flash_pro",
+  "sam_flash_pro_annuel",
+  "sam_flash_custom",
   "super_grok_monthly",
   "super_grok_annuel",
   "super_grok_plus",
   "superhearly_monthly",
 ] as const;
+
+/** Offre Sam Flash -> identifiant de produit (table product_prices). */
+const SAM_FLASH_PRODUCT: Record<string, string> = {
+  sam_flash_light: "base",
+  sam_flash_pro: "plus",
+  sam_flash_pro_annuel: "plus",
+  sam_flash_custom: "custom",
+};
 
 /**
  * Attribue manuellement une offre avec motif obligatoire :
@@ -1070,14 +1082,26 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
 
     if (isSubscription) {
       const planType = data.plan as (typeof SUBSCRIPTION_PLANS)[number];
-      tier =
-        planType === "superhearly_monthly"
-          ? "superhearly"
-          : planType === "super_grok_plus"
-            ? "super_grok_plus"
-            : "super_grok";
-      productId = planType === "superhearly_monthly" ? "heavy" : planType === "super_grok_plus" ? "plus" : "base";
-      yearly = planType === "super_grok_annuel";
+      if (planType in SAM_FLASH_PRODUCT) {
+        // Offre Sam Flash : identifiant et tier lus dans product_prices (même source que la vente).
+        productId = SAM_FLASH_PRODUCT[planType];
+        yearly = planType === "sam_flash_pro_annuel";
+        const { data: priceRow } = await supabaseAdmin
+          .from("product_prices")
+          .select("tier")
+          .eq("id", productId)
+          .maybeSingle();
+        tier = (priceRow as { tier?: string | null } | null)?.tier ?? productId;
+      } else {
+        tier =
+          planType === "superhearly_monthly"
+            ? "superhearly"
+            : planType === "super_grok_plus"
+              ? "super_grok_plus"
+              : "super_grok";
+        productId = planType === "superhearly_monthly" ? "heavy" : planType === "super_grok_plus" ? "plus" : "base";
+        yearly = planType === "super_grok_annuel";
+      }
       endsAt = expiryFor(planType);
 
       const { data: existing } = await supabaseAdmin
