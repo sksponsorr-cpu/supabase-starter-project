@@ -2,14 +2,14 @@ import { toast } from "@/lib/toast";
 import { notifyProfileChanged } from "@/lib/seller-mode";
 import { ImageIcon, Video, Sparkles, TrendingUp, Mic, Scissors } from "lucide-react";
 
-type Item = { label: string; icon: React.ElementType; action: "seller-image" | "seller-video" | "soon" };
+type Item = { label: string; icon: React.ElementType; action: "seller-image" | "seller-video" | "soon" | "voix" };
 
 const ITEMS: Item[] = [
   { label: "Pub image", icon: ImageIcon, action: "seller-image" },
   { label: "Pub vidéo", icon: Video, action: "seller-video" },
   { label: "Motion design", icon: Sparkles, action: "soon" },
   { label: "Produits gagnants", icon: TrendingUp, action: "soon" },
-  { label: "Voix off", icon: Mic, action: "soon" },
+  { label: "Voix off", icon: Mic, action: "voix" },
   { label: "Montage", icon: Scissors, action: "soon" },
 ];
 
@@ -18,6 +18,10 @@ export function QuickAccess() {
   const go = (item: Item) => {
     if (item.action === "soon") {
       toast("Bientôt disponible.");
+      return;
+    }
+    if (item.action === "voix") {
+      window.location.href = "/voix-off";
       return;
     }
     try {
