@@ -245,7 +245,7 @@ function AdminPage() {
  const [creditReason, setCreditReason] = useState("");
  const [creditBusy, setCreditBusy] = useState(false);
  const removeCredits = useServerFn(adminRemoveCredits);
- const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("super_grok_monthly");
+ const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("sam_flash_light");
  const [subReason, setSubReason] = useState("");
  const [showSubConfirm, setShowSubConfirm] = useState(false);
  const [subAdding, setSubAdding] = useState(false);
@@ -1439,17 +1439,17 @@ function AdminPage() {
                   }
                   className="mt-1 w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-xs text-foreground"
                  >
-                  <option value="super_grok_monthly">
-                   Super Grok (mensuel — 1 mois)
+                                    <option value="sam_flash_light">
+                   Sam Flash Light
                   </option>
-                  <option value="super_grok_annuel">
-                   Super Grok (annuel — 12 mois)
+                  <option value="sam_flash_pro">
+                   Sam Flash Pro (1 mois)
                   </option>
-                  <option value="super_grok_plus">
-                   Super Grok Plus (1 mois)
+                  <option value="sam_flash_pro_annuel">
+                   Sam Flash Pro (annuel — 12 mois)
                   </option>
-                  <option value="superhearly_monthly">
-                   Super Grok Heavy (1 mois)
+                  <option value="sam_flash_custom">
+                   Sam Flash Sur mesure
                   </option>
                  </select>
                 </div>
@@ -1503,10 +1503,10 @@ function AdminPage() {
                   <p className="mt-1 text-muted-foreground">
                    Voulez-vous vraiment attribuer l'offre{" "}
                    <strong className="text-foreground">
-                    {subPlan === "super_grok_monthly" && "Super Grok (mensuel)"}
-                    {subPlan === "super_grok_annuel" && "Super Grok (annuel)"}
-                    {subPlan === "super_grok_plus" && "Super Grok Plus"}
-                    {subPlan === "superhearly_monthly" && "Super Grok Heavy"}
+                    {subPlan === "sam_flash_light" && "Sam Flash Light"}
+                    {subPlan === "sam_flash_pro" && "Sam Flash Pro (1 mois)"}
+                    {subPlan === "sam_flash_pro_annuel" && "Sam Flash Pro (annuel)"}
+                    {subPlan === "sam_flash_custom" && "Sam Flash Sur mesure"}
                    </strong>{" "}
                    à <strong className="text-foreground">{selectedUserDetail.email}</strong> ?
                   </p>
