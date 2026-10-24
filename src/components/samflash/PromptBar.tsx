@@ -21,6 +21,7 @@ import { getCreatorSelection, setCreatorSelection, useCreatorSelection, modelOf 
 import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUpload, type VideoMode } from "@/lib/creator-models";
 import { isPricedModel, generationCreditsFor } from "@/lib/creator-pricing";
 import { notifyProfileChanged } from "@/lib/seller-mode";
+import { clipCapFor, modelMaxSeconds } from "@/lib/video-duration-limits";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -602,17 +603,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   // Options de la feuille Paramètres : elles dépendent du modèle et du mode choisis.
   const cModel = mode === "video" && creatorSel.active ? modelOf(creatorSel) : null;
-  const fetchMaxSeconds = useServerFn(getVideoMaxSeconds);
-  const [serverMaxSec, setServerMaxSec] = useState<number | null>(null);
-  useEffect(() => {
-    void fetchMaxSeconds({}).then((r) => setServerMaxSec(r.maxSeconds)).catch(() => setServerMaxSec(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const planMaxSec =
-    serverMaxSec ?? (userPlan === "superhearly_monthly" || userPlan === "superhearly" ? 15 : userPlan === "super_grok_plus" ? 10 : 8);
-  const baseDurs = [5, 8, 10, 15].filter((d) => d <= planMaxSec);
-  const durOptions = cModel ? cModel.durations.filter((d) => d <= planMaxSec) : baseDurs;
-  const safeDurOptions = durOptions.length > 0 ? durOptions : baseDurs.slice(0, 1);
+  // Durée par vidéo : min(limite du modèle, limite de l'offre). Le quota quotidien n'intervient pas ici.
+  const planMaxSec = clipCapFor(userPlan, cModel?.id);
+  const allDurs = cModel
+    ? cModel.durations.filter((d) => d <= modelMaxSeconds(cModel.id))
+    : [5, 8, 10, 15];
+  const durOptions = allDurs.filter((d) => d <= planMaxSec);
+  const safeDurOptions = durOptions.length > 0 ? durOptions : allDurs.slice(0, 1);
   const resOptions: string[] =
     mode === "video"
       ? (cModel ? ["480p", "720p"].filter((r) => (cModel.resolutions as string[]).includes(r)) : ["480p", "720p"])
@@ -628,7 +625,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       setDur(`${safeDurOptions[0]}s`);
       setLongSec(safeDurOptions[0]);
       // Ajustement visible, jamais silencieux.
-      setSent(`Durée ajustée à ${safeDurOptions[0]} s : votre offre permet jusqu'à ${planMaxSec} s.`);
+      setSent(`Durée ajustée à ${safeDurOptions[0]} s : votre offre permet jusqu'à ${planMaxSec} s par vidéo.`);
     }
     if (!safeResOptions.includes(res)) setRes(safeResOptions[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -945,19 +942,26 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
                 <div className="border-t border-border py-4">
                   <p className="mb-2 text-xs text-muted-foreground">Durée</p>
                   <div className="flex flex-wrap gap-2">
-                    {safeDurOptions.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          setDur(`${d}s`);
-                          setLongSec(d);
-                        }}
-                        className={chip(parseInt(dur, 10) === d)}
-                      >
-                        {d} s
-                      </button>
-                    ))}
+                    {allDurs.map((d) => {
+                      const locked = d > planMaxSec;
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            if (locked) {
+                              setSent(`${d} s demande une offre supérieure. Passe à l'offre supérieure pour ${d} s par vidéo.`);
+                              return;
+                            }
+                            setDur(`${d}s`);
+                            setLongSec(d);
+                          }}
+                          className={chip(parseInt(dur, 10) === d)}
+                        >
+                          {locked ? "🔒 " : ""}{d} s
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
