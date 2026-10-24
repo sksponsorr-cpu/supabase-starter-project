@@ -1,5 +1,4 @@
 import { toast } from "@/lib/toast";
-import { notifyProfileChanged } from "@/lib/seller-mode";
 import { ImageIcon, Video, Sparkles, TrendingUp, Mic, Scissors } from "lucide-react";
 
 type Item = { label: string; icon: React.ElementType; action: "seller-image" | "seller-video" | "soon" | "voix" };
@@ -24,13 +23,7 @@ export function QuickAccess() {
       window.location.href = "/voix-off";
       return;
     }
-    try {
-      window.localStorage.setItem("sam-flash-profile", "seller");
-    } catch {
-      /* ignoré */
-    }
-    notifyProfileChanged();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.location.assign("/vendeur");
   };
 
   return (
