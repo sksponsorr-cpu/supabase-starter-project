@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { getWallets } from "@/lib/seller-wallet.functions";
 import { TransferCredits } from "@/components/samflash/TransferCredits";
 import { toast } from "@/lib/toast";
-import { startPayment, listCountries, listPaymentMethods } from "@/lib/payments.functions";
+import { startPayment, listCountries, listPaymentMethods, listPrices, type PriceRow } from "@/lib/payments.functions";
+import { addPaymentFees } from "@/lib/payments/fees";
+import { EUR_TO_FCFA } from "@/lib/pricing-fcfa";
 
 const PACKS = [
   { id: "seller_pack_10", name: "Essentiel", seller: 10, bonus: "0 %" },
@@ -27,6 +29,20 @@ export function SellerCreditsPill() {
   const getMethods = useServerFn(listPaymentMethods);
   const pay = useServerFn(startPayment);
   const [countries, setCountries] = useState<{ code: string; name: string }[]>([]);
+  const getPrices = useServerFn(listPrices);
+  const [prices, setPrices] = useState<PriceRow[]>([]);
+
+  useEffect(() => {
+    void getPrices({}).then((rows) => setPrices(rows as PriceRow[])).catch(() => setPrices([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const priceLabel = (id: string) => {
+    const row = prices.find((r) => r.id === id);
+    if (!row) return "Indisponible";
+    const base = Math.round((Number(row.amount_eur) * EUR_TO_FCFA) / 100) * 100;
+    return `${addPaymentFees(base, true).total.toLocaleString("fr-FR")} FCFA`;
+  };
 
   useEffect(() => {
     void getCountries({}).then((c) => setCountries(c as { code: string; name: string }[])).catch(() => setCountries([]));
@@ -105,14 +121,14 @@ export function SellerCreditsPill() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setPack(p)}
+                    disabled={!prices.some((r) => r.id === p.id)} onClick={() => setPack(p)}
                     className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left ${pack?.id === p.id ? "border-violet-500" : "border-white/10"}`}
                   >
                     <span>
                       <span className="block text-sm font-semibold">{p.name}</span>
                       <span className="block text-xs text-white/50">{p.seller} crédits vendeur {p.bonus !== "0 %" ? `(${p.bonus} offert)` : ""}</span>
                     </span>
-                    <span className="text-xs font-semibold text-violet-300">Choisir</span>
+                    <span className="text-right"><span className="block text-sm font-semibold">{priceLabel(p.id)}</span><span className="block text-xs font-semibold text-violet-300">Choisir</span></span>
                   </button>
                 ))}
               </div>
