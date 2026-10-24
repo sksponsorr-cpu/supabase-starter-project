@@ -429,7 +429,7 @@
 }
 
 /* ==========================================================================
-   3D Buttons Design (Indigo primary & White secondary)
+   3D Buttons Design (Indigo primary & Dark-Navy secondary for dark theme)
    Pure CSS / Tailwind utilities with solid bottom shadows, hover lift & active press
    ========================================================================== */
 
@@ -440,7 +440,7 @@
   background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 6px 0 #3730a3, 0 12px 20px -3px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 6px 0 #312e81, 0 12px 24px -2px rgba(79, 70, 229, 0.45);
   transform: translateY(0);
   transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -452,31 +452,31 @@
 
 .btn-3d-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 0 #3730a3, 0 16px 26px -3px rgba(79, 70, 229, 0.45);
-  filter: brightness(1.04);
+  box-shadow: 0 8px 0 #312e81, 0 16px 28px -2px rgba(79, 70, 229, 0.55);
+  filter: brightness(1.06);
 }
 
 .btn-3d-primary:active:not(:disabled) {
   transform: translateY(4px);
-  box-shadow: 0 2px 0 #3730a3, 0 4px 10px rgba(79, 70, 229, 0.25);
-  filter: brightness(0.98);
+  box-shadow: 0 2px 0 #312e81, 0 4px 10px rgba(79, 70, 229, 0.3);
+  filter: brightness(0.96);
 }
 
 .btn-3d-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-  box-shadow: 0 3px 0 #3730a3;
+  box-shadow: 0 3px 0 #312e81;
 }
 
 .btn-3d-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  color: #1e293b;
-  border: 1.5px solid #cbd5e1;
-  box-shadow: 0 6px 0 #94a3b8, 0 10px 18px -3px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, oklch(0.24 0.035 265) 0%, oklch(0.18 0.028 265) 100%);
+  color: oklch(0.98 0.005 250);
+  border: 1px solid oklch(1 0 0 / 18%);
+  box-shadow: 0 6px 0 oklch(0.11 0.02 265), 0 10px 22px -3px rgba(0, 0, 0, 0.5);
   transform: translateY(0);
   transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -489,21 +489,52 @@
 
 .btn-3d-secondary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 0 #94a3b8, 0 14px 22px -3px rgba(15, 23, 42, 0.12);
-  border-color: #94a3b8;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  box-shadow: 0 8px 0 oklch(0.11 0.02 265), 0 14px 26px -3px rgba(0, 0, 0, 0.6);
+  border-color: oklch(1 0 0 / 30%);
+  background: linear-gradient(180deg, oklch(0.28 0.04 265) 0%, oklch(0.21 0.03 265) 100%);
 }
 
 .btn-3d-secondary:active:not(:disabled) {
   transform: translateY(4px);
-  box-shadow: 0 2px 0 #94a3b8, 0 4px 8px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 2px 0 oklch(0.11 0.02 265), 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .btn-3d-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-  box-shadow: 0 3px 0 #94a3b8;
+  box-shadow: 0 3px 0 oklch(0.11 0.02 265);
+}
+
+/* Flottement doux continu pour le bouton principal Hero */
+@keyframes float-btn-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.btn-float-gentle {
+  animation: float-btn-gentle 4s ease-in-out infinite;
+}
+
+.btn-float-gentle:hover {
+  animation-play-state: paused;
+}
+
+/* Apparition au défilement (Fade Up) */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -512,10 +543,13 @@
     transition: none !important;
     transform: none !important;
   }
-  .btn-3d-primary:hover:not(:disabled),
-  .btn-3d-primary:active:not(:disabled),
-  .btn-3d-secondary:hover:not(:disabled),
-  .btn-3d-secondary:active:not(:disabled) {
+  .btn-float-gentle {
+    animation: none !important;
+  }
+  .reveal-on-scroll {
+    opacity: 1 !important;
     transform: none !important;
+    transition: none !important;
   }
 }
+

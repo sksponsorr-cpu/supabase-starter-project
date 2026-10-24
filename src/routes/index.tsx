@@ -318,6 +318,32 @@ function LandingPage() {
     return () => cancelAnimationFrame(animId);
   }, [isCarouselHovered, landingContent.videos]);
 
+  // Apparition des éléments au défilement (Scroll Reveal / Fade Up)
+  useEffect(() => {
+    const elements = document.querySelectorAll(".reveal-on-scroll");
+    if (!elements.length) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      elements.forEach((el) => el.classList.add("is-revealed"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   const scrollCarousel = (direction: "left" | "right") => {
     const el = carouselRef.current;
     if (!el) return;
@@ -329,11 +355,33 @@ function LandingPage() {
     setActiveSoundUrl((prev) => (prev === videoUrl ? null : videoUrl));
   };
 
-  const scrollToDemonstration = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const target = document.getElementById("demonstration");
+  const scrollToSection = (id: string) => (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const target = document.getElementById(id);
     if (target) {
       target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const toggleIntroSound = () => {
+    setIntroSound((prev) => {
+      const nextVal = !prev;
+      if (introVideoRef.current) {
+        introVideoRef.current.muted = !nextVal;
+      }
+      return nextVal;
+    });
+  };
+
+  const toggleIntroPlay = () => {
+    if (introVideoRef.current) {
+      if (introVideoRef.current.paused) {
+        void introVideoRef.current.play();
+        setIntroPlaying(true);
+      } else {
+        introVideoRef.current.pause();
+        setIntroPlaying(false);
+      }
     }
   };
 
@@ -425,51 +473,78 @@ function LandingPage() {
       : DEFAULT_LANDING.videos;
 
   return (
-    <div className="relative min-h-screen text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+    <div
+      className="relative min-h-screen text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground font-sans bg-background"
+      style={{ background: "var(--gradient-hero)" }}
+    >
       {/* 3. Arrière-plan 3D animé et discret */}
       <LandingBackground />
 
       {/* Navigation supérieure */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-slate-200/60 transition-all">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-background/80 border-b border-border/60 transition-all">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5 group">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center gap-2.5 group cursor-pointer"
+          >
             <img
               src={logoAsset}
               alt="Logo Sam flash 2.0"
               className="h-9 w-9 rounded-full object-cover shadow-xs transition-transform group-hover:scale-105"
             />
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-lg tracking-tight text-slate-900">
+              <span className="font-bold text-lg tracking-tight text-foreground">
                 Sam flash
               </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-primary/20 text-indigo-300 border border-primary/30">
                 2.0
               </span>
             </div>
           </a>
 
-          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
-            <a href="#demonstration" className="hover:text-indigo-600 transition-colors">
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
+            <a
+              href="#demonstration"
+              onClick={scrollToSection("demonstration")}
+              className="hover:text-foreground transition-colors cursor-pointer"
+            >
               Démonstration
             </a>
-            <a href="#comment-ca-marche" className="hover:text-indigo-600 transition-colors">
+            <a
+              href="#comment-ca-marche"
+              onClick={scrollToSection("comment-ca-marche")}
+              className="hover:text-foreground transition-colors cursor-pointer"
+            >
               Comment ça marche
             </a>
-            <a href="#tarifs" className="hover:text-indigo-600 transition-colors">
+            <a
+              href="#tarifs"
+              onClick={scrollToSection("tarifs")}
+              className="hover:text-foreground transition-colors cursor-pointer"
+            >
               Tarifs
             </a>
-            <a href="#faq" className="hover:text-indigo-600 transition-colors">
+            <a
+              href="#faq"
+              onClick={scrollToSection("faq")}
+              className="hover:text-foreground transition-colors cursor-pointer"
+            >
               FAQ
             </a>
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link
-              to="/connexion"
+            <button
+              type="button"
+              onClick={() => openAuth(false)}
               className="btn-3d-secondary px-5 py-2 rounded-full text-sm font-semibold cursor-pointer"
             >
               Se connecter
-            </Link>
+            </button>
           </div>
         </div>
       </header>
@@ -477,53 +552,63 @@ function LandingPage() {
       {/* Hero Section */}
       <section className="relative px-4 pt-12 sm:pt-20 pb-16 text-center">
         <div className="max-w-4xl mx-auto">
-          {/* Badge haut */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-50 border border-indigo-200/70 text-indigo-700 shadow-xs mb-6">
-            <Sparkles className="h-4 w-4 text-indigo-600" />
-            <span>Studio de création vidéo & image par IA</span>
+          {/* Badge haut : Création vidéo IA pour les créateurs */}
+          <div className="reveal-on-scroll inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-primary/20 border border-primary/40 text-primary-foreground shadow-sm mb-6 backdrop-blur-md">
+            <Sparkles className="h-4 w-4 text-indigo-400" />
+            <span>Création vidéo IA pour les créateurs</span>
           </div>
 
           {/* Titre Principal H1 */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-            Transformez une idée en vidéo prête à publier
+          <h1 className="reveal-on-scroll text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground leading-[1.12]">
+            Transformez une idée en{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-200">
+              vidéo prête à publier
+            </span>
           </h1>
 
           {/* Sous-titre */}
-          <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="reveal-on-scroll mt-6 text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Décrivez votre vision en quelques mots. Sam flash 2.0 génère une vidéo cinématique ou une image haute fidélité en quelques secondes, prête pour vos réseaux sociaux ou vos projets.
           </p>
 
-          {/* 1 & 2. Boutons d'action centrés avec largeur max ~340px et effet 3D */}
-          <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
-            <Link
-              to="/connexion"
-              className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center"
+          {/* Encart Essai : 2 000 FCFA */}
+          <div className="reveal-on-scroll mt-6 inline-flex flex-col items-center gap-1 rounded-2xl border border-primary/30 bg-primary/10 px-6 py-3 text-center backdrop-blur-md shadow-lg shadow-indigo-950/40">
+            <p className="text-sm font-bold text-foreground">Essai : 2 000 FCFA · 40 crédits</p>
+            <p className="text-xs text-muted-foreground">Soit 8 vidéos de 5 secondes en 480p · Sans carte bancaire</p>
+          </div>
+
+          {/* Boutons d'action centrés avec largeur max ~340px et effet 3D */}
+          <div className="reveal-on-scroll mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
+            <button
+              type="button"
+              onClick={() => openAuth(true)}
+              className="btn-3d-primary btn-float-gentle w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center inline-flex items-center justify-center"
             >
               Créer mon compte gratuitement
-              <ArrowRight className="h-4 w-4 inline" />
-            </Link>
+              <ArrowRight className="h-4 w-4 inline ml-1.5" />
+            </button>
 
-            <a
-              href="#demonstration"
-              onClick={scrollToDemonstration}
-              className="btn-3d-secondary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold text-center cursor-pointer"
+            <button
+              type="button"
+              onClick={scrollToSection("demonstration")}
+              className="btn-3d-secondary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold text-center cursor-pointer inline-flex items-center justify-center"
             >
               Voir les vidéos de démonstration
-            </a>
+            </button>
           </div>
 
           {/* Réassurance sous boutons */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-500 font-medium">
+          <div className="reveal-on-scroll mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-muted-foreground font-medium">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               1 vidéo & 2 images offertes
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               Sans carte bancaire
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               Sur mobile & ordinateur
             </span>
           </div>
@@ -534,30 +619,30 @@ function LandingPage() {
       <section id="demonstration" className="px-4 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
           {/* En-tête de section */}
-          <div className="max-w-3xl mx-auto text-center mb-10">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+          <div className="reveal-on-scroll max-w-3xl mx-auto text-center mb-10">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
               Démonstration en direct
             </span>
-            <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Découvrez Sam flash en action
             </h2>
-            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+            <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
               Voyez comment fonctionne la plateforme et explorez les différentes vidéos créées par nos utilisateurs qui défilent et se jouent automatiquement.
             </p>
           </div>
 
           {/* 1. Vidéo de démonstration principale : Comment fonctionne Sam Flash */}
           {landingContent.introVideo && (
-            <div className="max-w-3xl mx-auto mb-16">
-              <div className="relative rounded-3xl overflow-hidden border border-slate-200/90 bg-slate-950 shadow-2xl">
+            <div className="reveal-on-scroll max-w-3xl mx-auto mb-16">
+              <div className="relative rounded-3xl overflow-hidden border border-border/80 bg-card/60 backdrop-blur-md shadow-2xl">
                 {/* Barre supérieure style application */}
-                <div className="h-10 bg-slate-900/90 border-b border-white/10 px-4 flex items-center justify-between text-xs text-slate-400">
+                <div className="h-10 bg-secondary/80 border-b border-border/60 px-4 flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1 rounded-md">
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-foreground bg-secondary px-3 py-1 rounded-md border border-border/60">
                     <Film className="h-3 w-3 text-indigo-400" />
                     Démonstration vidéo — Fonctionnement de Sam Flash
                   </div>
@@ -584,25 +669,15 @@ function LandingPage() {
                     preload="metadata"
                     controlsList="nodownload noplaybackrate noremoteplayback"
                     draggable={false}
-                    className="w-full h-full object-cover"
-                    onClick={() => {
-                      if (introVideoRef.current) {
-                        if (introVideoRef.current.paused) {
-                          void introVideoRef.current.play();
-                          setIntroPlaying(true);
-                        } else {
-                          introVideoRef.current.pause();
-                          setIntroPlaying(false);
-                        }
-                      }
-                    }}
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={toggleIntroPlay}
                   />
 
                   {/* Boutons de contrôle flottants */}
                   <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
                     <button
                       type="button"
-                      onClick={() => setIntroSound(!introSound)}
+                      onClick={toggleIntroSound}
                       aria-label={introSound ? "Couper le son" : "Activer le son"}
                       className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/15 hover:bg-black/80 transition-colors cursor-pointer shadow-md"
                     >
@@ -613,17 +688,7 @@ function LandingPage() {
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-white/90 bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/15 z-10">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (introVideoRef.current) {
-                          if (introVideoRef.current.paused) {
-                            void introVideoRef.current.play();
-                            setIntroPlaying(true);
-                          } else {
-                            introVideoRef.current.pause();
-                            setIntroPlaying(false);
-                          }
-                        }
-                      }}
+                      onClick={toggleIntroPlay}
                       className="flex items-center gap-2 font-medium hover:text-indigo-300 transition-colors cursor-pointer"
                     >
                       {introPlaying ? (
@@ -648,16 +713,16 @@ function LandingPage() {
           )}
 
           {/* 2. Les différentes vidéos de démonstration qui défilent et se jouent d'elles-mêmes */}
-          <div className="mt-12">
+          <div className="reveal-on-scroll mt-12">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
                   Fait avec Sam flash 2.0
                 </span>
-                <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                   Vidéos de démonstration créées par les utilisateurs
                 </h3>
-                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Ces vidéos ont été générées sur la plateforme. Elles défilent et se jouent automatiquement. Touchez une vidéo pour écouter avec le son.
                 </p>
               </div>
@@ -668,7 +733,7 @@ function LandingPage() {
                   type="button"
                   onClick={() => scrollCarousel("left")}
                   aria-label="Vidéos précédentes"
-                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
+                  className="h-9 w-9 rounded-full border border-border bg-card/90 text-foreground flex items-center justify-center hover:bg-secondary transition-colors shadow-xs cursor-pointer"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -676,7 +741,7 @@ function LandingPage() {
                   type="button"
                   onClick={() => scrollCarousel("right")}
                   aria-label="Vidéos suivantes"
-                  className="h-9 w-9 rounded-full border border-slate-200 bg-white/90 text-slate-700 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
+                  className="h-9 w-9 rounded-full border border-border bg-card/90 text-foreground flex items-center justify-center hover:bg-secondary transition-colors shadow-xs cursor-pointer"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -697,7 +762,7 @@ function LandingPage() {
                 return (
                   <div
                     key={`${video.url}-${idx}`}
-                    className="relative w-48 sm:w-56 shrink-0 aspect-[9/16] rounded-3xl overflow-hidden border-2 border-slate-200/90 bg-black shadow-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-indigo-400 cursor-pointer snap-start"
+                    className="relative w-48 sm:w-56 shrink-0 aspect-[9/16] rounded-3xl overflow-hidden border-2 border-border/80 bg-black shadow-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-primary/50 cursor-pointer snap-start"
                     onClick={() => toggleCarouselSound(video.url)}
                   >
                     {/* Vidéo qui se joue d'elle-même en continu */}
@@ -723,7 +788,7 @@ function LandingPage() {
                       aria-label={isSoundOn ? "Couper le son" : "Activer le son"}
                       className={`absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md border transition-all ${
                         isSoundOn
-                          ? "bg-indigo-600 text-white border-indigo-400 shadow-md scale-110"
+                          ? "bg-primary text-primary-foreground border-primary shadow-md scale-110"
                           : "bg-black/60 text-white/90 border-white/20 hover:bg-black/80"
                       }`}
                     >
@@ -746,14 +811,15 @@ function LandingPage() {
 
             {/* Bouton centré pour inciter à la création */}
             <div className="mt-8 text-center">
-              <Link
-                to="/connexion"
+              <button
+                type="button"
+                onClick={() => openAuth(true)}
                 className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer mx-auto inline-flex items-center justify-center"
               >
                 Créer ma première vidéo
                 <ArrowRight className="h-4 w-4" />
-              </Link>
-              <p className="mt-2.5 text-xs text-slate-500">
+              </button>
+              <p className="mt-2.5 text-xs text-muted-foreground">
                 Essayez gratuitement : une vidéo et 2 images offertes à l'inscription.
               </p>
             </div>
@@ -762,16 +828,16 @@ function LandingPage() {
       </section>
 
       {/* Section Comment ça marche */}
-      <section id="comment-ca-marche" className="px-4 py-16 sm:py-20 border-t border-slate-200/60">
+      <section id="comment-ca-marche" className="px-4 py-16 sm:py-20 border-t border-border/60">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+          <div className="reveal-on-scroll text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
               Simplicité absolue
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Comment ça marche
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-muted-foreground">
               Trois étapes directes, sans compétences techniques ni montage manuel.
             </p>
           </div>
@@ -782,19 +848,19 @@ function LandingPage() {
               return (
                 <div
                   key={item.step}
-                  className="relative rounded-3xl border border-slate-200/80 bg-white/80 backdrop-blur-md p-6 sm:p-8 shadow-sm transition-all hover:shadow-md hover:border-indigo-200 flex flex-col justify-between"
+                  className="reveal-on-scroll relative rounded-3xl border border-border/70 bg-card/60 backdrop-blur-md p-6 sm:p-8 shadow-sm transition-all hover:shadow-md hover:border-primary/40 hover:bg-card/80 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-5">
-                      <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                      <div className="h-12 w-12 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center text-indigo-300">
                         <Icon className="h-6 w-6" />
                       </div>
-                      <span className="font-mono text-2xl font-black text-slate-300">
+                      <span className="font-mono text-2xl font-black text-muted-foreground/30">
                         {item.step}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                    <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               );
@@ -804,16 +870,16 @@ function LandingPage() {
       </section>
 
       {/* Section Fonctionnalités */}
-      <section id="fonctionnalites" className="px-4 py-16 sm:py-20 bg-white/40 border-y border-slate-200/60">
+      <section id="fonctionnalites" className="px-4 py-16 sm:py-20 bg-card/30 border-y border-border/60">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+          <div className="reveal-on-scroll text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
               Fonctionnalités clés
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Tout ce dont vous avez besoin pour vos contenus
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-muted-foreground">
               Un studio complet taillé pour la publication immédiate sur tous les réseaux.
             </p>
           </div>
@@ -824,13 +890,13 @@ function LandingPage() {
               return (
                 <div
                   key={f.title}
-                  className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-md p-6 shadow-xs hover:shadow-md transition-shadow"
+                  className="reveal-on-scroll rounded-3xl border border-border/70 bg-card/60 backdrop-blur-md p-6 shadow-xs hover:border-primary/40 hover:bg-card/80 transition-all"
                 >
-                  <div className="h-11 w-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 text-indigo-300 flex items-center justify-center mb-4">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">{f.title}</h3>
-                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                  <h3 className="text-base font-bold text-foreground">{f.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </div>
               );
             })}
@@ -841,14 +907,14 @@ function LandingPage() {
       {/* Section Tarifs & Abonnements */}
       <section id="tarifs" className="px-4 py-16 sm:py-20">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
+          <div className="reveal-on-scroll text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
               Offres flexibles
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Ce que vous recevez selon votre formule
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-muted-foreground">
               Commencez gratuitement, puis choisissez la formule adaptée à votre rythme de création.
             </p>
           </div>
@@ -857,10 +923,10 @@ function LandingPage() {
             {PLAN_CARDS.map((p) => (
               <div
                 key={p.name}
-                className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all ${
+                className={`reveal-on-scroll relative rounded-3xl p-6 flex flex-col justify-between transition-all ${
                   p.highlight
-                    ? "border-2 border-indigo-500 bg-white shadow-xl shadow-indigo-100 ring-4 ring-indigo-50"
-                    : "border border-slate-200/90 bg-white/80 backdrop-blur-md shadow-xs hover:shadow-md"
+                    ? "border-2 border-primary bg-card/90 shadow-2xl shadow-indigo-950/60 ring-2 ring-primary/40"
+                    : "border border-border/70 bg-card/60 backdrop-blur-md shadow-xs hover:border-primary/40 hover:bg-card/80"
                 }`}
               >
                 <div>
@@ -868,24 +934,24 @@ function LandingPage() {
                     <span
                       className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                         p.highlight
-                          ? "bg-indigo-600 text-white"
-                          : "bg-slate-100 text-slate-600"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground border border-border/50"
                       }`}
                     >
                       {p.badge}
                     </span>
                   </div>
 
-                  <h3 className="text-xl font-bold text-slate-900">{p.name}</h3>
-                  <div className="mt-2 text-xs font-semibold text-indigo-600 bg-indigo-50/80 px-2.5 py-1 rounded-md inline-block">
+                  <h3 className="text-xl font-bold text-foreground">{p.name}</h3>
+                  <div className="mt-2 text-xs font-semibold text-indigo-300 bg-primary/20 border border-primary/30 px-2.5 py-1 rounded-md inline-block">
                     {p.quota}
                   </div>
-                  <p className="mt-3 text-xs text-slate-500 leading-relaxed">{p.desc}</p>
+                  <p className="mt-3 text-xs text-muted-foreground leading-relaxed">{p.desc}</p>
 
-                  <ul className="mt-6 space-y-2.5 border-t border-slate-100 pt-5">
+                  <ul className="mt-6 space-y-2.5 border-t border-border/60 pt-5">
                     {p.features.map((feat) => (
-                      <li key={feat} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <li key={feat} className="flex items-start gap-2 text-xs sm:text-sm text-foreground/90">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
                     ))}
@@ -893,14 +959,15 @@ function LandingPage() {
                 </div>
 
                 <div className="mt-8 pt-4">
-                  <Link
-                    to="/connexion"
+                  <button
+                    type="button"
+                    onClick={() => openAuth(true)}
                     className={`w-full max-w-[260px] mx-auto py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
                       p.highlight ? "btn-3d-primary" : "btn-3d-secondary"
                     }`}
                   >
                     {p.cta}
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}
@@ -909,13 +976,13 @@ function LandingPage() {
       </section>
 
       {/* Section FAQ */}
-      <section id="faq" className="px-4 py-16 sm:py-20 bg-slate-100/50 border-t border-slate-200/60">
+      <section id="faq" className="px-4 py-16 sm:py-20 bg-card/20 border-t border-border/60">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-200/80 text-slate-700">
+          <div className="reveal-on-scroll text-center mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-indigo-300">
               Aide & Informations
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Questions fréquentes
             </h2>
           </div>
@@ -924,15 +991,15 @@ function LandingPage() {
             {FAQ_ITEMS.map((item) => (
               <details
                 key={item.q}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors open:bg-slate-50/80"
+                className="reveal-on-scroll group rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs transition-colors open:bg-card/90 open:border-primary/40"
               >
-                <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-slate-900">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground">
                   <span>{item.q}</span>
-                  <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold transition-transform duration-200 group-open:rotate-45">
+                  <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground font-bold transition-transform duration-200 group-open:rotate-45 group-open:text-indigo-300">
                     +
                   </span>
                 </summary>
-                <p className="mt-3 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed border-t border-border/60 pt-3">
                   {item.a}
                 </p>
               </details>
@@ -943,57 +1010,58 @@ function LandingPage() {
 
       {/* Bannière d'appel à l'action final */}
       <section className="px-4 py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/90 p-8 sm:p-14 text-center shadow-lg">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+        <div className="reveal-on-scroll max-w-4xl mx-auto rounded-3xl border border-primary/40 bg-gradient-to-br from-card/90 via-primary/15 to-card/90 p-8 sm:p-14 text-center shadow-2xl backdrop-blur-md">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             Prêt à donner vie à vos créations ?
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-xl mx-auto">
+          <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-xl mx-auto">
             Rejoignez Sam flash 2.0 dès aujourd'hui et réalisez votre première vidéo avec l'intelligence artificielle en quelques secondes.
           </p>
 
           <div className="mt-8 flex justify-center">
-            <Link
-              to="/connexion"
-              className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center"
+            <button
+              type="button"
+              onClick={() => openAuth(true)}
+              className="btn-3d-primary w-full max-w-[340px] px-6 py-4 rounded-full text-base sm:text-[17px] font-semibold gap-2 cursor-pointer text-center inline-flex items-center justify-center"
             >
               Créer mon compte gratuitement
               <ArrowRight className="h-4 w-4 inline ml-2" />
-            </Link>
+            </button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white/70 py-10 px-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-border/60 bg-background/90 py-10 px-4 text-center text-xs text-muted-foreground">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Sam flash 2.0 — Tous droits réservés.</p>
           <div className="flex items-center gap-6 font-medium">
-            <Link to="/conditions" className="hover:text-slate-900 transition-colors underline">
+            <Link to="/conditions" className="hover:text-foreground transition-colors underline">
               Conditions
             </Link>
-            <Link to="/confidentialite" className="hover:text-slate-900 transition-colors underline">
+            <Link to="/confidentialite" className="hover:text-foreground transition-colors underline">
               Confidentialité
             </Link>
-            <Link to="/contact" className="hover:text-slate-900 transition-colors underline">
+            <Link to="/contact" className="hover:text-foreground transition-colors underline">
               Contact
             </Link>
           </div>
         </div>
       </footer>
 
-      {/* Modale d'authentification complète si déclenchée */}
+      {/* Modale d'authentification complète */}
       {authOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
         >
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl">
+          <div className="relative w-full max-w-md rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl text-foreground">
             {/* Bouton de fermeture */}
             <button
               type="button"
               onClick={closeAuth}
-              className="absolute right-4 top-4 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
               aria-label="Fermer"
             >
               <X className="h-5 w-5" />
@@ -1006,10 +1074,10 @@ function LandingPage() {
                 alt="Logo Sam flash 2.0"
                 className="mx-auto mb-3 h-12 w-12 rounded-full object-cover shadow-xs"
               />
-              <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+              <h3 className="text-2xl font-bold tracking-tight text-foreground">
                 {signUp ? "Créer un compte gratuit" : "Se connecter"}
               </h3>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {signUp
                   ? "1 vidéo et 2 images offertes à l'inscription"
                   : "Retrouvez vos vidéos et images générées"}
@@ -1023,12 +1091,12 @@ function LandingPage() {
                   type="button"
                   disabled={busy}
                   onClick={handleGoogle}
-                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-3 flex items-center justify-center cursor-pointer"
+                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-3 flex items-center justify-center cursor-pointer text-foreground"
                 >
                   {busy ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    <span className="text-lg font-bold text-slate-800">G</span>
+                    <span className="text-lg font-bold text-foreground">G</span>
                   )}
                   Continuer avec Google
                 </button>
@@ -1036,9 +1104,9 @@ function LandingPage() {
                 <button
                   type="button"
                   onClick={() => setAuthMode("email")}
-                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-2.5 flex items-center justify-center cursor-pointer"
+                  className="btn-3d-secondary w-full max-w-[340px] mx-auto py-3.5 rounded-full text-sm sm:text-base font-semibold gap-2.5 flex items-center justify-center cursor-pointer text-foreground"
                 >
-                  <Mail className="h-5 w-5 text-slate-600" />
+                  <Mail className="h-5 w-5 text-indigo-400" />
                   Continuer avec l'e-mail
                 </button>
 
@@ -1046,7 +1114,7 @@ function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setSignUp(!signUp)}
-                    className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-indigo-400 hover:underline cursor-pointer"
                   >
                     {signUp
                       ? "Vous avez déjà un compte ? Se connecter"
@@ -1060,14 +1128,14 @@ function LandingPage() {
                 <button
                   type="button"
                   onClick={() => setAuthMode("providers")}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 mb-1 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground mb-1 flex items-center gap-1 cursor-pointer"
                 >
                   ← Retour aux options
                 </button>
 
                 {signUp && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-medium text-foreground/90 mb-1">
                       Nom complet
                     </label>
                     <input
@@ -1075,13 +1143,13 @@ function LandingPage() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Votre nom"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                      className="w-full rounded-xl border border-border/80 px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground bg-secondary/80 placeholder:text-muted-foreground/50"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-medium text-foreground/90 mb-1">
                     Adresse e-mail
                   </label>
                   <input
@@ -1090,12 +1158,12 @@ function LandingPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nom@exemple.com"
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                    className="w-full rounded-xl border border-border/80 px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground bg-secondary/80 placeholder:text-muted-foreground/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-medium text-foreground/90 mb-1">
                     Mot de passe
                   </label>
                   <input
@@ -1105,10 +1173,10 @@ function LandingPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-900 bg-white"
+                    className="w-full rounded-xl border border-border/80 px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground bg-secondary/80 placeholder:text-muted-foreground/50"
                   />
                   {signUp && (
-                    <p className="mt-1 text-[11px] text-slate-500">
+                    <p className="mt-1 text-[11px] text-muted-foreground">
                       Minimum 8 caractères.
                     </p>
                   )}
@@ -1138,7 +1206,7 @@ function LandingPage() {
                       setSignUp(!signUp);
                       setMessage(null);
                     }}
-                    className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-indigo-400 hover:underline cursor-pointer"
                   >
                     {signUp
                       ? "Vous avez déjà un compte ? Se connecter"
@@ -1153,21 +1221,21 @@ function LandingPage() {
               <div
                 className={`mt-4 rounded-xl p-3 text-xs text-center font-medium ${
                   message.startsWith("Compte")
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-rose-50 text-rose-800 border border-rose-200"
+                    ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
+                    : "bg-rose-950/60 text-rose-300 border border-rose-500/30"
                 }`}
               >
                 {message}
               </div>
             )}
 
-            <p className="mt-5 text-center text-[11px] text-slate-400">
+            <p className="mt-5 text-center text-[11px] text-muted-foreground/70">
               En continuant, vous acceptez nos{" "}
-              <Link to="/conditions" className="underline hover:text-slate-600">
+              <Link to="/conditions" onClick={closeAuth} className="underline hover:text-foreground">
                 Conditions
               </Link>{" "}
               et notre{" "}
-              <Link to="/confidentialite" className="underline hover:text-slate-600">
+              <Link to="/confidentialite" onClick={closeAuth} className="underline hover:text-foreground">
                 Politique de confidentialité
               </Link>
               .

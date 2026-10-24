@@ -464,74 +464,175 @@ export const getAdminTimeSeries = createServerFn({ method: "GET" })
     return Array.from(map.values());
   });
 
+import { isCreditProduct } from "@/lib/credits";
+
+function isTestEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const em = email.toLowerCase().trim();
+  if (OWNER_EMAILS.includes(em)) return true;
+  if (em.includes("lovable")) return true;
+  if (em === "samuelstock190@gmail.com" || em === "monsaas330@gmail.com") return true;
+  return false;
+}
+
 export type FinancialMetrics = {
+  includeTestAccounts: boolean;
+  realOrdersCount: number;
+  testOrdersCount: number;
+
+  totalRevenueEur: number;
+  totalRevenueXaf: number;
+  revenueThisMonthEur: number;
+  revenueThisMonthXaf: number;
+  packsRevenueEur: number;
+  packsRevenueXaf: number;
+  subscriptionsRevenueEur: number;
+  subscriptionsRevenueXaf: number;
+
+  mrrEur: number;
+  mrrXaf: number;
+
+  // Compatibilité
   mrr: number;
   revenueThisMonth: number;
   totalRevenue: number;
+  packsRevenue: number;
+
   activeSubscribersByTier: Record<string, number>;
+  totalActiveSubscribers: number;
   churnRate: number;
-  monthlyRevenueHistory: { month: string; revenue: number }[];
+  monthlyRevenueHistory: {
+    month: string;
+    revenue: number;
+    revenueEur: number;
+    revenueXaf: number;
+  }[];
 };
 
 export const getFinancialDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<FinancialMetrics> => {
+  .validator((d: { includeTestAccounts?: boolean } | undefined) => d ?? {})
+  .handler(async ({ context, data }): Promise<FinancialMetrics> => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Fetch all successful orders
+    const includeTestAccounts = !!data?.includeTestAccounts;
+
+    // Récupérer les profils pour identifier les administrateurs et comptes de test
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, role");
+
+    const testUserIds = new Set<string>();
+    if (profiles) {
+      for (const p of profiles) {
+        if (p.role === "admin" || isTestEmail(p.email)) {
+          testUserIds.add(p.id);
+        }
+      }
+    }
+
+    // Récupérer toutes les commandes payées
     const { data: orders } = await supabaseAdmin
       .from("orders")
-      .select("amount_eur, period, created_at, status")
+      .select("id, user_id, amount_eur, amount_local, currency, period, product_id, created_at, status, customer_email")
       .eq("status", "payee");
 
-    // Fetch all subscriptions
+    // Récupérer tous les abonnements
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
-      .select("tier, status, created_at, is_active");
+      .select("user_id, tier, status, created_at, is_active, plan_type");
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
     const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    let mrr = 0;
-    let revenueThisMonth = 0;
-    let totalRevenue = 0;
-    const monthlyRevenueMap = new Map<string, number>();
+    const XAF_EUR_RATE = 655.957;
+
+    let mrrEur = 0;
+    let mrrXaf = 0;
+    let revenueThisMonthEur = 0;
+    let revenueThisMonthXaf = 0;
+    let totalRevenueEur = 0;
+    let totalRevenueXaf = 0;
+    let packsRevenueEur = 0;
+    let packsRevenueXaf = 0;
+    let subscriptionsRevenueEur = 0;
+    let subscriptionsRevenueXaf = 0;
+
+    let realOrdersCount = 0;
+    let testOrdersCount = 0;
+
+    const monthlyRevenueMap = new Map<string, { eur: number; xaf: number }>();
 
     // Initialiser les 6 derniers mois pour le graphique
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStr = d.toISOString().slice(0, 7); // YYYY-MM
-      monthlyRevenueMap.set(monthStr, 0);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const monthStr = `${year}-${month}`;
+      monthlyRevenueMap.set(monthStr, { eur: 0, xaf: 0 });
     }
 
     if (orders) {
       for (const order of orders) {
-        const amount = Number(order.amount_eur) || 0;
-        const createdDate = new Date(order.created_at);
-        const monthStr = order.created_at.slice(0, 7); // YYYY-MM
+        const isTest =
+          (order.user_id && testUserIds.has(order.user_id)) ||
+          isTestEmail(order.customer_email);
 
-        // Total revenue
-        totalRevenue += amount;
-
-        // Revenue this month
-        if (createdDate >= firstOfThisMonth) {
-          revenueThisMonth += amount;
+        if (isTest) {
+          testOrdersCount++;
+          if (!includeTestAccounts) continue;
+        } else {
+          realOrdersCount++;
         }
 
-        // MRR (orders in last 30 days)
-        if (createdDate >= thirtyDaysAgo) {
-          if (order.period === "yearly" || order.period === "annually") {
-            mrr += amount / 12;
-          } else {
-            mrr += amount;
+        const eur =
+          Number(order.amount_eur) > 0
+            ? Number(order.amount_eur)
+            : Number(order.amount_local) > 0
+              ? Number(order.amount_local) / XAF_EUR_RATE
+              : 0;
+
+        const xaf =
+          (order.currency === "XAF" || order.currency === "XOF") && Number(order.amount_local) > 0
+            ? Number(order.amount_local)
+            : Math.round(eur * XAF_EUR_RATE);
+
+        const createdDate = new Date(order.created_at);
+        const year = createdDate.getFullYear();
+        const month = String(createdDate.getMonth() + 1).padStart(2, "0");
+        const monthStr = `${year}-${month}`;
+
+        totalRevenueEur += eur;
+        totalRevenueXaf += xaf;
+
+        if (createdDate >= firstOfThisMonth) {
+          revenueThisMonthEur += eur;
+          revenueThisMonthXaf += xaf;
+        }
+
+        if (isCreditProduct(order.product_id)) {
+          packsRevenueEur += eur;
+          packsRevenueXaf += xaf;
+        } else {
+          subscriptionsRevenueEur += eur;
+          subscriptionsRevenueXaf += xaf;
+          if (createdDate >= thirtyDaysAgo) {
+            if (order.period === "yearly" || order.period === "annually") {
+              mrrEur += eur / 12;
+              mrrXaf += xaf / 12;
+            } else {
+              mrrEur += eur;
+              mrrXaf += xaf;
+            }
           }
         }
 
-        // Monthly history
         if (monthlyRevenueMap.has(monthStr)) {
-          monthlyRevenueMap.set(monthStr, monthlyRevenueMap.get(monthStr)! + amount);
+          const cur = monthlyRevenueMap.get(monthStr)!;
+          cur.eur += eur;
+          cur.xaf += xaf;
         }
       }
     }
@@ -539,14 +640,19 @@ export const getFinancialDashboard = createServerFn({ method: "GET" })
     const activeSubscribersByTier: Record<string, number> = {};
     let totalSubs = 0;
     let inactiveSubs = 0;
+    let totalActiveSubscribers = 0;
 
     if (subs) {
       for (const sub of subs) {
+        const isTest = sub.user_id && testUserIds.has(sub.user_id);
+        if (isTest && !includeTestAccounts) continue;
+
         totalSubs++;
         const isActive = sub.status === "active" || sub.is_active === true;
-        
+
         if (isActive) {
-          const tier = sub.tier || "unknown";
+          totalActiveSubscribers++;
+          const tier = sub.tier || "standard";
           activeSubscribersByTier[tier] = (activeSubscribersByTier[tier] || 0) + 1;
         } else {
           inactiveSubs++;
@@ -555,17 +661,34 @@ export const getFinancialDashboard = createServerFn({ method: "GET" })
     }
 
     const churnRate = totalSubs > 0 ? (inactiveSubs / totalSubs) * 100 : 0;
-    const monthlyRevenueHistory = Array.from(monthlyRevenueMap.entries()).map(([month, revenue]) => ({
+    const monthlyRevenueHistory = Array.from(monthlyRevenueMap.entries()).map(([month, val]) => ({
       month,
-      revenue: Math.round(revenue * 100) / 100,
+      revenueEur: Math.round(val.eur * 100) / 100,
+      revenueXaf: Math.round(val.xaf),
+      revenue: Math.round(val.eur * 100) / 100,
     }));
 
     return {
-      mrr: Math.round(mrr * 100) / 100,
-      revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      includeTestAccounts,
+      realOrdersCount,
+      testOrdersCount,
+      totalRevenueEur: Math.round(totalRevenueEur * 100) / 100,
+      totalRevenueXaf: Math.round(totalRevenueXaf),
+      revenueThisMonthEur: Math.round(revenueThisMonthEur * 100) / 100,
+      revenueThisMonthXaf: Math.round(revenueThisMonthXaf),
+      packsRevenueEur: Math.round(packsRevenueEur * 100) / 100,
+      packsRevenueXaf: Math.round(packsRevenueXaf),
+      subscriptionsRevenueEur: Math.round(subscriptionsRevenueEur * 100) / 100,
+      subscriptionsRevenueXaf: Math.round(subscriptionsRevenueXaf),
+      mrrEur: Math.round(mrrEur * 100) / 100,
+      mrrXaf: Math.round(mrrXaf),
+      mrr: Math.round(mrrEur * 100) / 100,
+      revenueThisMonth: Math.round(revenueThisMonthEur * 100) / 100,
+      totalRevenue: Math.round(totalRevenueEur * 100) / 100,
+      packsRevenue: Math.round(packsRevenueEur * 100) / 100,
       activeSubscribersByTier,
-      churnRate: Math.round(churnRate * 100) / 100,
+      totalActiveSubscribers,
+      churnRate: Math.round(churnRate * 10) / 10,
       monthlyRevenueHistory,
     };
   });
@@ -1072,6 +1195,81 @@ export const addAdminSubscriptionToUser = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       message: `Abonnement ${tier} activé avec succès jusqu'au ${new Date(endsAt).toLocaleDateString("fr-FR")}.`,
+    };
+  });
+
+/**
+ * Synchronise et vérifie une commande auprès de SwyChr manuellement par un administrateur.
+ * Applique les 7 règles d'or (vérification préalable, consultation API SwyChr, passage atomique).
+ */
+export const syncAdminOrderWithProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { transactionId: string }) =>
+    z.object({ transactionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Lire la commande
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, transaction_id, provider_transaction_id, status, amount_local, currency, customer_email")
+      .eq("transaction_id", data.transactionId)
+      .maybeSingle();
+
+    if (!order) {
+      throw new Error("Commande introuvable.");
+    }
+
+    // Règle 2 : Regarder l'état avant d'agir
+    if (order.status !== "en_attente") {
+      return {
+        ok: true as const,
+        status: order.status,
+        message: `La commande est déjà marquée comme '${order.status}'. Aucune action nécessaire.`,
+      };
+    }
+
+    // Règle 7 : Vérifier auprès de SwyChr
+    const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
+    const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
+
+    if (!remote.ok || !remote.data.status) {
+      return {
+        ok: false as const,
+        status: order.status,
+        message: `SwyChr ne renvoie aucun statut pour cette commande (erreur: ${remote.error || "inconnu"}).`,
+      };
+    }
+
+    const PAID = ["paid", "success", "successful", "succeeded", "completed", "complete", "settled"];
+    const FAILED = ["failed", "failure", "cancelled", "canceled", "expired", "declined", "rejected"];
+    const normalized = remote.data.status.toLowerCase();
+
+    let outcome: "payee" | "echouee" | null = null;
+    if (PAID.includes(normalized)) outcome = "payee";
+    else if (FAILED.includes(normalized)) outcome = "echouee";
+
+    if (!outcome) {
+      return {
+        ok: true as const,
+        status: order.status,
+        message: `Statut SwyChr actuel : '${remote.data.status}'. La commande reste 'en_attente'.`,
+      };
+    }
+
+    // Règle 3 & 4 : Passage atomique via applyOrderOutcome
+    const { applyOrderOutcome } = await import("@/lib/payments/webhook.server");
+    await applyOrderOutcome(order.transaction_id, outcome, remote.data.status, remote.data.raw);
+
+    return {
+      ok: true as const,
+      status: outcome,
+      message:
+        outcome === "payee"
+          ? "Paiement confirmé avec succès par SwyChr. Crédits / abonnement activés sans doublon !"
+          : "Paiement marqué comme échoué suite au retour de SwyChr.",
     };
   });
 

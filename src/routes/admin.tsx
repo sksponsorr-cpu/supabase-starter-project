@@ -57,6 +57,7 @@ import {
   getAdminUserDetail,
   sendAdminEmailToUser,
   addAdminSubscriptionToUser,
+  syncAdminOrderWithProvider,
   type AdminGeneration,
   type AdminStats,
   type AdminPrice,
@@ -181,6 +182,7 @@ function AdminPage() {
   const fetchUserDetail = useServerFn(getAdminUserDetail);
   const sendEmailToUser = useServerFn(sendAdminEmailToUser);
   const addSubscriptionToUser = useServerFn(addAdminSubscriptionToUser);
+  const syncOrder = useServerFn(syncAdminOrderWithProvider);
 
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [isStaff, setIsStaff] = useState<boolean | null>(null);
@@ -212,6 +214,61 @@ function AdminPage() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [commissionTotal, setCommissionTotal] = useState(0);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
+  const [adminCurrency, setAdminCurrencyState] = useState<"XAF" | "EUR">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("samflash_admin_currency");
+      if (saved === "EUR" || saved === "XAF") return saved as "XAF" | "EUR";
+    }
+    return "XAF";
+  });
+
+  const setAdminCurrency = (cur: "XAF" | "EUR") => {
+    setAdminCurrencyState(cur);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("samflash_admin_currency", cur);
+    }
+  };
+
+  const [includeTests, setIncludeTests] = useState(false);
+
+  const toggleIncludeTestAccounts = async () => {
+    const next = !includeTests;
+    setIncludeTests(next);
+    try {
+      const fin = await fetchFinancial({ data: { includeTestAccounts: next } });
+      if (fin) setFinancialMetrics(fin as FinancialMetrics);
+    } catch (e) {
+      console.error("Erreur actualisation métriques", e);
+    }
+  };
+
+  const formatMoney = (xaf: number, eur: number) => {
+    if (adminCurrency === "XAF") {
+      return `${Math.round(xaf).toLocaleString("fr-FR")} FCFA`;
+    }
+    return `${eur.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  };
+
+  const [syncingOrderId, setSyncingOrderId] = useState<string | null>(null);
+
+  const handleSyncOrder = async (transactionId: string) => {
+    setSyncingOrderId(transactionId);
+    try {
+      const res = await syncOrder({ data: { transactionId } });
+      setNotice(res.message);
+      const [updatedOrders, updatedFin] = await Promise.all([
+        fetchOrders({}),
+        fetchFinancial({ data: { includeTestAccounts: includeTests } }),
+      ]);
+      setOrders(updatedOrders as AdminOrder[]);
+      if (updatedFin) setFinancialMetrics(updatedFin as FinancialMetrics);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur de synchronisation";
+      setNotice(`Erreur: ${msg}`);
+    } finally {
+      setSyncingOrderId(null);
+    }
+  };
 
   const fetchOnboarding = useServerFn(listOnboardingResponses);
   const [onboarding, setOnboarding] = useState<OnboardingReport | null>(null);
@@ -758,36 +815,95 @@ function AdminPage() {
 
             {active === "financial" && isAdmin && (
               <section className="pt-5">
-                <h2 className="text-[22px] font-semibold tracking-tight">Tableau de bord financier</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Métriques SaaS et revenus.
-                </p>
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-[22px] font-semibold tracking-tight">Tableau de bord financier</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Métriques SaaS, abonnements et revenus réels.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Sélecteur de devise */}
+                    <div className="flex items-center rounded-2xl bg-card border border-border/70 p-1 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setAdminCurrency("XAF")}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+                          adminCurrency === "XAF"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        FCFA (XAF)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdminCurrency("EUR")}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+                          adminCurrency === "EUR"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Euros (€)
+                      </button>
+                    </div>
+
+                    {/* Filtre comptes test */}
+                    <button
+                      type="button"
+                      onClick={() => toggleIncludeTestAccounts()}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-xl border transition-all ${
+                        includeTests
+                          ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                          : "bg-card border-border/70 text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Activer pour voir aussi les transactions des comptes de test et administrateurs"
+                    >
+                      {includeTests ? "Comptes test inclus" : "Clients réels uniquement"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
                     <span className="text-sm font-medium text-muted-foreground">MRR (Revenu Récurrent Mensuel)</span>
                     <span className="mt-2 text-4xl font-bold tracking-tight text-primary">
-                      {(financialMetrics?.mrr ?? 0).toFixed(2)} €
+                      {formatMoney(financialMetrics?.mrrXaf ?? 0, financialMetrics?.mrrEur ?? 0)}
                     </span>
+                    <span className="mt-1 text-xs text-muted-foreground">Abonnements actifs mensualisés</span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu du mois</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.revenueThisMonth ?? 0).toFixed(2)} €
+                      {formatMoney(financialMetrics?.revenueThisMonthXaf ?? 0, financialMetrics?.revenueThisMonthEur ?? 0)}
                     </span>
+                    <span className="mt-1 text-xs text-muted-foreground">Depuis le 1er du mois</span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Revenu total</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
-                      {(financialMetrics?.totalRevenue ?? 0).toFixed(2)} €
+                      {formatMoney(financialMetrics?.totalRevenueXaf ?? 0, financialMetrics?.totalRevenueEur ?? 0)}
                     </span>
+                    <span className="mt-1 text-xs text-muted-foreground">
+                      {financialMetrics?.realOrdersCount ?? 0} commande(s) client
+                    </span>
+                  </div>
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
+                    <span className="text-sm font-medium text-muted-foreground">Packs & Recharges</span>
+                    <span className="mt-2 text-2xl font-bold tracking-tight">
+                      {formatMoney(financialMetrics?.packsRevenueXaf ?? 0, financialMetrics?.packsRevenueEur ?? 0)}
+                    </span>
+                    <span className="mt-1 text-xs text-muted-foreground">Achats de crédits ponctuels</span>
                   </div>
                   <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">Taux de désabonnement</span>
                     <span className="mt-2 text-2xl font-bold tracking-tight">
                       {(financialMetrics?.churnRate ?? 0).toFixed(1)} %
                     </span>
+                    <span className="mt-1 text-xs text-muted-foreground">Sur abonnements échus</span>
                   </div>
-                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-3">
+                  <div className="rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl flex flex-col items-center justify-center lg:col-span-2">
                     <span className="text-sm font-medium text-muted-foreground">Abonnés actifs par offre</span>
                     <div className="mt-3 flex flex-wrap gap-4 justify-center">
                       {Object.entries(financialMetrics?.activeSubscribersByTier || {}).map(([tier, count]) => (
@@ -804,7 +920,9 @@ function AdminPage() {
                 </div>
 
                 <div className="mt-8 rounded-3xl border border-border/70 bg-card/50 p-6 backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold tracking-tight mb-4">Évolution du revenu (6 derniers mois)</h3>
+                  <h3 className="text-lg font-semibold tracking-tight mb-4">
+                    Évolution du revenu (6 derniers mois) — en {adminCurrency === "XAF" ? "FCFA" : "Euros"}
+                  </h3>
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={financialMetrics?.monthlyRevenueHistory || []}>
@@ -826,9 +944,19 @@ function AdminPage() {
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(value) => `${value} FCFA`}
+                          tickFormatter={(value) =>
+                            adminCurrency === "XAF"
+                              ? `${Number(value).toLocaleString("fr-FR")} F`
+                              : `${value} €`
+                          }
                         />
                         <RechartsTooltip
+                          formatter={(value) => [
+                            adminCurrency === "XAF"
+                              ? `${Number(value).toLocaleString("fr-FR")} FCFA`
+                              : `${Number(value).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`,
+                            "Revenu",
+                          ]}
                           contentStyle={{
                             backgroundColor: "hsl(var(--card))",
                             borderColor: "hsl(var(--border))",
@@ -838,7 +966,7 @@ function AdminPage() {
                         />
                         <Area
                           type="monotone"
-                          dataKey="revenue"
+                          dataKey={adminCurrency === "XAF" ? "revenueXaf" : "revenueEur"}
                           stroke="hsl(var(--primary))"
                           fillOpacity={1}
                           fill="url(#colorRev)"
@@ -1837,12 +1965,30 @@ function AdminPage() {
                       className="rounded-3xl border border-border/70 bg-card/50 p-4 text-sm backdrop-blur-xl"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] ${
+                            o.status === "payee"
+                              ? "bg-emerald-500/10 text-emerald-500 font-medium"
+                              : o.status === "echouee"
+                                ? "bg-rose-500/10 text-rose-500"
+                                : "bg-amber-500/10 text-amber-500"
+                          }`}
+                        >
                           {o.status}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
                           {o.country_code} · {o.payment_method}
                         </span>
+                        {o.status === "en_attente" && (
+                          <button
+                            type="button"
+                            disabled={syncingOrderId === o.transaction_id}
+                            onClick={() => handleSyncOrder(o.transaction_id)}
+                            className="ml-2 text-[11px] bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-0.5 rounded-full font-medium transition-colors disabled:opacity-50"
+                          >
+                            {syncingOrderId === o.transaction_id ? "Vérification..." : "Vérifier statut SwyChr"}
+                          </button>
+                        )}
                         <span className="ml-auto text-[11px] text-muted-foreground">
                           {new Date(o.created_at).toLocaleString("fr-FR")}
                         </span>

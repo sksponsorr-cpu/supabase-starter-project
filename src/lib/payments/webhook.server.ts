@@ -87,24 +87,34 @@ export async function applyOrderOutcome(
 
     // Crédits de l'abonnement : mois courant (ou premier mois pour l'annuel)
     {
-      const yearly = planType === "super_grok_annuel";
-      // Crédits choisis au moment de la commande ; sinon calcul de l'offre (comportement d'origine).
-      const orderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
-      let monthAmount = orderCredits > 0 ? orderCredits : 0;
-      if (monthAmount === 0) {
-        const { data: fallbackAmount } = await supabaseAdmin.rpc("monthly_credits", {
-          p_product: updatedOrder.product_id,
-          p_yearly: yearly,
-        });
-        monthAmount = Number(fallbackAmount ?? 0);
-      }
-      if (monthAmount > 0) {
-        await supabaseAdmin.rpc("add_credits", {
-          p_user: updatedOrder.user_id,
-          p_amount: monthAmount,
-          p_kind: yearly ? "annuel_mensuel" : "abonnement",
-          p_ref: updatedOrder.id,
-        });
+      // Règle 5 : Verrou anti-doublon dans credit_grants
+      const { data: alreadySubGranted } = await supabaseAdmin
+        .from("credit_grants")
+        .select("id")
+        .eq("user_id", updatedOrder.user_id)
+        .eq("ref", updatedOrder.id)
+        .maybeSingle();
+
+      if (!alreadySubGranted) {
+        const yearly = planType === "super_grok_annuel";
+        // Crédits choisis au moment de la commande ; sinon calcul de l'offre (comportement d'origine).
+        const orderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
+        let monthAmount = orderCredits > 0 ? orderCredits : 0;
+        if (monthAmount === 0) {
+          const { data: fallbackAmount } = await supabaseAdmin.rpc("monthly_credits", {
+            p_product: updatedOrder.product_id,
+            p_yearly: yearly,
+          });
+          monthAmount = Number(fallbackAmount ?? 0);
+        }
+        if (monthAmount > 0) {
+          await supabaseAdmin.rpc("add_credits", {
+            p_user: updatedOrder.user_id,
+            p_amount: monthAmount,
+            p_kind: yearly ? "annuel_mensuel" : "abonnement",
+            p_ref: updatedOrder.id,
+          });
+        }
       }
     }
 
@@ -142,22 +152,32 @@ export async function applyOrderOutcome(
 
   // Recharges et pass : crédits ajoutés directement, sans abonnement
   if (outcome === "payee" && updatedOrder.user_id && isCreditProduct(updatedOrder.product_id)) {
-    const packOrderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
-    let packAmount = packOrderCredits > 0 ? packOrderCredits : 0;
-    if (packAmount === 0) {
-      const { data: fallbackPack } = await supabaseAdmin.rpc("monthly_credits", {
-        p_product: updatedOrder.product_id,
-        p_yearly: false,
-      });
-      packAmount = Number(fallbackPack ?? 0);
-    }
-    if (packAmount > 0) {
-      await supabaseAdmin.rpc("add_credits", {
-        p_user: updatedOrder.user_id,
-        p_amount: packAmount,
-        p_kind: updatedOrder.product_id.startsWith("pass_") ? "pass" : "recharge",
-        p_ref: updatedOrder.id,
-      });
+    // Règle 5 : Verrou anti-doublon dans credit_grants
+    const { data: alreadyPackGranted } = await supabaseAdmin
+      .from("credit_grants")
+      .select("id")
+      .eq("user_id", updatedOrder.user_id)
+      .eq("ref", updatedOrder.id)
+      .maybeSingle();
+
+    if (!alreadyPackGranted) {
+      const packOrderCredits = Number((updatedOrder as { credits?: number | null }).credits ?? 0);
+      let packAmount = packOrderCredits > 0 ? packOrderCredits : 0;
+      if (packAmount === 0) {
+        const { data: fallbackPack } = await supabaseAdmin.rpc("monthly_credits", {
+          p_product: updatedOrder.product_id,
+          p_yearly: false,
+        });
+        packAmount = Number(fallbackPack ?? 0);
+      }
+      if (packAmount > 0) {
+        await supabaseAdmin.rpc("add_credits", {
+          p_user: updatedOrder.user_id,
+          p_amount: packAmount,
+          p_kind: updatedOrder.product_id.startsWith("pass_") ? "pass" : "recharge",
+          p_ref: updatedOrder.id,
+        });
+      }
     }
   }
 
@@ -242,13 +262,19 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("provider_transaction_id")
+    .select("provider_transaction_id, status")
     .eq("transaction_id", transactionId)
     .maybeSingle();
 
   if (!order) {
     if (isGet) return getRedirectResponse();
     return new Response("Commande introuvable", { status: 404 });
+  }
+
+  // Règle 2 : Regarder l'état avant d'agir : si déjà traitée, on répond succès et on s'arrête (Règle 6)
+  if (order.status !== "en_attente") {
+    if (isGet) return getRedirectResponse();
+    return new Response("ok", { status: 200 });
   }
 
   const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
