@@ -74,7 +74,7 @@ export function ImageAdFlow({ preset, onClose }: Props) {
     if (preset.withPerson) {
       return `${nom}${sexe} de ${age}, ${geste.toLowerCase()} ce produit, dans un ${lieu.toLowerCase()}. Photo réaliste et naturelle, sans texte ni logo.`;
     }
-    return `${nom}Publicité image prête à publier pour ce produit. ${description.trim()} Textes en ${langue.toLowerCase()} : accroche, bénéfices, bouton d'appel à l'action et légende.`;
+    return `${nom}Publicité image prête à publier pour ce produit. Garde le produit strictement identique à la photo de référence (forme, couleurs, matière, logo, inscriptions) : ne le modifie pas. ${description.trim()} Textes en ${langue.toLowerCase()} : accroche, bénéfices, bouton d'appel à l'action et légende.`;
   };
 
   const launch = async () => {

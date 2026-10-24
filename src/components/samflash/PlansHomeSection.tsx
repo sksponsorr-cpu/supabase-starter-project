@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { samCreditsFor, type PricedModel, type PricedResolution, type VeoTier } from "@/lib/creator-pricing";
 import { EUR_TO_FCFA, formatFcfa } from "@/lib/pricing-fcfa";
+import { addPaymentFees } from "@/lib/payments/fees";
 
 /**
  * Offres d'abonnement de la page d'accueil.
@@ -32,8 +33,10 @@ function includedCredits(p: PriceRow): number {
 }
 
 /** Montant en FCFA, arrondi à 100 FCFA, à partir du prix en euros enregistré. */
+/** Montant affiché = montant payé : base arrondie à 100 FCFA + frais SwyChr (2,5 %). */
 function fcfaFor(p: PriceRow): number {
-  return Math.round((p.amount_eur * EUR_TO_FCFA) / 100) * 100;
+  const base = Math.round((p.amount_eur * EUR_TO_FCFA) / 100) * 100;
+  return addPaymentFees(base, true).total;
 }
 
 function videosFor(credits: number, item: (typeof SHOWCASE)[number]): number {
