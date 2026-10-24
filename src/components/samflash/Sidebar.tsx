@@ -190,7 +190,7 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
           })}
         </nav>
 
-        <div className="px-3 py-3 shrink-0">
+        <div className="mt-6 px-3 pb-4 pt-3 shrink-0">
           <Link
             to="/formations"
             onClick={() => setIsOpen(false)}
