@@ -119,6 +119,7 @@ import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPan
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
+import { AdminSellerCardsPanel } from "@/components/samflash/AdminSellerCardsPanel";
 import { adminRemoveCredits } from "@/lib/admin-credit-adjust.functions";
 import { AdminFormationsPanel } from "@/components/samflash/AdminFormationsPanel";
 import { formatSeconds } from "@/lib/quota";
@@ -703,6 +704,7 @@ function AdminPage() {
   { id: "content", label: "Créations", icon: Images, show: isAdmin },
   { id: "monetise", label: "Monétisation", icon: Wallet, show: isAdmin },
   { id: "formations", label: "Formations", icon: Video, show: isAdmin },
+  { id: "vendeur_cartes", label: "Espace vendeur", icon: Video, show: isAdmin },
   { id: "payouts", label: "Développeurs", icon: Wallet, show: isAdmin },
  ].filter((s) => s.show);
 
@@ -1906,6 +1908,7 @@ function AdminPage() {
       {active === "promos" && isAdmin && <AdminPromoPanel />}
       {active === "monetise" && isAdmin && <AdminMonetizePanel />}
       {active === "formations" && isAdmin && <AdminFormationsPanel />}
+      {active === "vendeur_cartes" && isAdmin && <AdminSellerCardsPanel />}
 
       {active === "subscriptions" && isAdmin && (
        <section className="pt-5">
