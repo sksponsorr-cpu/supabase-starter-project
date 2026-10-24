@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Gift, Coins, LayoutDashboard, GraduationCap, Store } from "lucide-react";
+import { Image, Clock, Crown, Settings, Wand2, Menu, X, Search, PanelLeftClose, PanelLeft, Gift, Coins, LayoutDashboard, GraduationCap, Store, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import logoAsset from "@/assets/sam-flash-logo.png";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
@@ -59,7 +59,8 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
     { href: "/history", icon: Clock, label: "Historique" },
     { href: "/outils-ai", icon: LayoutDashboard, label: "Plus outils AI" },
     { href: "/tableau-de-bord", icon: LayoutDashboard, label: "Tableau de bord" },
-    { href: "/boutique", icon: Store, label: "Créer ma boutique" },
+    { href: "/vendeur", icon: Store, label: "Espace vendeur" },
+    { href: "/pub-track", icon: TrendingUp, label: "Pub Track" },
   ];
 
   const labelClass = `ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`;
