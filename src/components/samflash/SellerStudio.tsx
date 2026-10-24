@@ -1,10 +1,7 @@
-import { useState, useEffect } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { getFeatureFlags } from "@/lib/feature-flags.functions";
-import type { FeatureFlags } from "@/lib/feature-flags";
+import { useState } from "react";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { ImageIcon, Video, Info } from "lucide-react";
-import { samCreditsFor } from "@/lib/creator-pricing";
+import { generationCreditsFor } from "@/lib/creator-pricing";
 
 type VideoModeId = "text_to_video" | "image_to_video" | "video_edit";
 
@@ -22,8 +19,8 @@ type Feature = {
 };
 
 // Coût de départ : Seedance 2.0 à 720p sur 5 s ; Veo 3.1 à 720p (prix fixe par vidéo).
-const SEEDANCE_FROM = samCreditsFor("seedance-2", "720p", 5);
-const VEO_FROM = samCreditsFor("veo-3-1", "720p", 8);
+const SEEDANCE_FROM = generationCreditsFor("seedance-2", "720p", 5);
+const VEO_FROM = generationCreditsFor("veo-3-1", "720p", 8);
 const costText = (n: number | null) => (n === null ? undefined : `Dès ${n} crédits`);
 
 const IMAGE_FEATURES: Feature[] = [
@@ -107,16 +104,14 @@ const VIDEO_FEATURES: Feature[] = [
 function FeatureCard({
   f,
   allowed,
-  enabled,
   onPick,
 }: {
   f: Feature;
   allowed: boolean;
-  enabled: boolean;
   onPick: (f: Feature) => void;
 }) {
   const soon = SOON.has(f.title);
-  const blocked = (f.needsPhotoRights && !allowed) || soon || !enabled;
+  const blocked = (f.needsPhotoRights && !allowed) || soon;
   return (
     <button
       type="button"
@@ -132,11 +127,23 @@ function FeatureCard({
       </span>
       <span className="text-sm text-muted-foreground">{f.desc}</span>
       {f.costLabel && <span className="text-xs font-semibold text-primary">{f.costLabel}</span>}
-      {(soon || !enabled) && <span className="text-xs text-muted-foreground">Bientôt disponible.</span>}
+      {soon && <span className="text-xs text-muted-foreground">Bientôt disponible.</span>}
       {!soon && f.needsPhotoRights && !allowed && <span className="text-xs text-muted-foreground">Coche d'abord la case des droits ci-dessus.</span>}
     </button>
   );
 }
+
+/** Styles de pub (Créative AI) : même parcours que les autres cartes vidéo. */
+const STYLE_FEATURES: Feature[] = [
+  { title: "Histoire racontée", desc: "Une personne vit l'histoire avec ton produit, sans parler. Une voix off la raconte.", starter: "Une personne vit une histoire avec mon produit, sans parler, avec une voix off qui raconte avant et après : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "UGC", desc: "Une personne montre ton produit au téléphone, dans une vraie pièce, comme une cliente qui filme.", starter: "Une personne montre mon produit au téléphone, dans une vraie pièce, comme une cliente qui filme : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "Pub animée", desc: "Le directeur invente un univers animé pour ton produit. Une voix off raconte.", starter: "Un univers animé pour mon produit, avec une voix off qui raconte les bienfaits : ", mediaType: "video", modelId: "veo-3-1", videoMode: "text_to_video" },
+  { title: "Professionnel", desc: "Ton produit seul, sur un plateau net, filmé comme une marque. Aucune personne à l'écran.", starter: "Mon produit seul, sur un plateau net, filmé comme une marque, sans personne : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "Avant / après", desc: "Le problème d'un côté, la solution de l'autre.", starter: "Le problème d'un côté, la solution avec mon produit de l'autre : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "Témoignage", desc: "Un client raconte son expérience face caméra.", starter: "Un client raconte son expérience avec mon produit, face caméra : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "Publicité produit", desc: "Un visuel soigné, lumière douce, fond épuré.", starter: "Une publicité produit soignée, lumière douce, fond épuré : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+  { title: "Promotion", desc: "Une offre claire, avec un prix et un appel à l'action.", starter: "Une promotion claire avec mon offre, un prix et un appel à l'action : ", mediaType: "video", modelId: "veo-3-1", videoMode: "image_to_video" },
+];
 
 /** Cartes qui passent par le parcours en étapes (photos à fournir). */
 const GUIDED: Record<string, { needsPerson: boolean; needsProduct: boolean }> = {
@@ -146,6 +153,14 @@ const GUIDED: Record<string, { needsPerson: boolean; needsProduct: boolean }> = 
   "Un produit en main": { needsPerson: true, needsProduct: true },
   "Publicité UGC dynamique": { needsPerson: true, needsProduct: true },
   "Pub voix off": { needsPerson: false, needsProduct: false },
+  "Histoire racontée": { needsPerson: true, needsProduct: true },
+  "UGC": { needsPerson: true, needsProduct: true },
+  "Pub animée": { needsPerson: false, needsProduct: false },
+  "Professionnel": { needsPerson: false, needsProduct: true },
+  "Avant / après": { needsPerson: false, needsProduct: true },
+  "Témoignage": { needsPerson: true, needsProduct: true },
+  "Publicité produit": { needsPerson: false, needsProduct: true },
+  "Promotion": { needsPerson: false, needsProduct: true },
 };
 
 /** Cartes pas encore branchées : elles affichent « Bientôt disponible ». */
@@ -156,14 +171,6 @@ export function SellerStudio() {
   const [rightsOk, setRightsOk] = useState(false);
 
   const [guided, setGuided] = useState<GuidedFeature | null>(null);
-  const [kind, setKind] = useState<"image" | "video">("image");
-  const fetchFlags = useServerFn(getFeatureFlags);
-  const [flags, setFlags] = useState<FeatureFlags>({});
-  useEffect(() => {
-    void fetchFlags().then((f) => setFlags(f)).catch(() => undefined);
-  }, [fetchFlags]);
-  // Mode vendeur : publié ou masqué par l'administrateur uniquement (aucun interrupteur côté utilisateur).
-  const modeOn = flags.seller_studio === true;
 
   const pick = (f: Feature) => {
     const g = GUIDED[f.title];
@@ -197,34 +204,39 @@ export function SellerStudio() {
         </span>
       </label>
 
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+          <Video className="h-4 w-4" /> Styles de pub
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {STYLE_FEATURES.map((f) => (
+            <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
+          ))}
+        </div>
+      </section>
+
       {guided && <SellerGuidedFlow feature={guided} onClose={() => setGuided(null)} />}
 
-      <div role="tablist" aria-label="Type de création" className="grid grid-cols-2 gap-1 rounded-full bg-white/[0.04] p-1">
-        {(["image", "video"] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={kind === k}
-            onClick={() => setKind(k)}
-            className={`flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
-              kind === k ? "bg-foreground text-background" : "text-muted-foreground"
-            }`}
-          >
-            {k === "image" ? <ImageIcon className="h-4 w-4" /> : <Video className="h-4 w-4" />}
-            {k === "image" ? "Image" : "Vidéo"}
-          </button>
-        ))}
-      </div>
-
       <section>
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+          <ImageIcon className="h-4 w-4" /> Image
+        </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(kind === "image" ? IMAGE_FEATURES : VIDEO_FEATURES).map((f) => (
-            <FeatureCard key={f.title} f={f} allowed={rightsOk} enabled={modeOn} onPick={pick} />
+          {IMAGE_FEATURES.map((f) => (
+            <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+          <Video className="h-4 w-4" /> Vidéo
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {VIDEO_FEATURES.map((f) => (
+            <FeatureCard key={f.title} f={f} allowed={rightsOk} onPick={pick} />
           ))}
         </div>
       </section>
     </div>
   );
 }
- 
