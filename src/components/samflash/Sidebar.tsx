@@ -58,6 +58,7 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
     { href: "/galerie", icon: Image, label: "Galerie" },
     { href: "/history", icon: Clock, label: "Historique" },
     { href: "/outils-ai", icon: LayoutDashboard, label: "Plus outils AI" },
+    { href: "/tableau-de-bord", icon: LayoutDashboard, label: "Tableau de bord" },
   ];
 
   const labelClass = `ml-3 font-medium whitespace-nowrap transition-opacity ${isCollapsed ? "md:opacity-0 md:hidden" : "opacity-100"}`;
