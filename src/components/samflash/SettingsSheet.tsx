@@ -72,7 +72,7 @@ const rowBase =
 
 function Group({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-2">{children}</div>
+    <div className="space-y-px overflow-hidden rounded-2xl bg-card/60 backdrop-blur-xl ring-1 ring-border/50 shadow-sm [&>*]:rounded-none">{children}</div>
   );
 }
 
@@ -109,7 +109,7 @@ function Row({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="px-4 pb-2 pt-6 text-xs font-semibold tracking-widest text-muted-foreground">
+    <h2 className="px-5 pb-2 pt-7 text-[13px] font-medium tracking-wide text-muted-foreground/90">
       {children}
     </h2>
   );
@@ -602,6 +602,16 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               />
             </Group>
 
+            <SectionTitle>Plus d'outils</SectionTitle>
+            <div className="px-4 pb-2">
+              <a
+                href="/connecter"
+                className="flex w-full items-center justify-between rounded-3xl border border-border bg-card p-4 text-sm font-semibold text-foreground"
+              >
+                Connecter Sam Flash à Claude ou ChatGPT
+                <span aria-hidden className="text-muted-foreground">→</span>
+              </a>
+            </div>
             <SectionTitle>{t("application")}</SectionTitle>
             <Group>
               <Row
@@ -630,11 +640,6 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                 label={t("customize")}
                 onClick={() => openGeneric(t("customize"), "customize")}
               />
-            </Group>
-
-            <SectionTitle>{t("data")}</SectionTitle>
-            <Group>
-              <Row icon={FolderClosed} label={t("storage")} onClick={() => setView("storage")} />
             </Group>
 
             <div className="mt-6">
