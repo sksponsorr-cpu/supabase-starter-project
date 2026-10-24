@@ -11,7 +11,7 @@
 
 import { creditCostFor } from "@/lib/credits";
 import { createKieCreatorTask, isKieCreatorModel } from "@/lib/services/kie-creator.server";
-import { isPricedModel, samCreditsFor, type PricedResolution } from "@/lib/creator-pricing";
+import { isPricedModel, generationCreditsFor, type PricedResolution } from "@/lib/creator-pricing";
 import { isFeatureVisible, parseFeatureFlags } from "@/lib/feature-flags";
 import { getCreditConfig } from "@/lib/credits.server";
 
@@ -27,6 +27,7 @@ export type GenerationInput = {
   creatorMode?: "text" | "image" | "reference" | "clone" | null;
   project_id?: string | null;
   model?: string | null;
+  wallet?: "creator" | "seller" | null;
 };
 
 export type GenerationRow = {
@@ -297,8 +298,7 @@ export async function runGeneration(
   input: GenerationInput,
 ): Promise<GenerationResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // Veo en référence produit toujours 8 s : on débite et on compte 8 s, pas la durée demandée.
-  const seconds = input.model === "veo-3-1" && input.creatorMode === "reference" ? 8 : secondsFor(input);
+  const seconds = secondsFor(input);
   const isVideo = input.mediaType === "video";
 
   const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
@@ -320,7 +320,11 @@ export async function runGeneration(
   // Contrôle d'accès préalable : aucun appel au moteur si l'utilisateur n'a
   // ni abonnement actif ni offre gratuite disponible sur cet appareil.
   const { checkGenerationAccess, freeCreditCost } = await import("@/lib/services/access.server");
-  const access = await checkGenerationAccess(userId, input.mediaType, isVideo ? seconds : 0);
+  const access = await checkGenerationAccess(userId, input.mediaType, isVideo ? seconds : 0, {
+    model: input.model,
+    resolution: input.resolution,
+    wallet: input.wallet === "seller" ? "seller" : "creator",
+  });
   if (!access.allowed) {
     return {
       ok: false,
@@ -339,15 +343,18 @@ export async function runGeneration(
     ? isFreeUser
       ? freeCreditCost(input.mediaType)
       : (input.mediaType === "video" && isPricedModel(input.model)
-          ? samCreditsFor(input.model, (input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p") as PricedResolution, seconds)
+          ? generationCreditsFor(input.model, (input.resolution === "1080p" || input.resolution === "480p" ? input.resolution : "720p") as PricedResolution, seconds)
           : null) ?? creditCostFor(input.mediaType, seconds, input.resolution, await getCreditConfig())
     : null;
   if (creditCost !== null) {
-    const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
-      p_user: userId,
-      p_amount: creditCost,
-      p_ref: crypto.randomUUID(),
-    });
+    const useSeller = input.wallet === "seller";
+    const { data: spent, error: spendError } = useSeller
+      ? await supabaseAdmin.rpc("spend_seller_credits", { p_user: userId, p_amount: creditCost })
+      : await supabaseAdmin.rpc("spend_credits", {
+          p_user: userId,
+          p_amount: creditCost,
+          p_ref: crypto.randomUUID(),
+        });
     if (spendError) throw new Error(spendError.message);
     if (!spent) {
       return {
@@ -404,6 +411,10 @@ export async function runGeneration(
   const refund = async () => {
     if (!debited) return;
     debited = false;
+    if (creditCost !== null && input.wallet === "seller") {
+      await supabaseAdmin.rpc("add_seller_credits", { p_user: userId, p_amount: creditCost });
+      return;
+    }
     if (creditCost !== null) {
       await supabaseAdmin.rpc("add_credits", {
         p_user: userId,
