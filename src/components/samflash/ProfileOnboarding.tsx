@@ -36,14 +36,19 @@ export function ProfileOnboarding({ onChoose, allowed }: { onChoose: (c: Choice)
   }, [onChoose, allowed]);
 
   const pick = (c: Choice) => {
-    setSelected(c);
-    onChoose(c);
     try {
       localStorage.setItem(STORAGE_KEY, c);
     } catch {
       /* ignoré */
     }
     notifyProfileChanged();
+    if (c === "seller") {
+      // L'espace vendeur a sa propre page.
+      window.location.assign("/vendeur");
+      return;
+    }
+    setSelected(c);
+    onChoose(c);
   };
 
   const options = OPTIONS.filter((o) => allowed.includes(o.id));
