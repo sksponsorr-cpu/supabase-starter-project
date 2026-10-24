@@ -5,6 +5,9 @@ import { SellerSidebar } from "@/components/samflash/SellerSidebar";
 import { SellerGuidedFlow, type GuidedFeature } from "@/components/samflash/SellerGuidedFlow";
 import { generationCreditsFor } from "@/lib/creator-pricing";
 import { listSellerCardImages } from "@/lib/seller-card-images.functions";
+import { IMAGE_AD_PRESETS, type ImageAdPreset } from "@/lib/image-ad-presets";
+import { ImageAdFlow } from "@/components/samflash/ImageAdFlow";
+import { SellerCreditsPill } from "@/components/samflash/SellerCreditsPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect } from "react";
 
@@ -42,6 +45,7 @@ function VendeurPage() {
   const [kind, setKind] = useState<"images" | "videos">("videos");
   const [product, setProduct] = useState<"physique" | "digital">("physique");
   const [active, setActive] = useState<GuidedFeature | null>(null);
+  const [imagePreset, setImagePreset] = useState<ImageAdPreset | null>(null);
   const loadImages = useServerFn(listSellerCardImages);
   const [cardImages, setCardImages] = useState<Record<string, string>>({});
   useEffect(() => { void loadImages({}).then(setCardImages).catch(() => setCardImages({})); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
@@ -65,7 +69,10 @@ function VendeurPage() {
     <div className="flex min-h-screen bg-[#0a0a14] text-white">
       <SellerSidebar />
       <main className="mx-auto w-full max-w-md px-5 pb-20 pt-16">
-        <p className="text-center text-[11px] uppercase tracking-[0.25em] text-white/50">Espace vendeur</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">Espace vendeur</p>
+          <SellerCreditsPill />
+        </div>
         <h1 className="mt-3 text-center text-3xl font-bold tracking-tight">Qu'allons-nous vendre aujourd'hui ?</h1>
         <p className="mt-2 text-center text-sm text-white/60">Choisis le type de pub : le formulaire s'adapte à ce choix.</p>
 
@@ -133,12 +140,31 @@ function VendeurPage() {
             ))}
           </ul>
         ) : (
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#11111c] p-6 text-center text-sm text-white/60">
-            Les créatives images arrivent bientôt.
-          </div>
+          <ul className="mt-8 space-y-5">
+            {IMAGE_AD_PRESETS.map((p) => (
+              <li key={p.key}>
+                <button
+                  type="button"
+                  onClick={() => setImagePreset(p)}
+                  className="block w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11111c] text-left transition-transform active:scale-[0.99]"
+                >
+                  <div className="flex h-44 items-center justify-center bg-gradient-to-br from-violet-500/30 to-fuchsia-900/30">
+                    <ImageIcon className="h-10 w-10 text-white/70" />
+                  </div>
+                  <div className="p-5">
+                    <p className="text-lg font-semibold">{p.title}</p>
+                    <p className="mt-1 text-sm text-white/65">{p.desc}</p>
+                    <p className="mt-3 text-sm text-white/50"><span className="text-white/70">Idéal pour</span> {p.ideal}</p>
+                    <p className="mt-4 text-sm font-semibold text-violet-400">Photo de ton produit → création →</p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </main>
 
+      {imagePreset && <ImageAdFlow preset={imagePreset} onClose={() => setImagePreset(null)} />}
       {active && <SellerGuidedFlow feature={active} onClose={() => setActive(null)} />}
     </div>
   );
