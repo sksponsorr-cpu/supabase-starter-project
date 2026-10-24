@@ -316,7 +316,7 @@ export const startPayment = createServerFn({ method: "POST" })
       mobile,
       customer_name: data.fullName,
       customer_email: email,
-      credits: price.id === "custom" ? (data.credits ?? null) : price.id.startsWith("pack_") ? Number(price.credits_fixed ?? 0) || null : null,
+      credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
@@ -436,7 +436,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
       mobile: "-",
       customer_name: data.fullName,
       customer_email: email,
-      credits: price.id === "custom" ? (data.credits ?? null) : price.id.startsWith("pack_") ? Number(price.credits_fixed ?? 0) || null : null,
+      credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
