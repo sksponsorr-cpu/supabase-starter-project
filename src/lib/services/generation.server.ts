@@ -304,6 +304,22 @@ export async function runGeneration(
   const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
   const isAdmin = profile?.role === "admin";
 
+  // Durée par vidéo selon l'offre et le modèle : refus côté serveur (l'interface affiche déjà le cadenas).
+  if (isVideo && !isAdmin) {
+    const { activePlan } = await import("@/lib/access.server");
+    const { clipCapFor } = await import("@/lib/video-duration-limits");
+    const { plan } = await activePlan(userId);
+    const cap = clipCapFor(plan, input.model as import("@/lib/creator-models").ModelId | undefined);
+    if (seconds > cap) {
+      return {
+        ok: false,
+        reason: "error",
+        id: null,
+        message: `Durée trop longue pour ton offre : ${cap} s maximum avec ce modèle. Passe à l'offre supérieure.`,
+      };
+    }
+  }
+
   // Publication : les modèles créateur ne sont lancés que si l'interrupteur est publié (admin : toujours).
   if (isKieCreatorModel(input.model) || isPricedModel(input.model)) {
     const { data: flagRow } = await supabaseAdmin
