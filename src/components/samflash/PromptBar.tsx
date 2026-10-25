@@ -22,6 +22,7 @@ import { CREATOR_MODELS, LIVE_MODES, MODE_LABELS, needsImageUpload, needsVideoUp
 import { isPricedModel, generationCreditsFor } from "@/lib/creator-pricing";
 import { notifyProfileChanged } from "@/lib/seller-mode";
 import { clipCapFor, modelMaxSeconds } from "@/lib/video-duration-limits";
+import { SupportWhatsAppButton } from "@/components/samflash/SupportWhatsAppButton";
 
 const IDEAS = [
   "Un astronaute qui marche sur une plage au coucher du soleil",
@@ -141,6 +142,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [supportVisible, setSupportVisible] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const [promptFocused, setPromptFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -559,6 +561,12 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
           errorMessage += `\n\nDétail technique : ${result.message}`;
         }
+        setSupportVisible(
+          result.message === "SERVICE_UNAVAILABLE" ||
+            isEngineBalanceError(result.message) ||
+            errorMessage === PAID_RETRY_MESSAGE ||
+            errorMessage === FREE_UPGRADE_MESSAGE,
+        );
         setSent(errorMessage);
       }
     } catch (error) {
@@ -646,6 +654,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-10 mt-6 px-4">
+      <SupportWhatsAppButton visible={supportVisible && !!sent} onDismiss={() => setSupportVisible(false)} />
       {sent && (
         <NoticeBanner
           message={sent}
