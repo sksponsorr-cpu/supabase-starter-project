@@ -65,6 +65,12 @@ function AppFeed() {
   const welcomeOrderId = search?.welcome_order;
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Le bouton WhatsApp ouvre les Paramètres (section « Signaler un problème »).
+  useEffect(() => {
+    const open = () => setSettingsOpen(true);
+    window.addEventListener("sf:open-report", open);
+    return () => window.removeEventListener("sf:open-report", open);
+  }, []);
   const [plansOpen, setPlansOpen] = useState(false);
   const [cancelFn, setCancelFn] = useState<(() => void) | null>(null);
   const [pending, setPending] = useState<{ prompt: string; mediaType: "image" | "video" } | null>(
