@@ -461,7 +461,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         toast.success("Vidéo longue lancée. Suivez la progression dans Mes créations.");
         onGenerated?.();
       } else {
-        toast.error(r.message);
+        // Erreur d'échec de lancement : même affichage et même bouton d'aide que les autres erreurs.
+        // Abonnés : le même message que pour les autres échecs de génération.
+        setSent(userPlan === "free" ? FREE_UPGRADE_MESSAGE : PAID_RETRY_MESSAGE);
+        setSupportVisible(true);
       }
       return;
     }
