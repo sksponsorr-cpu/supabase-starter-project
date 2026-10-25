@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Mic, Square, PenLine, Check, ChevronLeft } from "lucide-react";
+import { MessageCircle, Mic, Square, PenLine, Check, ChevronLeft, Clock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { listSupportMessages, type SupportMessage } from "@/lib/support.functions";
 import { createSupportMessage } from "@/lib/support.functions";
 import { uploadSupportVoice } from "@/lib/support-voice.functions";
 
@@ -29,6 +30,23 @@ function SignalerPage() {
   const [error, setError] = useState<string | null>(null);
   const send = useServerFn(createSupportMessage);
   const sendVoice = useServerFn(uploadSupportVoice);
+  const fetchTickets = useServerFn(listSupportMessages);
+  const [tickets, setTickets] = useState<SupportMessage[]>([]);
+  const loadTickets = async () => {
+    try {
+      setTickets(await fetchTickets());
+    } catch {
+      setTickets([]);
+    }
+  };
+  useEffect(() => { void loadTickets(); }, []);
+
+  const STATUS_LABEL: Record<string, string> = {
+    ouvert: "Envoyé",
+    lu: "Lu par le support",
+    repondu: "Répondu",
+    resolu: "Résolu",
+  };
 
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -131,6 +149,23 @@ function SignalerPage() {
         <section className="space-y-3" style={{ animation: "sfFadeUp .45s ease-out both" }}>
           <h1 className="text-3xl font-bold tracking-tight">Un souci ?</h1>
           <p className="text-sm text-white/60">Choisis comment nous écrire. Nous te répondons rapidement.</p>
+          {tickets.length > 0 && (
+            <div className="space-y-2 pt-6">
+              <p className="text-xs uppercase tracking-widest text-white/40">Mes messages</p>
+              {tickets.map((t) => (
+                <div key={t.id} className="flex items-center gap-3 rounded-2xl bg-[#141426] p-4">
+                  <Clock className="h-5 w-5 shrink-0 text-white/40" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{t.subject}</p>
+                    <p className="text-xs text-white/40">{new Date(t.created_at).toLocaleString("fr-FR")}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs ${t.status === "repondu" || t.status === "resolu" ? "bg-[#25D366]/20 text-[#25D366]" : "bg-white/10 text-white/60"}`}>
+                    {STATUS_LABEL[t.status] ?? t.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center gap-4 rounded-3xl bg-[#25D366] p-5 text-black transition-transform active:scale-[0.98]">
             <MessageCircle className="h-7 w-7" />
             <span className="text-base font-semibold">Contacter sur WhatsApp</span>
