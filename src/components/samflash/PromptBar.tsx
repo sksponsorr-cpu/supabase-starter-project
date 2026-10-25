@@ -448,7 +448,12 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
     if (mode === "video" && longSec > 15) {
       const r = await launchLong({
-        data: { prompt: finalPrompt, seconds: longSec, resolution: (res === "480p" ? "480p" : "720p") as Resolution },
+        data: {
+          prompt: finalPrompt,
+          seconds: longSec,
+          resolution: (res === "480p" ? "480p" : "720p") as Resolution,
+          modelId: creatorSel.active ? creatorSel.modelId : null,
+        },
       });
       setBusy(false);
       setSent(null);
@@ -561,12 +566,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         if (debug && result.message && result.message !== "SERVICE_UNAVAILABLE") {
           errorMessage += `\n\nDétail technique : ${result.message}`;
         }
-        setSupportVisible(
-          result.message === "SERVICE_UNAVAILABLE" ||
-            isEngineBalanceError(result.message) ||
-            errorMessage === PAID_RETRY_MESSAGE ||
-            errorMessage === FREE_UPGRADE_MESSAGE,
-        );
+        setSupportVisible(true);
         setSent(errorMessage);
       }
     } catch (error) {
