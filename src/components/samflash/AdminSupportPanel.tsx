@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Inbox, Loader2, RefreshCw, RotateCcw, Search, Send } from "lucide-react";
 import { listSupportInbox } from "@/lib/support-inbox.functions";
+import { getSupportVoiceUrl } from "@/lib/support-voice.functions";
 import {
   listSupportReplies,
   replyToSupportMessage,
@@ -20,9 +21,37 @@ type Counts = { all: number; ouvert: number; repondu: number; resolu: number };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   ouvert: { label: "À traiter", cls: "bg-amber-500/15 text-amber-500" },
+  lu: { label: "Lu", cls: "bg-violet-500/15 text-violet-400" },
   repondu: { label: "Répondu", cls: "bg-blue-500/15 text-blue-400" },
   resolu: { label: "Résolu", cls: "bg-emerald-500/15 text-emerald-500" },
 };
+
+/** Au premier affichage d'un message : le marque « Lu », et charge le vocal s'il y en a un. */
+function TicketOpened({ ticket, setStatus }: { ticket: SupportMessage; setStatus: (args: { data: { messageId: string; status: string } }) => Promise<unknown> }) {
+  const getVoice = useServerFn(getSupportVoiceUrl);
+  const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  const voicePath = ticket.body.startsWith("Message vocal joint : ")
+    ? ticket.body.replace("Message vocal joint : ", "").trim()
+    : null;
+  useEffect(() => {
+    if (ticket.status === "ouvert") {
+      void setStatus({ data: { messageId: ticket.id, status: "lu" } }).catch(() => {});
+    }
+    if (voicePath) {
+      void getVoice({ data: { path: voicePath } })
+        .then((r) => { if (r.ok) setVoiceUrl(r.url); })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket.id]);
+  if (!voicePath) return null;
+  return (
+    <div className="mt-3 rounded-2xl bg-secondary px-3.5 py-3">
+      <p className="mb-2 text-[11px] font-medium text-muted-foreground">Message vocal</p>
+      {voiceUrl ? <audio controls src={voiceUrl} className="w-full" /> : <p className="text-sm text-muted-foreground">Chargement du vocal…</p>}
+    </div>
+  );
+}
 
 /** Boîte de support professionnelle : filtres, recherche, fils de discussion, pagination. */
 export function AdminSupportPanel() {
@@ -247,6 +276,7 @@ export function AdminSupportPanel() {
                         </p>
                         <p className="whitespace-pre-wrap">{tkt.body}</p>
                       </div>
+                      <TicketOpened ticket={tkt} setStatus={setStatus} />
 
                       {repliesLoading ? (
                         <div className="mt-3 h-12 animate-pulse rounded-2xl bg-secondary/50" />
