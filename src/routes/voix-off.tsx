@@ -21,13 +21,26 @@ function VoixOffPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
 
   /** Aperçu officiel de la voix, fourni par KIE. */
   const playPreview = (id: string) => {
+    // Un clic sur la voix en cours de lecture l'arrête.
+    if (playingId === id) {
+      previewRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
     previewRef.current?.pause();
     const a = new Audio(`https://static.aiquickdraw.com/elevenlabs/voice/${id}.mp3`);
     previewRef.current = a;
-    void a.play().catch(() => toast("Aperçu indisponible pour cette voix."));
+    a.onended = () => setPlayingId(null);
+    a.onpause = () => setPlayingId((cur) => (cur === id ? null : cur));
+    setPlayingId(id);
+    void a.play().catch(() => {
+      setPlayingId(null);
+      toast("Aperçu indisponible pour cette voix.");
+    });
   };
 
   const cost = useMemo(() => (text.trim() ? voiceCostFor(text.trim().length) : 0), [text]);
@@ -68,6 +81,8 @@ function VoixOffPage() {
   };
 
   return (
+    <>
+      <style>{`@keyframes vbar { 0%,100% { transform: scaleY(.4) } 50% { transform: scaleY(1) } }`}</style>
     <main className="mx-auto min-h-screen max-w-md px-5 pb-16 pt-6">
       <Link to="/app" className="text-sm text-muted-foreground">← Retour au studio</Link>
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Voix off</h1>
@@ -105,14 +120,27 @@ function VoixOffPage() {
                   <span className="block text-sm font-semibold text-foreground">{v.name}</span>
                   <span className="block text-xs text-muted-foreground">{v.style}</span>
                 </button>
-                <button
-                  type="button"
-                  aria-label={`Écouter ${v.name}`}
-                  onClick={() => playPreview(v.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                >
-                  ▶
-                </button>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="text-[11px] text-muted-foreground">
+                    {voiceCostFor(text.trim().length || 1000)} crédit{voiceCostFor(text.trim().length || 1000) > 1 ? "s" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={playingId === v.id ? `Arrêter ${v.name}` : `Écouter ${v.name}`}
+                    onClick={() => playPreview(v.id)}
+                    className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 ${playingId === v.id ? "ring-4 ring-primary/30" : ""}`}
+                  >
+                    {playingId === v.id ? (
+                      <span className="flex items-end gap-[2px]" aria-hidden>
+                        <span className="h-3 w-[3px] animate-[vbar_.8s_ease-in-out_infinite] bg-current" />
+                        <span className="h-4 w-[3px] animate-[vbar_.8s_ease-in-out_.15s_infinite] bg-current" />
+                        <span className="h-2 w-[3px] animate-[vbar_.8s_ease-in-out_.3s_infinite] bg-current" />
+                      </span>
+                    ) : (
+                      "▶"
+                    )}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -135,5 +163,6 @@ function VoixOffPage() {
         )}
       </div>
     </main>
+    </>
   );
 }
