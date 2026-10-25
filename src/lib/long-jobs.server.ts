@@ -73,6 +73,7 @@ export async function startLongJob(input: {
   prompt: string;
   resolution: Resolution;
   seconds: number;
+  modelId?: string | null;
 }): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
   // Vérification serveur (le curseur côté interface ne suffit pas) :
   // sans abonnement 60 s maximum, avec un abonnement 180 s maximum.
@@ -88,7 +89,12 @@ export async function startLongJob(input: {
   }
 
   const config = await getCreditConfig();
-  const cost = creditCostFor("video", input.seconds, input.resolution, config);
+  // Même prix que celui affiché dans l'interface : prix du modèle choisi si tarifé, sinon prix générique.
+  const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
+  const modelCost = isPricedModel(input.modelId ?? null)
+    ? generationCreditsFor(input.modelId as never, input.resolution as never, input.seconds)
+    : null;
+  const cost = modelCost ?? creditCostFor("video", input.seconds, input.resolution, config);
 
   const { data: spent, error: spendError } = await supabaseAdmin.rpc("spend_credits", {
     p_user: input.userId,
@@ -96,7 +102,17 @@ export async function startLongJob(input: {
     p_ref: crypto.randomUUID(),
   });
   if (spendError) return { ok: false, message: spendError.message };
-  if (!spent) return { ok: false, message: "Crédits insuffisants." };
+  if (!spent) {
+    const { data: wallet } = await supabaseAdmin
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", input.userId)
+      .maybeSingle();
+    return {
+      ok: false,
+      message: `Crédits insuffisants : cette création coûte ${cost} crédits, ton solde est de ${wallet?.credits_balance ?? 0} crédits.`,
+    };
+  }
 
   const { data: row, error } = await supabaseAdmin
     .from("long_jobs")
