@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Mic, Square, PenLine, Check, ChevronLeft, Clock } from "lucide-react";
+import { MessageCircle, Mic, Square, PenLine, Check, ChevronLeft, ChevronDown } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { listSupportMessages, type SupportMessage } from "@/lib/support.functions";
+import { listSupportMessages, listSupportReplies, type SupportMessage, type SupportReply } from "@/lib/support.functions";
 import { createSupportMessage } from "@/lib/support.functions";
 import { uploadSupportVoice } from "@/lib/support-voice.functions";
 
@@ -48,6 +48,22 @@ function SignalerPage() {
     resolu: "Résolu",
   };
 
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const fetchReplies = useServerFn(listSupportReplies);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [replies, setReplies] = useState<Record<string, SupportReply[]>>({});
+  const toggleTicket = async (id: string) => {
+    if (openId === id) return setOpenId(null);
+    setOpenId(id);
+    if (!replies[id]) {
+      try {
+        const rows = await fetchReplies({ data: { messageId: id } });
+        setReplies((r) => ({ ...r, [id]: rows }));
+      } catch {
+        setReplies((r) => ({ ...r, [id]: [] }));
+      }
+    }
+  };
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -150,20 +166,53 @@ function SignalerPage() {
           <h1 className="text-3xl font-bold tracking-tight">Un souci ?</h1>
           <p className="text-sm text-white/60">Choisis comment nous écrire. Nous te répondons rapidement.</p>
           {tickets.length > 0 && (
-            <div className="space-y-2 pt-6">
-              <p className="text-xs uppercase tracking-widest text-white/40">Mes messages</p>
-              {tickets.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 rounded-2xl bg-[#141426] p-4">
-                  <Clock className="h-5 w-5 shrink-0 text-white/40" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{t.subject}</p>
-                    <p className="text-xs text-white/40">{new Date(t.created_at).toLocaleString("fr-FR")}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs ${t.status === "repondu" || t.status === "resolu" ? "bg-[#25D366]/20 text-[#25D366]" : "bg-white/10 text-white/60"}`}>
-                    {STATUS_LABEL[t.status] ?? t.status}
-                  </span>
+            <div className="pt-6">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((v) => !v)}
+                className="flex w-full items-center justify-between rounded-2xl bg-[#141426] px-4 py-3 text-left transition-colors active:bg-[#1b1b33]"
+                aria-expanded={historyOpen}
+              >
+                <span className="text-sm font-medium">Mes messages <span className="text-white/40">({tickets.length})</span></span>
+                <ChevronDown className={`h-4 w-4 text-white/50 transition-transform duration-300 ${historyOpen ? "rotate-180" : ""}`} />
+              </button>
+              <div className={`grid transition-all duration-500 ease-out ${historyOpen ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"}`}>
+                <div className="overflow-hidden">
+                  <ul className="divide-y divide-white/5 rounded-2xl bg-[#0d0d18]">
+                    {tickets.map((t) => (
+                      <li key={t.id}>
+                        <button
+                          type="button"
+                          onClick={() => void toggleTicket(t.id)}
+                          className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] text-white/90">{t.subject}</span>
+                            <span className="block text-[11px] text-white/35">{new Date(t.created_at).toLocaleDateString("fr-FR")}</span>
+                          </span>
+                          <span className={`shrink-0 text-[11px] ${t.status === "repondu" || t.status === "resolu" ? "text-[#25D366]" : "text-white/40"}`}>
+                            {STATUS_LABEL[t.status] ?? t.status}
+                          </span>
+                        </button>
+                        {openId === t.id && (
+                          <div className="space-y-2 px-4 pb-3" style={{ animation: "sfFadeUp .35s ease-out both" }}>
+                            {(replies[t.id] ?? []).length === 0 ? (
+                              <p className="text-[12px] text-white/40">Pas encore de réponse du support.</p>
+                            ) : (
+                              (replies[t.id] ?? []).map((r) => (
+                                <div key={r.id} className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] ${r.is_staff ? "bg-[#25D366]/15 text-white" : "ml-auto bg-white/10 text-white/80"}`}>
+                                  {r.is_staff && <p className="mb-0.5 text-[10px] text-[#25D366]">Support Sam Flash</p>}
+                                  <p className="whitespace-pre-wrap">{r.body}</p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ))}
+              </div>
             </div>
           )}
           <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center gap-4 rounded-3xl bg-[#25D366] p-5 text-black transition-transform active:scale-[0.98]">
