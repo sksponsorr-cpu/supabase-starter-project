@@ -15,14 +15,18 @@ type Step = "choose" | "write" | "voice" | "done";
  * Affiché seulement quand le message d'erreur de génération est affiché.
  */
 export function SupportWhatsAppButton({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
+  const [open, setOpen] = useState(false);
   if (!visible) return null;
   return (
     <>
       <div className="fixed bottom-24 right-4 z-[120] flex items-center gap-2">
+        <div className="max-w-[190px] rounded-2xl rounded-br-sm bg-[#141426] px-3 py-2 text-xs text-white shadow-lg">
+          T'as un souci ? Contacte-nous ici.
+        </div>
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new Event("sf:open-report"))}
-          aria-label="Signaler un problème"
+          onClick={() => setOpen(true)}
+          aria-label="Contacter le support"
           className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-black shadow-lg transition-transform active:scale-95"
         >
           <span className="absolute inset-0 animate-ping rounded-full bg-[#25D366]/60" aria-hidden />
@@ -37,16 +41,10 @@ export function SupportWhatsAppButton({ visible, onDismiss }: { visible: boolean
           <X className="h-4 w-4" />
         </button>
       </div>
+      {open && <ReportProblemSheet onClose={() => setOpen(false)} />}
     </>
   );
 }
-
-const KEYFRAMES = `
-@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-@keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
-@keyframes pop { 0% { transform: scale(.4); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
-`;
 
 /** Fenêtre en étapes : choisir → écrire ou parler → envoyé. */
 export function ReportProblemSheet({ onClose }: { onClose: () => void }) {
