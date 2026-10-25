@@ -215,7 +215,7 @@ export const updateSupportStatus = createServerFn({ method: "POST" })
     z
       .object({
         messageId: z.string().uuid(),
-        status: z.enum(["ouvert", "repondu", "resolu"]),
+        status: z.enum(["ouvert", "lu", "repondu", "resolu"]),
       })
       .parse(input),
   )
