@@ -15,14 +15,13 @@ type Step = "choose" | "write" | "voice" | "done";
  * Affiché seulement quand le message d'erreur de génération est affiché.
  */
 export function SupportWhatsAppButton({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
-  const [open, setOpen] = useState(false);
   if (!visible) return null;
   return (
     <>
       <div className="fixed bottom-24 right-4 z-[120] flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => window.dispatchEvent(new Event("sf:open-report"))}
           aria-label="Signaler un problème"
           className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-black shadow-lg transition-transform active:scale-95"
         >
@@ -38,7 +37,6 @@ export function SupportWhatsAppButton({ visible, onDismiss }: { visible: boolean
           <X className="h-4 w-4" />
         </button>
       </div>
-      {open && <ReportProblemSheet onClose={() => setOpen(false)} />}
     </>
   );
 }
