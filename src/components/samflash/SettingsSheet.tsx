@@ -669,7 +669,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     }}
                   />
                 )}
-                <Row icon={LifeBuoy} label={t("report")} onClick={() => setView("feedback")} />
+                <Row icon={LifeBuoy} label={t("report")} onClick={() => window.location.assign("/signaler")} />
               </Group>
             </div>
 
