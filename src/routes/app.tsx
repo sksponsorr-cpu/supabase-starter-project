@@ -19,6 +19,7 @@ import { Sidebar } from "@/components/samflash/Sidebar";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { updateProjectTitle } from "@/lib/project.functions";
 import { PromptBar } from "@/components/samflash/PromptBar";
+import { SafeBoundary } from "@/components/samflash/SafeBoundary";
 import { ProfilePicker } from "@/components/samflash/ProfilePicker";
 import { useSellerMode } from "@/lib/seller-mode";
 import { WelcomeGate } from "@/components/samflash/WelcomeGate";
@@ -61,7 +62,16 @@ export const Route = createFileRoute("/app")({
   component: AppFeed,
 });
 
+/** Protège toute la page : une erreur affiche son message réel au lieu de « Oups ». */
 function AppFeed() {
+  return (
+    <SafeBoundary name="Accueil">
+      <AppFeedInner />
+    </SafeBoundary>
+  );
+}
+
+function AppFeedInner() {
   const { isCollapsed } = useSidebarStore();
   const search = Route.useSearch();
   const welcomeOrderId = search?.welcome_order;
@@ -236,6 +246,7 @@ function AppFeed() {
         <WelcomeGate />
         <CommunityInvite />
         {!sellerMode && (
+        <SafeBoundary name="Barre de saisie">
         <PromptBar
           onStart={(p) => setPending(p)}
           onCancelReady={(fn) => setCancelFn(() => fn)}
@@ -244,6 +255,7 @@ function AppFeed() {
           onQuotaExceeded={() => setPlansOpen(true)}
           prefill={prefill}
         />
+        </SafeBoundary>
         )}
 
         {!sellerMode && (
