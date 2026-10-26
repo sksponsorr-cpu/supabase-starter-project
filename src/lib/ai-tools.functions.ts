@@ -120,6 +120,7 @@ export const startAiJob = createServerFn({ method: "POST" })
         mediaUrl: z.string().url().max(500),
         prompt: z.string().max(500).optional(),
         seconds: z.number().min(0.5).max(60),
+        templateId: z.string().max(60).optional(),
         orientation: z.enum(["image", "video"]).default("image"),
       })
       .parse(input),
@@ -160,7 +161,11 @@ export const startAiJob = createServerFn({ method: "POST" })
     }
 
     const db = await getDb();
-    const cost = jobCost(variant, data.seconds);
+    // Réduction de bienvenue sur le modèle officiel « Recréer » : 10 crédits, appliquée côté serveur.
+    const RECREATE_TEMPLATE_ID = "performance-rap-studio";
+    const RECREATE_DISCOUNT = 10;
+    const discount = tool === "clone" && data.templateId === RECREATE_TEMPLATE_ID ? RECREATE_DISCOUNT : 0;
+    const cost = Math.max(1, Math.ceil(jobCost(variant, data.seconds)) - discount);
 
     const { data: profile } = await db.from("profiles").select("credits_balance").eq("id", context.userId).maybeSingle();
     if (!profile || Number(profile.credits_balance) < Math.ceil(cost)) {
@@ -184,8 +189,13 @@ export const startAiJob = createServerFn({ method: "POST" })
       p_ref: `ai-${tool}-${jobId}`,
     });
     if (debitError || debited !== true) {
+      // Le solde a déjà été vérifié plus haut : une erreur ici est technique, pas un manque de crédits.
+      console.error("[ai-tools] debit_ai_credits", { jobId, cost, debitError, debited });
       await db.from("ai_jobs").update({ status: "failed", refunded: true, error: "debit" }).eq("id", jobId);
-      return { ok: false as const, message: "Crédits insuffisants. Rechargez votre compte depuis Abonnement." };
+      return {
+        ok: false as const,
+        message: "Le paiement des crédits n'a pas pu être finalisé. Rien n'a été débité : réessayez dans un instant.",
+      };
     }
 
     const DEFAULT_SWAP_PROMPT =
