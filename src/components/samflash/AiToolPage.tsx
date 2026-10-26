@@ -497,10 +497,6 @@ export function AiToolPage({
             <video
               src={resultUrl}
               controls
-              controlsList="nodownload noremoteplayback nofullscreen"
-              disablePictureInPicture
-              disableRemotePlayback
-              onContextMenu={(e) => e.preventDefault()}
               playsInline
               className="fm-zoom mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl"
             />
