@@ -91,6 +91,7 @@ function AppFeedInner() {
   const presignPhoto = useServerFn(presignAiUpload);
   const startJob = useServerFn(startAiJob);
   const [recreateBusy, setRecreateBusy] = useState(false);
+  const [recreateError, setRecreateError] = useState<string | null>(null);
   const sellerMode = useSellerMode();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
@@ -407,10 +408,12 @@ function AppFeedInner() {
             videoUrl={RECREATE_TEMPLATE.videoUrl}
             title={RECREATE_TEMPLATE.title}
             busy={recreateBusy}
+            error={recreateError}
             cost={jobCost(variantsFor("clone").find((v) => v.id === "sd25-720")!, RECREATE_TEMPLATE.seconds)}
             onClose={() => setRecreateOpen(false)}
             onRecreate={(photos, roles) => {
               setRecreateBusy(true);
+              setRecreateError(null);
               void (async () => {
                 try {
                   const urls = await Promise.all(
@@ -442,13 +445,19 @@ function AppFeedInner() {
                     },
                   });
                   if (!res.ok) {
-                    toast.error(res.message);
+                    if (res.message.startsWith("Crédits insuffisants")) {
+                      // Même fenêtre d'offres que partout ailleurs sur le site.
+                      setRecreateOpen(false);
+                      setPlansOpen(true);
+                    } else {
+                      setRecreateError(res.message);
+                    }
                     return;
                   }
                   toast.success("Génération lancée. Les crédits sont débités.");
                   setRecreateOpen(false);
                 } catch {
-                  toast.error("Envoi impossible. Réessayez.");
+                  setRecreateError("Envoi impossible. Vérifiez votre connexion puis réessayez.");
                 } finally {
                   setRecreateBusy(false);
                 }
