@@ -409,9 +409,11 @@ function AppFeedInner() {
             title={RECREATE_TEMPLATE.title}
             busy={recreateBusy}
             error={recreateError}
-            cost={jobCost(variantsFor("clone").find((v) => v.id === "sd25-720")!, RECREATE_TEMPLATE.seconds)}
+            qualities={variantsFor("clone")
+              .filter((v) => v.provider === "seedance" && v.model === "bytedance/seedance-2-5")
+              .map((v) => ({ id: v.id, label: v.mode ?? v.label, cost: jobCost(v, RECREATE_TEMPLATE.seconds) }))}
             onClose={() => setRecreateOpen(false)}
-            onRecreate={(photos, roles) => {
+            onRecreate={(photos, roles, qualityId) => {
               setRecreateBusy(true);
               setRecreateError(null);
               void (async () => {
@@ -435,7 +437,7 @@ function AppFeedInner() {
                   const res = await startJob({
                     data: {
                       tool: "clone",
-                      variant: "sd25-720",
+                      variant: qualityId,
                       imageUrl: urls[0],
                       imageUrls: urls,
                       mediaUrl: RECREATE_TEMPLATE.videoUrl,
@@ -450,7 +452,8 @@ function AppFeedInner() {
                       setRecreateOpen(false);
                       setPlansOpen(true);
                     } else {
-                      setRecreateError(res.message);
+                      // Message d'abonnement : même texte pour tous les utilisateurs, avec ou sans crédits.
+                      setRecreateError("Votre abonnement est bien actif, mais la génération est momentanément indisponible.\n\nVos crédits ne sont pas décomptés.\nRéessayez un peu plus tard. Si le problème dure, contactez-nous.");
                     }
                     return;
                   }
