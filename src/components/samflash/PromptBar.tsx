@@ -271,12 +271,24 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const { search } = useLocation();
   const currentProjectId = (search as any)?.project;
 
+  // Lit le forfait réel du compte (et non plus toujours « gratuit »).
+  const refreshAccess = async () => {
+    try {
+      const access = await checkAccess({ data: { mediaType: "image", seconds: 0 } });
+      const plan = (access as { planType?: unknown }).planType;
+      if (typeof plan === "string" && plan) setUserPlan(plan);
+    } catch {
+      /* silencieux : le forfait reste celui connu */
+    }
+  };
+
   useEffect(() => {
-    refreshAccess();
-    const onSubUpdated = () => refreshAccess();
+    void refreshAccess();
+    const onSubUpdated = () => void refreshAccess();
     window.addEventListener("subscription-updated", onSubUpdated);
     return () => window.removeEventListener("subscription-updated", onSubUpdated);
-  }, [refreshAccess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mémoire : restaure les derniers réglages utilisés.
   const restored = useRef(false);
