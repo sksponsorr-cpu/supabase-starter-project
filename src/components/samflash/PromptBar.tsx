@@ -271,14 +271,6 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const { search } = useLocation();
   const currentProjectId = (search as any)?.project;
 
-  const refreshAccess = useCallback(() => {
-    checkAccess({ data: { mediaType: "video", seconds: 0 } })
-      .then((res) => {
-        if (res?.planType) setUserPlan(res.planType);
-      })
-      .catch(() => {});
-  }, [checkAccess]);
-
   useEffect(() => {
     refreshAccess();
     const onSubUpdated = () => refreshAccess();
@@ -341,6 +333,30 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   }, [prefill?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cartes du mode vendeur : règle le type, le modèle et le mode vidéo, puis pré-remplit la saisie.
+  // Recréation depuis le modèle : prépare le compositeur existant et réutilise le moteur normal.
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("sf:clone-prefill");
+      if (!raw) return;
+      const d = JSON.parse(raw) as { photos?: string[]; photo?: string | null; prompt?: string };
+      const images = Array.isArray(d.photos) ? d.photos : d.photo ? [d.photo] : [];
+      if (!images.length || !d.prompt) return;
+      setMode("video");
+      setRes("720p");
+      setDur("30s");
+      setRatio("9:16");
+      setAttachedImages(images.slice(0, MAX_PHOTOS));
+      setCreatorSelection({ modelId: "seedance-2-5", mode: "reference_to_video", seconds: 30, active: true });
+      setText(d.prompt);
+      window.sessionStorage.removeItem("sf:clone-prefill");
+      window.setTimeout(() => inputRef.current?.focus(), 150);
+      toast.success("Modèle préparé : vérifie les paramètres puis lance la génération.");
+    } catch (error) {
+      console.error("Impossible de charger le modèle à recréer", error);
+      toast.error("Impossible de préparer le modèle vidéo.");
+    }
+  }, []);
+
   useEffect(() => {
     const onPreset = (e: Event) => {
       const d = (e as CustomEvent<{ text: string; mediaType: "image" | "video"; modelId?: string; videoMode?: VideoMode; images?: string[] }>).detail;
@@ -1018,4 +1034,4 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         )}
     </div>
   );
-}
+        }
