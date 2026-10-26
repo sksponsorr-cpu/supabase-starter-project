@@ -111,6 +111,41 @@ export function AiToolPage({
   const [media, setMedia] = useState<File | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [prompt, setPrompt] = useState("");
+  const [rightsOk, setRightsOk] = useState(false);
+  const [templateFiles, setTemplateFiles] = useState<File[]>([]);
+  // Préparation venant d'un modèle (bouton « Recréer ») : vidéo de référence + photo.
+  const [prefill] = useState<{ videoUrl: string; seconds: number; photo: string | null; photos?: string[]; prompt?: string } | null>(() => {
+    if (tool !== "clone" || typeof window === "undefined") return null;
+    try {
+      const raw = window.sessionStorage.getItem("sf:clone-prefill");
+      if (!raw) return null;
+      window.sessionStorage.removeItem("sf:clone-prefill");
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    if (!prefill) return;
+    setSeconds(prefill.seconds);
+    if (prefill.prompt) setPrompt(prefill.prompt);
+    const sources = prefill.photos ?? (prefill.photo ? [prefill.photo] : []);
+    if (sources.length) {
+      Promise.all(
+        sources.map((src) =>
+          fetch(src)
+            .then((r) => r.blob())
+            .then((b) => new File([b], "photo.jpg", { type: b.type || "image/jpeg" })),
+        ),
+      )
+        .then((files) => {
+          setTemplateFiles(files);
+          pickImage(files[0]);
+        })
+        .catch(() => toast.error("Photos non chargées. Ajoutez-les à nouveau."));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [orientation, setOrientation] = useState<"image" | "video">("image");
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
@@ -211,19 +246,23 @@ export function AiToolPage({
   };
 
   const submit = async () => {
-    if (!image || !media || busy) return;
+    if (!image || (!media && !prefill) || !rightsOk || busy) return;
     setResultUrl(null);
     setProgress(0);
     setPhase("uploading");
     try {
-      const imageUrl = await upload(image, "image");
-      const mediaUrl = await upload(media, mediaKind);
+      const imageUrls = templateFiles.length
+        ? await Promise.all(templateFiles.map((f) => upload(f, "image")))
+        : [await upload(image, "image")];
+      const imageUrl = imageUrls[0];
+      const mediaUrl = prefill && !media ? prefill.videoUrl : await upload(media as File, mediaKind);
       setPhase("starting");
       const res = await start({
         data: {
           tool,
           variant: variant.id,
           imageUrl,
+          imageUrls,
           mediaUrl,
           prompt: prompt.trim() || undefined,
           seconds,
@@ -371,6 +410,19 @@ export function AiToolPage({
             />
           </label>
 
+          <label className="flex items-start gap-3 rounded-2xl border border-border bg-card/40 p-4 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={rightsOk}
+              onChange={(e) => setRightsOk(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-foreground"
+            />
+            <span>
+              Je confirme que les personnes ou le produit sur ces photos m'appartiennent, ou qu'une personne m'a donné son accord
+              pour cette utilisation. Je suis responsable de ce contenu.
+            </span>
+          </label>
+
           <div className="fm-card rounded-2xl border border-border bg-card/40 p-4" style={{ animationDelay: "120ms" }}>
             <p className="text-sm text-muted-foreground">Coût estimé</p>
             <p className="mt-1 text-2xl font-semibold">{estimate !== null ? `${estimate.toFixed(1)} crédits` : "—"}</p>
@@ -379,7 +431,7 @@ export function AiToolPage({
 
           <button
             type="button"
-            disabled={!image || !media || busy}
+            disabled={!image || (!media && !prefill) || !rightsOk || busy}
             onClick={() => void submit()}
             className="fm-press flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-4 text-[16px] font-semibold text-background disabled:opacity-40"
           >
