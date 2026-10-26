@@ -9,14 +9,14 @@ import { X, Sparkles, Plus } from "lucide-react";
 type Props = {
   videoUrl: string;
   title: string;
-  /** Coût en crédits, affiché sur le bouton. */
-  cost: number;
+  /** Qualités proposées, avec leur coût en crédits. */
+  qualities: { id: string; label: string; cost: number }[];
   busy: boolean;
   /** Message d'erreur affiché dans la fenêtre (null si aucun). */
   error: string | null;
   onClose: () => void;
   /** Appelé avec les photos remplies et le nom du personnage pour chacune. */
-  onRecreate: (photoDataUrls: string[], roles: string[]) => void;
+  onRecreate: (photoDataUrls: string[], roles: string[], qualityId: string) => void;
 };
 
 const SLOTS = [
@@ -25,7 +25,9 @@ const SLOTS = [
   { label: "Personnage 3", placeholder: "ex. joueur Real" },
 ];
 
-export function TemplateRecreateModal({ videoUrl, title, cost, busy, error, onClose, onRecreate }: Props) {
+export function TemplateRecreateModal({ videoUrl, title, qualities, busy, error, onClose, onRecreate }: Props) {
+  const [qualityId, setQualityId] = useState(qualities[0]?.id ?? "");
+  const selected = qualities.find((q) => q.id === qualityId) ?? qualities[0];
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
   const [names, setNames] = useState<string[]>(["", "", ""]);
   const [confirmed, setConfirmed] = useState(false);
@@ -107,6 +109,21 @@ export function TemplateRecreateModal({ videoUrl, title, cost, busy, error, onCl
             ))}
           </div>
 
+          <p className="mt-5 text-sm font-medium">Qualité</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {qualities.map((q) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => setQualityId(q.id)}
+                className={`rounded-2xl border p-3 text-left ${q.id === qualityId ? "border-[#c8ff00] bg-[#1a1a28]" : "border-white/10 bg-[#141420]"}`}
+              >
+                <span className="block text-sm font-semibold">{q.label}</span>
+                <span className="block text-xs text-white/60">{q.cost} crédits</span>
+              </button>
+            ))}
+          </div>
+
           <label className="mt-4 flex items-start gap-3 rounded-2xl bg-[#1a1a28] p-3 text-xs text-white/70">
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#c8ff00]" />
             <span>Je confirme que ces photos sont les miennes, ou celles d'une personne qui m'a donné son accord.</span>
@@ -127,14 +144,15 @@ export function TemplateRecreateModal({ videoUrl, title, cost, busy, error, onCl
               onRecreate(
                 filledIndexes.map((i) => photos[i] as string),
                 filledIndexes.map((i) => names[i].trim() || SLOTS[i].label),
+                selected?.id ?? "",
               )
             }
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#c8ff00] py-4 text-base font-bold text-black transition-transform active:scale-[0.98] disabled:opacity-40"
           >
-            <Sparkles className="h-5 w-5" /> {busy ? "Envoi en cours…" : `Recréer · ${cost} crédits`}
+            <Sparkles className="h-5 w-5" /> {busy ? "Envoi en cours…" : `Recréer · ${selected?.cost ?? 0} crédits`}
           </button>
         </div>
       </div>
     </div>
   );
-      }
+}
