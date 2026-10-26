@@ -7,6 +7,7 @@ export const Route = createFileRoute("/remplacement-personnages")({
     <AiToolPage
       openToAll
       tool="clone"
+      variantProvider="seedance"
       title="Remplacer les personnages"
       description="Gardez la scène, les mouvements et le rythme du modèle. Remplacez seulement les personnages par ceux de vos photos."
       mediaKind="video"
