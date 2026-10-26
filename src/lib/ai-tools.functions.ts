@@ -116,6 +116,7 @@ export const startAiJob = createServerFn({ method: "POST" })
         tool: z.enum(["avatar", "clone"]),
         variant: z.string().min(1).max(30),
         imageUrl: z.string().url().max(500),
+        imageUrls: z.array(z.string().url().max(500)).max(3).optional(),
         mediaUrl: z.string().url().max(500),
         prompt: z.string().max(500).optional(),
         seconds: z.number().min(0.5).max(60),
@@ -137,9 +138,19 @@ export const startAiJob = createServerFn({ method: "POST" })
       return { ok: false as const, message: `La vidéo doit durer entre ${CLONE_MIN_SECONDS} et ${CLONE_MAX_SECONDS} secondes.` };
     }
 
+    // Seedance 2.0 accepte au maximum 15 secondes ; Seedance 2.5 jusqu'à 30.
+    if (variant.provider === "seedance" && variant.model.endsWith("seedance-2") && data.seconds > 15) {
+      return { ok: false as const, message: "Seedance 2.0 accepte les vidéos jusqu'à 15 secondes. Choisissez Seedance 2.5 ou raccourcissez la vidéo." };
+    }
+
     // Les fichiers doivent venir de notre propre stockage.
     const base = (process.env.CLOUDFLARE_R2_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
-    if (!base || !data.imageUrl.startsWith(`${base}/`) || !data.mediaUrl.startsWith(`${base}/`)) {
+    if (
+      !base ||
+      !data.imageUrl.startsWith(`${base}/`) ||
+      !data.mediaUrl.startsWith(`${base}/`) ||
+      (data.imageUrls ?? []).some((u) => !u.startsWith(`${base}/`))
+    ) {
       return { ok: false as const, message: "Fichier non valide. Réessayez l'envoi." };
     }
 
@@ -177,10 +188,23 @@ export const startAiJob = createServerFn({ method: "POST" })
       return { ok: false as const, message: "Crédits insuffisants. Rechargez votre compte depuis Abonnement." };
     }
 
+    const DEFAULT_SWAP_PROMPT =
+      "Remplace les personnages par la personne de la photo. Garde exactement la même scène, le même décor, les mêmes mouvements et la même synchronisation.";
     const input =
       tool === "avatar"
         ? { image_url: data.imageUrl, audio_url: data.mediaUrl, prompt: data.prompt ?? "" }
-        : {
+        : variant.provider === "seedance"
+          ? {
+              prompt: data.prompt?.trim() || DEFAULT_SWAP_PROMPT,
+              resolution: variant.mode ?? "720p",
+              aspect_ratio: "adaptive",
+              duration: Math.min(variant.model.endsWith("seedance-2") ? 15 : 30, Math.max(4, Math.round(data.seconds))),
+              generate_audio: true,
+              nsfw_checker: true,
+              reference_video_urls: [data.mediaUrl],
+              reference_image_urls: data.imageUrls?.length ? data.imageUrls : [data.imageUrl],
+            }
+          : {
             prompt: data.prompt ?? "",
             input_urls: [data.imageUrl],
             video_urls: [data.mediaUrl],
