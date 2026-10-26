@@ -32,6 +32,7 @@ import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs"
 import { takePrefill } from "@/lib/prefill";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
 import { TemplateRecreateModal } from "@/components/samflash/TemplateRecreateModal";
+import { presignAiUpload } from "@/lib/ai-tools.functions";
 import { RECREATE_TEMPLATE } from "@/lib/templates";
 import { EmptyState } from "@/components/samflash/EmptyState";
 import { CommunityInvite } from "@/components/samflash/CommunityInvite";
@@ -86,6 +87,7 @@ function AppFeedInner() {
   const [visibleCount, setVisibleCount] = useState(12);
   const navigate = useNavigate();
   const [recreateOpen, setRecreateOpen] = useState(false);
+  const presignPhoto = useServerFn(presignAiUpload);
   const sellerMode = useSellerMode();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
@@ -403,22 +405,40 @@ function AppFeedInner() {
             title={RECREATE_TEMPLATE.title}
             onClose={() => setRecreateOpen(false)}
             onRecreate={(photos, roles) => {
-              sessionStorage.setItem(
-                "sf:clone-prefill",
-                JSON.stringify({
-                  videoUrl: RECREATE_TEMPLATE.videoUrl,
-                  seconds: RECREATE_TEMPLATE.seconds,
-                  photo: photos[0] ?? null,
-                  photos,
-                  prompt: [
-                    "Remplace les personnages de la vidéo par les personnes des photos de référence, dans cet ordre.",
-                    ...roles.map((role, i) => `Photo ${i + 1} = ${role}.`),
-                    "Garde exactement la même scène, le même décor, les mêmes mouvements, le même rythme et la même synchronisation.",
-                  ].join(" ").slice(0, 500),
-                }),
-              );
-              setRecreateOpen(false);
-              void navigate({ to: "/remplacement-personnages" });
+              void (async () => {
+                try {
+                  // Les photos partent sur le stockage (pas dans sessionStorage, trop petit).
+                  const urls = await Promise.all(
+                    photos.map(async (dataUrl, i) => {
+                      const blob = await (await fetch(dataUrl)).blob();
+                      const file = new File([blob], `photo-${i + 1}.jpg`, { type: blob.type || "image/jpeg" });
+                      const p = await presignPhoto({ data: { kind: "image", type: file.type, size: file.size } });
+                      if (!p.ok) throw new Error(p.message);
+                      const put = await fetch(p.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+                      if (!put.ok) throw new Error("upload");
+                      return p.publicUrl as string;
+                    }),
+                  );
+                  sessionStorage.setItem(
+                    "sf:clone-prefill",
+                    JSON.stringify({
+                      videoUrl: RECREATE_TEMPLATE.videoUrl,
+                      seconds: RECREATE_TEMPLATE.seconds,
+                      photo: urls[0] ?? null,
+                      photos: urls,
+                      prompt: [
+                        "Remplace les personnages de la vidéo par les personnes des photos de référence, dans cet ordre.",
+                        ...roles.map((role, i) => `Photo ${i + 1} = ${role}.`),
+                        "Garde exactement la même scène, le même décor, les mêmes mouvements, le même rythme et la même synchronisation.",
+                      ].join(" ").slice(0, 500),
+                    }),
+                  );
+                  setRecreateOpen(false);
+                  void navigate({ to: "/remplacement-personnages" });
+                } catch {
+                  toast.error("Photos non envoyées. Réessayez.");
+                }
+              })();
             }}
           />
         )}
