@@ -32,7 +32,8 @@ import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs"
 import { takePrefill } from "@/lib/prefill";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
 import { TemplateRecreateModal } from "@/components/samflash/TemplateRecreateModal";
-import { presignAiUpload } from "@/lib/ai-tools.functions";
+import { presignAiUpload, startAiJob } from "@/lib/ai-tools.functions";
+import { jobCost, variantsFor } from "@/lib/ai-tools-pricing";
 import { RECREATE_TEMPLATE } from "@/lib/templates";
 import { EmptyState } from "@/components/samflash/EmptyState";
 import { CommunityInvite } from "@/components/samflash/CommunityInvite";
@@ -88,6 +89,8 @@ function AppFeedInner() {
   const navigate = useNavigate();
   const [recreateOpen, setRecreateOpen] = useState(false);
   const presignPhoto = useServerFn(presignAiUpload);
+  const startJob = useServerFn(startAiJob);
+  const [recreateBusy, setRecreateBusy] = useState(false);
   const sellerMode = useSellerMode();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
@@ -403,11 +406,13 @@ function AppFeedInner() {
           <TemplateRecreateModal
             videoUrl={RECREATE_TEMPLATE.videoUrl}
             title={RECREATE_TEMPLATE.title}
+            busy={recreateBusy}
+            cost={jobCost(variantsFor("clone").find((v) => v.id === "sd25-720")!, RECREATE_TEMPLATE.seconds)}
             onClose={() => setRecreateOpen(false)}
             onRecreate={(photos, roles) => {
+              setRecreateBusy(true);
               void (async () => {
                 try {
-                  // Les photos partent sur le stockage (pas dans sessionStorage, trop petit).
                   const urls = await Promise.all(
                     photos.map(async (dataUrl, i) => {
                       const blob = await (await fetch(dataUrl)).blob();
@@ -419,24 +424,33 @@ function AppFeedInner() {
                       return p.publicUrl as string;
                     }),
                   );
-                  sessionStorage.setItem(
-                    "sf:clone-prefill",
-                    JSON.stringify({
-                      videoUrl: RECREATE_TEMPLATE.videoUrl,
+                  const prompt = [
+                    "Remplace les personnages de la vidéo par les personnes des photos de référence, dans cet ordre.",
+                    ...roles.map((role, i) => `Photo ${i + 1} = ${role}.`),
+                    "Garde exactement la même scène, le même décor, les mêmes mouvements, le même rythme et la même synchronisation.",
+                  ].join(" ").slice(0, 500);
+                  const res = await startJob({
+                    data: {
+                      tool: "clone",
+                      variant: "sd25-720",
+                      imageUrl: urls[0],
+                      imageUrls: urls,
+                      mediaUrl: RECREATE_TEMPLATE.videoUrl,
+                      prompt,
                       seconds: RECREATE_TEMPLATE.seconds,
-                      photo: urls[0] ?? null,
-                      photos: urls,
-                      prompt: [
-                        "Remplace les personnages de la vidéo par les personnes des photos de référence, dans cet ordre.",
-                        ...roles.map((role, i) => `Photo ${i + 1} = ${role}.`),
-                        "Garde exactement la même scène, le même décor, les mêmes mouvements, le même rythme et la même synchronisation.",
-                      ].join(" ").slice(0, 500),
-                    }),
-                  );
+                      orientation: "image",
+                    },
+                  });
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
+                  toast.success("Génération lancée. Les crédits sont débités.");
                   setRecreateOpen(false);
-                  void navigate({ to: "/remplacement-personnages" });
                 } catch {
-                  toast.error("Photos non envoyées. Réessayez.");
+                  toast.error("Envoi impossible. Réessayez.");
+                } finally {
+                  setRecreateBusy(false);
                 }
               })();
             }}
