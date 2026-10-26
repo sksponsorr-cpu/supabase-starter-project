@@ -7,6 +7,7 @@ export const Route = createFileRoute("/clonage-video")({
     <AiToolPage
       openToAll
       tool="clone"
+      variantProvider="kling"
       title="Clonage vidéo"
       description="Donnez les mouvements d'une vidéo à un autre personnage à partir d'une image."
       mediaKind="video"
