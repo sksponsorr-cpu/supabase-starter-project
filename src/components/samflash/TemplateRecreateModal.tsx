@@ -10,7 +10,7 @@ type Props = {
   videoUrl: string;
   title: string;
   /** Qualités proposées, avec leur coût en crédits. */
-  qualities: { id: string; label: string; cost: number }[];
+  qualities: { id: string; label: string; cost: number; oldCost: number }[];
   busy: boolean;
   /** Message d'erreur affiché dans la fenêtre (null si aucun). */
   error: string | null;
@@ -119,7 +119,10 @@ export function TemplateRecreateModal({ videoUrl, title, qualities, busy, error,
                 className={`rounded-2xl border p-3 text-left ${q.id === qualityId ? "border-[#c8ff00] bg-[#1a1a28]" : "border-white/10 bg-[#141420]"}`}
               >
                 <span className="block text-sm font-semibold">{q.label}</span>
-                <span className="block text-xs text-white/60">{q.cost} crédits</span>
+                <span className="block text-xs text-white/60">
+                  {q.oldCost !== q.cost && <s className="mr-1 text-white/40">{q.oldCost}</s>}
+                  <span className="font-semibold text-[#c8ff00]">{q.cost} crédits</span>
+                </span>
               </button>
             ))}
           </div>
