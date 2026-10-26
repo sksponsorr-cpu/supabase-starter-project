@@ -10,6 +10,8 @@ export type AiVariant = {
   /** Prix Kie.ai en crédits par seconde (documentation Kie.ai). */
   kieRate: number;
   mode?: "720p" | "1080p";
+  /** kling : Motion Control ; seedance : Seedance 2.5 (référence vidéo + image). */
+  provider?: "kling" | "seedance";
 };
 
 export const AVATAR_VARIANTS: AiVariant[] = [
@@ -18,6 +20,11 @@ export const AVATAR_VARIANTS: AiVariant[] = [
 ];
 
 export const CLONE_VARIANTS: AiVariant[] = [
+  // Tarifs Kie par seconde, repris de creator-pricing.ts (PER_SECOND_KIE).
+  { id: "sd25-720", label: "Seedance 2.5 720p", hint: "Jusqu'à 30 secondes", model: "bytedance/seedance-2-5", kieRate: 63, mode: "720p", provider: "seedance" },
+  { id: "sd25-1080", label: "Seedance 2.5 1080p", hint: "Meilleure qualité, jusqu'à 30 secondes", model: "bytedance/seedance-2-5", kieRate: 158, mode: "1080p", provider: "seedance" },
+  { id: "sd20-720", label: "Seedance 2.0 720p", hint: "Jusqu'à 15 secondes", model: "bytedance/seedance-2", kieRate: 41, mode: "720p", provider: "seedance" },
+  { id: "sd20-1080", label: "Seedance 2.0 1080p", hint: "Meilleure qualité, jusqu'à 15 secondes", model: "bytedance/seedance-2", kieRate: 102, mode: "1080p", provider: "seedance" },
   { id: "k26-720", label: "Standard 720p", hint: "Kling 2.6", model: "kling-2.6/motion-control", kieRate: 11, mode: "720p" },
   { id: "k26-1080", label: "Standard 1080p", hint: "Kling 2.6", model: "kling-2.6/motion-control", kieRate: 18, mode: "1080p" },
   { id: "k30-720", label: "Premium 720p", hint: "Kling 3.0", model: "kling-3.0/motion-control", kieRate: 20, mode: "720p" },
