@@ -21,6 +21,7 @@ export const AVATAR_VARIANTS: AiVariant[] = [
 
 export const CLONE_VARIANTS: AiVariant[] = [
   // Tarifs Kie par seconde, repris de creator-pricing.ts (PER_SECOND_KIE).
+  { id: "sd25-480", label: "Seedance 2.5 480p", hint: "Le moins cher, jusqu'à 30 secondes", model: "bytedance/seedance-2-5", kieRate: 28, mode: "480p", provider: "seedance" },
   { id: "sd25-720", label: "Seedance 2.5 720p", hint: "Jusqu'à 30 secondes", model: "bytedance/seedance-2-5", kieRate: 63, mode: "720p", provider: "seedance" },
   { id: "sd25-1080", label: "Seedance 2.5 1080p", hint: "Meilleure qualité, jusqu'à 30 secondes", model: "bytedance/seedance-2-5", kieRate: 158, mode: "1080p", provider: "seedance" },
   { id: "sd20-720", label: "Seedance 2.0 720p", hint: "Jusqu'à 15 secondes", model: "bytedance/seedance-2", kieRate: 41, mode: "720p", provider: "seedance" },
