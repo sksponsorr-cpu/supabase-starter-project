@@ -411,7 +411,10 @@ function AppFeedInner() {
             error={recreateError}
             qualities={variantsFor("clone")
               .filter((v) => v.provider === "seedance" && v.model === "bytedance/seedance-2-5")
-              .map((v) => ({ id: v.id, label: v.mode ?? v.label, cost: jobCost(v, RECREATE_TEMPLATE.seconds) }))}
+              .map((v) => {
+                const oldCost = Math.ceil(jobCost(v, RECREATE_TEMPLATE.seconds));
+                return { id: v.id, label: v.mode ?? v.label, oldCost, cost: oldCost - 10 };
+              })}
             onClose={() => setRecreateOpen(false)}
             onRecreate={(photos, roles, qualityId) => {
               setRecreateBusy(true);
@@ -443,6 +446,7 @@ function AppFeedInner() {
                       mediaUrl: RECREATE_TEMPLATE.videoUrl,
                       prompt,
                       seconds: RECREATE_TEMPLATE.seconds,
+                      templateId: RECREATE_TEMPLATE.id,
                       orientation: "image",
                     },
                   });
