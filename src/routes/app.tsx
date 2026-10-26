@@ -30,6 +30,8 @@ import { OnboardingSurvey } from "@/components/samflash/OnboardingSurvey";
 import { notifOn, optionOn, publishPrefs, usePrefs, vibrate } from "@/lib/prefs";
 import { takePrefill } from "@/lib/prefill";
 import { MediaViewer } from "@/components/samflash/MediaViewer";
+import { TemplateRecreateModal } from "@/components/samflash/TemplateRecreateModal";
+import { RECREATE_TEMPLATE } from "@/lib/templates";
 import { EmptyState } from "@/components/samflash/EmptyState";
 import { CommunityInvite } from "@/components/samflash/CommunityInvite";
 import logoAsset from "@/assets/sam-flash-logo.png";
@@ -65,12 +67,6 @@ function AppFeed() {
   const welcomeOrderId = search?.welcome_order;
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Le bouton WhatsApp ouvre les Paramètres (section « Signaler un problème »).
-  useEffect(() => {
-    const open = () => setSettingsOpen(true);
-    window.addEventListener("sf:open-report", open);
-    return () => window.removeEventListener("sf:open-report", open);
-  }, []);
   const [plansOpen, setPlansOpen] = useState(false);
   const [cancelFn, setCancelFn] = useState<(() => void) | null>(null);
   const [pending, setPending] = useState<{ prompt: string; mediaType: "image" | "video" } | null>(
@@ -79,6 +75,7 @@ function AppFeed() {
   const [viewer, setViewer] = useState<Generation | null>(null);
   const [visibleCount, setVisibleCount] = useState(12);
   const navigate = useNavigate();
+  const [recreateOpen, setRecreateOpen] = useState(false);
   const sellerMode = useSellerMode();
   const { t } = useI18n();
   const { session, loading, profile } = useAuth();
@@ -270,6 +267,13 @@ function AppFeed() {
           </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-card/40">
+            <button type="button" onClick={() => setRecreateOpen(true)} className="block h-full w-full text-left">
+              <video src={RECREATE_TEMPLATE.videoUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+              <span className="absolute left-2 top-2 rounded-full bg-[#c8ff00] px-2 py-0.5 text-[10px] font-bold text-black">MODÈLE</span>
+              <span className="absolute bottom-2 left-2 right-2 text-xs font-medium text-white">{RECREATE_TEMPLATE.title}</span>
+            </button>
+          </div>
           {pending && (
             <PendingCard
               prompt={pending.prompt}
@@ -381,6 +385,31 @@ function AppFeed() {
         <OnboardingSurvey enabled={!!session} />
         {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
         {plansOpen && <PlansSheet onClose={() => setPlansOpen(false)} />}
+        {recreateOpen && (
+          <TemplateRecreateModal
+            videoUrl={RECREATE_TEMPLATE.videoUrl}
+            title={RECREATE_TEMPLATE.title}
+            onClose={() => setRecreateOpen(false)}
+            onRecreate={(photos, roles) => {
+              sessionStorage.setItem(
+                "sf:clone-prefill",
+                JSON.stringify({
+                  videoUrl: RECREATE_TEMPLATE.videoUrl,
+                  seconds: RECREATE_TEMPLATE.seconds,
+                  photo: photos[0] ?? null,
+                  photos,
+                  prompt: [
+                    "Remplace les personnages de la vidéo par les personnes des photos de référence, dans cet ordre.",
+                    ...roles.map((role, i) => `Photo ${i + 1} = ${role}.`),
+                    "Garde exactement la même scène, le même décor, les mêmes mouvements, le même rythme et la même synchronisation.",
+                  ].join(" ").slice(0, 500),
+                }),
+              );
+              setRecreateOpen(false);
+              void navigate({ to: "/remplacement-personnages" });
+            }}
+          />
+        )}
         {viewer && (
           <MediaViewer
             item={viewer}
