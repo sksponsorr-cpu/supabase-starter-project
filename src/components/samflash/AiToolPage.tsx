@@ -128,6 +128,15 @@ export function AiToolPage({
   useEffect(() => {
     if (!prefill) return;
     setSeconds(prefill.seconds);
+    // Durée réelle de la vidéo du modèle (lue dans le fichier, pas une valeur fixe).
+    const probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () => {
+      if (Number.isFinite(probe.duration) && probe.duration > 0) {
+        setSeconds(Math.ceil(probe.duration * 10) / 10);
+      }
+    };
+    probe.src = prefill.videoUrl;
     if (prefill.prompt) setPrompt(prefill.prompt);
     const sources = prefill.photos ?? (prefill.photo ? [prefill.photo] : []);
     if (sources.length) {
@@ -379,6 +388,11 @@ export function AiToolPage({
                   <span className="block text-sm font-medium">{v.label}</span>
                   <span className="block text-xs text-muted-foreground">{v.hint}</span>
                   <span className="mt-1 block text-xs">{costPerSecond(v).toFixed(2)} crédit / seconde</span>
+                  {seconds > 0 && (
+                    <span className="mt-1 block text-sm font-semibold text-foreground">
+                      {jobCost(v, seconds).toFixed(1)} crédits pour {seconds.toFixed(0)} s
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
