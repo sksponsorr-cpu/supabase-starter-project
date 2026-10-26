@@ -1046,4 +1046,4 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         )}
     </div>
   );
-        }
+      }
