@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Download, ImagePlus, Loader2, Music, Trash2, Video, XCircle } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Music, Trash2, Video, XCircle } from "lucide-react";
 import { aiAccess } from "@/lib/chat.functions";
 import {
   getAiJob,
@@ -80,6 +80,7 @@ const MOTION_CSS = `
 
 export function AiToolPage({
   openToAll = false,
+  variantProvider,
   tool,
   title,
   description,
@@ -89,6 +90,8 @@ export function AiToolPage({
   promptPlaceholder,
 }: {
   openToAll?: boolean;
+  /** Limite les modèles proposés : « seedance » (remplacement) ou « kling » (clonage). */
+  variantProvider?: "kling" | "seedance";
   tool: AiTool;
   title: string;
   description: string;
@@ -97,7 +100,9 @@ export function AiToolPage({
   imageLabel: string;
   promptPlaceholder: string;
 }) {
-  const variants = variantsFor(tool);
+  const variants = variantProvider
+    ? variantsFor(tool).filter((v) => v.provider === variantProvider)
+    : variantsFor(tool);
   const checkAccess = useServerFn(aiAccess);
   const presign = useServerFn(presignAiUpload);
   const start = useServerFn(startAiJob);
@@ -119,7 +124,6 @@ export function AiToolPage({
     try {
       const raw = window.sessionStorage.getItem("sf:clone-prefill");
       if (!raw) return null;
-      window.sessionStorage.removeItem("sf:clone-prefill");
       return JSON.parse(raw);
     } catch {
       return null;
@@ -150,6 +154,7 @@ export function AiToolPage({
         .then((files) => {
           setTemplateFiles(files);
           pickImage(files[0]);
+          window.sessionStorage.removeItem("sf:clone-prefill");
         })
         .catch(() => toast.error("Photos non chargées. Ajoutez-les à nouveau."));
     }
@@ -256,6 +261,10 @@ export function AiToolPage({
 
   const submit = async () => {
     if (!image || (!media && !prefill) || !rightsOk || busy) return;
+    if (templateFiles.length > 1 && variant.provider !== "seedance") {
+      toast.error("Plusieurs photos : choisissez un modèle Seedance pour garder chaque personnage.");
+      return;
+    }
     setResultUrl(null);
     setProgress(0);
     setPhase("uploading");
@@ -485,17 +494,17 @@ export function AiToolPage({
 
         {resultUrl && (
           <div className="fm-card mt-6 space-y-3 rounded-2xl border border-border bg-card/40 p-4">
-            <video src={resultUrl} controls playsInline className="fm-zoom mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl" />
-            <a
-              href={resultUrl}
-              target="_blank"
-              rel="noreferrer"
-              download
-              className="flex items-center justify-center gap-2 rounded-full bg-secondary py-3 text-sm font-medium"
-            >
-              <Download className="h-4 w-4" /> Télécharger
-            </a>
-            <p className="text-center text-xs text-muted-foreground">Disponible pendant 14 jours : pensez à la télécharger.</p>
+            <video
+              src={resultUrl}
+              controls
+              controlsList="nodownload noremoteplayback nofullscreen"
+              disablePictureInPicture
+              disableRemotePlayback
+              onContextMenu={(e) => e.preventDefault()}
+              playsInline
+              className="fm-zoom mx-auto max-h-[75vh] w-full rounded-3xl bg-black object-contain shadow-2xl"
+            />
+            <p className="text-center text-xs text-muted-foreground">Résultat disponible dans votre liste de créations.</p>
           </div>
         )}
 
