@@ -1,4 +1,5 @@
 import { CREATOR_MODELS } from "@/lib/creator-models";
+import { SEEDANCE_PROMPT_GUIDE } from "@/lib/mcp/seedance-prompt-guide";
 
 type Json = Record<string, unknown>;
 export type McpTool = {
@@ -175,16 +176,23 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "generate_video",
-    description: "Génère une vidéo avec un modèle Sam Flash (voir list_models). Débite les crédits selon le modèle, la durée et la résolution.",
+    description:
+      "Génère une vidéo avec un modèle Sam Flash (voir list_models). Pour Seedance 2.5 : une photo de départ (image_url), ou jusqu'à 3 photos de personnages (image_urls). Quand il y a plusieurs photos, le texte doit dire dans l'ordre qui est qui (Photo 1 = ..., Photo 2 = ...). Lis get_seedance_prompt_guide avant d'écrire le prompt. Débite les crédits selon le modèle, la durée et la résolution.",
     inputSchema: {
       type: "object",
       properties: {
         prompt: { type: "string", maxLength: 2000 },
-        model: { type: "string", enum: CREATOR_MODELS.filter((m) => m.live).map((m) => m.id) },
+        model: { type: "string", enum: ALL_MODEL_IDS },
         duration_seconds: { type: "number" },
         resolution: { type: "string", enum: ["480p", "720p", "1080p"] },
         aspect_ratio: { type: "string", enum: ["9:16", "2:3", "3:4", "1:1", "16:9"] },
         image_url: { type: "string", description: "Lien public d'une photo de départ (facultatif)." },
+        image_urls: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 3,
+          description: "Liens publics de 1 à 3 photos de personnages, dans l'ordre du prompt (Seedance uniquement).",
+        },
       },
       required: ["prompt", "model"],
     },
@@ -197,21 +205,39 @@ export const MCP_TOOLS: McpTool[] = [
       if (!model.durations.includes(seconds)) {
         return { error: `Durée non prise en charge par ${model.label}. Choix : ${model.durations.join(", ")} s.` };
       }
-      const img = str(args.image_url, 2000) || null;
-      const cost = await estimateCost({ mediaType: "video", model: model.id, seconds, resolution: str(args.resolution, 8) || "720p" });
+      const resolution = str(args.resolution, 8) || "720p";
+      if (!(model.resolutions as string[]).includes(resolution)) {
+        return { error: `Résolution ${resolution} non prise en charge par ${model.label}. Choix : ${model.resolutions.join(", ")}.` };
+      }
+      const list = Array.isArray(args.image_urls)
+        ? args.image_urls.filter((u): u is string => typeof u === "string").map((u) => u.trim().slice(0, 2000)).filter(Boolean).slice(0, 3)
+        : [];
+      const single = str(args.image_url, 2000);
+      const images = list.length > 0 ? list : single ? [single] : [];
+      if (images.length > 1 && !model.id.startsWith("seedance")) {
+        return { error: `${model.label} accepte une seule photo. Plusieurs photos : utilise Seedance 2.5.` };
+      }
+      const cost = await estimateCost({ mediaType: "video", model: model.id, seconds, resolution });
       return launch(userId, {
         prompt,
         mediaType: "video",
         model: model.id,
-        resolution: str(args.resolution, 8) || "720p",
+        resolution,
         duration: `${seconds}s`,
         aspectRatio: str(args.aspect_ratio, 8) || "9:16",
-        imageUrl: img,
-        imageUrls: img ? [img] : [],
-        creatorMode: img ? "image" : "text",
+        imageUrl: images[0] ?? null,
+        imageUrls: images,
+        creatorMode: images.length > 1 ? "reference" : images.length === 1 ? "image" : "text",
         project_id: null,
       }, cost);
     },
+  },
+  {
+    name: "get_seedance_prompt_guide",
+    description:
+      "Guide d'écriture des prompts Seedance 2.5 (structure en blocs, tags @photo, mouvement, lumière, continuité). À lire avant chaque generate_video avec Seedance.",
+    inputSchema: { type: "object", properties: {} },
+    run: async () => ({ guide: SEEDANCE_PROMPT_GUIDE }),
   },
   {
     name: "search_creations",
