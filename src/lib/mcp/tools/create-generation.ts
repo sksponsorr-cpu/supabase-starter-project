@@ -6,13 +6,13 @@ export default defineTool({
   name: "create_generation",
   title: "Créer une génération",
   description:
-    "Enregistre une nouvelle demande de génération (prompt, type de média, résolution, durée, ratio) pour le compte connecté.",
+    "Enregistre seulement une demande de génération dans l'historique du compte. Ne lance PAS la génération et ne débite PAS de crédits : pour générer, utiliser le serveur d'API (generate_video).",
   inputSchema: {
     prompt: z.string().trim().describe("Description de l'image ou de la vidéo à créer."),
     media_type: z.enum(["image", "video"]).describe("Type de média demandé."),
     resolution: z.enum(["480p", "720p", "1080p"]).optional().describe("Résolution souhaitée."),
-    duration: z.enum(["6s", "10s"]).optional().describe("Durée pour une vidéo."),
-    aspect_ratio: z.enum(["2:3", "1:1", "16:9"]).optional().describe("Format d'image."),
+    duration: z.enum(["4s", "5s", "6s", "8s", "10s", "15s", "20s", "30s"]).optional().describe("Durée pour une vidéo."),
+    aspect_ratio: z.enum(["9:16", "2:3", "3:4", "1:1", "16:9"]).optional().describe("Format d'image."),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   handler: async (input, ctx) => {
