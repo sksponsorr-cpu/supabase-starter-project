@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { SellerFaceLibrary } from "@/components/samflash/SellerFaceLibrary";
 import { generateMedia } from "@/lib/generation.functions";
+import { generateAdCopy } from "@/lib/ad-copy.functions";
 import { toast } from "@/lib/toast";
 
 export type GuidedFeature = {
@@ -31,6 +32,42 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
   const [text, setText] = useState(feature.starter);
   const [busy, setBusy] = useState(false);
   const run = useServerFn(generateMedia);
+  const writeCopy = useServerFn(generateAdCopy);
+  const [productName, setProductName] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [benefits, setBenefits] = useState("");
+  const [audience, setAudience] = useState("");
+  const [objective, setObjective] = useState("");
+  const [writing, setWriting] = useState(false);
+
+  const fillCopy = async () => {
+    if (productName.trim().length < 2) {
+      toast.error("Donne d'abord le nom du produit.");
+      return;
+    }
+    setWriting(true);
+    try {
+      const res = await writeCopy({
+        data: {
+          product: productName,
+          price,
+          description,
+          benefits,
+          audience,
+          objective,
+          language: "français",
+          format: feature.mediaType === "video" ? "vidéo publicitaire" : "image promotionnelle",
+        },
+      });
+      if (res.ok) setText(res.text);
+      else toast.error(res.message);
+    } catch {
+      toast.error("Le texte n'a pas pu être écrit. Réessaie dans un instant.");
+    } finally {
+      setWriting(false);
+    }
+  };
   const current = steps[step];
 
   const readFile = (cb: (s: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +142,20 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
           </div>
         )}
         {current === "Texte" && (
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} className="w-full rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Nom du produit" maxLength={120} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+              <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Prix (ex. 15 000 FC)" maxLength={60} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description du produit" rows={2} maxLength={800} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+              <input value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder="Avantages (séparés par des virgules)" maxLength={500} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+              <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Public cible (ex. mamans à Kinshasa)" maxLength={200} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+              <input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Objectif (ex. vendre, faire connaître)" maxLength={200} className="rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+            </div>
+            <button type="button" disabled={writing} onClick={() => void fillCopy()} className="w-full rounded-full border border-primary py-3 text-sm font-semibold text-primary disabled:opacity-40">
+              {writing ? "Rédaction…" : "Écrire le texte avec l'IA"}
+            </button>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="w-full rounded-2xl border border-border bg-card p-3 text-sm outline-none" />
+          </div>
         )}
         {current === "Lancer" && (
           <div className="space-y-3 text-sm text-muted-foreground">
