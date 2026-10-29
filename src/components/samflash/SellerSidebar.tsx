@@ -10,12 +10,12 @@ type Item = { label: string; icon: React.ElementType; to?: string; soon?: boolea
 const ITEMS: Item[] = [
   { label: "Accueil", icon: Home, to: "/vendeur" },
   { label: "Créative AI", icon: Wand2, to: "/vendeur" },
-  { label: "Pub Track", icon: BarChart3, soon: true },
-  { label: "Motion design", icon: Sparkles, soon: true },
+  { label: "Pub Track", icon: BarChart3, to: "/pub-track" },
+  { label: "Motion design", icon: Sparkles, to: "/motion-design" },
   { label: "Voix off", icon: Mic, to: "/voix-off" },
   { label: "Montage", icon: Scissors, soon: true },
   { label: "Créer ma boutique", icon: Store, to: "/boutique" },
-  { label: "Expert marketing", icon: Users, soon: true },
+  { label: "Expert marketing", icon: Users, to: "/expert-marketing" },
   { label: "Parrainage", icon: Users, to: "/parrainage" },
   { label: "Paramètres vendeur", icon: Settings, to: "/vendeur/parametres" },
 ];

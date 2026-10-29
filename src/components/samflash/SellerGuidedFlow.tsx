@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { SellerFaceLibrary } from "@/components/samflash/SellerFaceLibrary";
 import { generateMedia } from "@/lib/generation.functions";
 import { generateAdCopy } from "@/lib/ad-copy.functions";
+import { getShopOverview } from "@/lib/shop.functions";
 import { toast } from "@/lib/toast";
 
 export type GuidedFeature = {
@@ -33,6 +34,32 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const run = useServerFn(generateMedia);
   const writeCopy = useServerFn(generateAdCopy);
+  const loadShop = useServerFn(getShopOverview);
+  const [shopProducts, setShopProducts] = useState<{ id: string; name: string; price: string; description: string; image_url: string | null }[]>([]);
+
+  // Texte envoyé depuis Expert marketing : repris une seule fois, puis effacé.
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem("sf:expert-copy");
+      if (saved) {
+        setText(saved.slice(0, 2000));
+        window.sessionStorage.removeItem("sf:expert-copy");
+      }
+    } catch {
+      // Stockage indisponible : rien à reprendre.
+    }
+  }, []);
+
+  // Produits de la boutique du vendeur : réutilisés pour préparer la création. Vide si non connecté.
+  useEffect(() => {
+    if (!feature.needsProduct) return;
+    loadShop()
+      .then((res) => {
+        if (res.ok) setShopProducts(res.products.filter((p) => p.image_url) as typeof shopProducts);
+      })
+      .catch(() => setShopProducts([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [productName, setProductName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -137,7 +164,31 @@ export function SellerGuidedFlow({ feature, onClose }: Props) {
         {current === "Personne" && <SellerFaceLibrary onSelect={(s) => setPerson(s)} />}
         {current === "Produit" && (
           <div className="space-y-3">
+            {shopProducts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Depuis ma boutique</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {shopProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setProduct(p.image_url);
+                        setProductName(p.name);
+                        setPrice(p.price);
+                        setDescription(p.description);
+                      }}
+                      className="w-24 shrink-0 space-y-1 text-left"
+                    >
+                      <img src={p.image_url ?? ""} alt={p.name} className="h-24 w-24 rounded-xl object-cover" />
+                      <p className="truncate text-xs">{p.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {product && <img src={product} alt="Produit" className="max-h-48 rounded-2xl object-contain" />}
+            <p className="text-xs text-muted-foreground">Ou importe une photo :</p>
             <input type="file" accept="image/*" onChange={readFile(setProduct)} className="text-sm" />
           </div>
         )}
