@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Users, Copy } from "lucide-react";
+import { Users, Copy, Wand2 } from "lucide-react";
 import { askExpertMarketing } from "@/lib/expert-marketing.functions";
 import { toast } from "@/lib/toast";
 
@@ -83,6 +83,19 @@ function ExpertMarketingPage() {
             </button>
           </div>
           <div className="whitespace-pre-wrap rounded-2xl bg-card p-4 text-sm leading-relaxed">{answer}</div>
+          <Link
+            to="/vendeur"
+            onClick={() => {
+              try {
+                window.sessionStorage.setItem("sf:expert-copy", answer);
+              } catch {
+                // Stockage indisponible : le vendeur pourra copier le texte à la main.
+              }
+            }}
+            className="flex items-center justify-center gap-2 rounded-full border border-primary py-3 text-sm font-semibold text-primary"
+          >
+            <Wand2 className="h-4 w-4" /> Préparer une création avec ce texte
+          </Link>
         </section>
       )}
 
