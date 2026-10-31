@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Plus, Image as ImageIcon, Video, Smile, ArrowUp, Loader2, Sparkles, Mic, X, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
+import { getModelSwitches } from "@/lib/model-switches.functions";
 import { generateMedia, checkGenerationStatus, cancelGeneration, getVideoMaxSeconds } from "@/lib/generation.functions";
 import { launchLongVideo } from "@/lib/long-jobs.functions";
 import { getPublicCreditConfig } from "@/lib/credits-public.functions";
@@ -41,7 +42,7 @@ const FREE_UPGRADE_MESSAGE =
   "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.";
 
 /** Messages du serveur qui indiquent quoi faire (à conserver tels quels). */
-const KEEP_SERVER_MESSAGE = /réservée aux abonnés|limitées à|Crédits insuffisants|quota/i;
+const KEEP_SERVER_MESSAGE = /réservée aux abonnés|limitées à|Crédits insuffisants|quota|maintenance|indisponible/i;
 
 function isEngineBalanceError(message?: string | null): boolean {
   return !!message && /insufficient|balance|payment required|402|solde insuffisant|fonds insuffisants/i.test(message);
@@ -263,6 +264,16 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   };
 
   const generate = useServerFn(generateMedia);
+  const fetchModelSwitches = useServerFn(getModelSwitches);
+  const [disabledModels, setDisabledModels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void fetchModelSwitches()
+      .then((r) => {
+        if (r.ok) setDisabledModels(r.disabled);
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchModelSwitches]);
   const checkStatus = useServerFn(checkGenerationStatus);
   const cancelGen = useServerFn(cancelGeneration);
   const enhance = useServerFn(enhancePrompt);
@@ -787,11 +798,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
                   onChange={(e) => setCreatorSelection({ ...getCreatorSelection(), modelId: e.target.value })}
                   className="max-w-[6.5rem] truncate bg-transparent text-xs font-medium outline-none"
                 >
-                  {CREATOR_MODELS.filter((m) => m.live).map((m) => (
-                    <option key={m.id} value={m.id} className="text-black">
-                      {m.label}
-                    </option>
-                  ))}
+                  {CREATOR_MODELS.filter((m) => m.live).map((m) => {
+                    const off = Object.prototype.hasOwnProperty.call(disabledModels, m.id);
+                    return (
+                      <option key={m.id} value={m.id} disabled={off} className="text-black">
+                        {off ? `${m.label} — maintenance` : m.label}
+                      </option>
+                    );
+                  })}
                 </select>
               </label>
             )}
