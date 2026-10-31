@@ -135,6 +135,9 @@ export const generateMedia = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { assertServiceAvailable } = await import("@/lib/services/maintenance.server");
     await assertServiceAvailable(context.userId, context.claims as Record<string, unknown>);
+    const { modelBlockMessage } = await import("@/lib/model-switches.server");
+    const blocked = await modelBlockMessage((data as { model?: string }).model ?? "");
+    if (blocked) return { ok: false as const, message: blocked };
     await assertRateLimit(context.userId);
     const { runGeneration } = await import("@/lib/services/generation.server");
     return await runGeneration(context.userId, data);
