@@ -116,6 +116,7 @@ import { AdminVoicePanel } from "@/components/samflash/AdminVoicePanel";
 import { Loader2 as GenLoader } from "lucide-react";
 import { ImageIcon as GenerationIcon } from "lucide-react";
 import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
+import { AdminModelSwitchesPanel } from "@/components/samflash/AdminModelSwitchesPanel";
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
@@ -246,6 +247,7 @@ function AdminPage() {
  const [creditBusy, setCreditBusy] = useState(false);
  const removeCredits = useServerFn(adminRemoveCredits);
  const [subPlan, setSubPlan] = useState<AdminAddSubscriptionInput["plan"]>("sam_flash_light");
+  const [subCredits, setSubCredits] = useState("");
  const [subReason, setSubReason] = useState("");
  const [showSubConfirm, setShowSubConfirm] = useState(false);
  const [subAdding, setSubAdding] = useState(false);
@@ -583,6 +585,7 @@ function AdminPage() {
      userId: selectedUserDetail.id,
      plan: subPlan,
      reason: subReason.trim(),
+     ...(subPlan === "sam_flash_custom" && Number.parseInt(subCredits, 10) > 0 ? { credits: Number.parseInt(subCredits, 10) } : {}),
     },
    });
    if (res.ok) {
@@ -689,6 +692,7 @@ function AdminPage() {
   { id: "publication", label: "Publication", icon: MaintenanceIcon, show: isAdmin },
   { id: "generation", label: "Génération", icon: GenerationIcon, show: isAdmin },
   { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
+  { id: "modeles", label: "Modèles", icon: MaintenanceIcon, show: isAdmin },
   { id: "promos", label: "Codes promo", icon: Tag, show: isAdmin },
   { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
   { id: "team", label: "Équipe", icon: Users, show: isAdmin },
@@ -1905,6 +1909,7 @@ function AdminPage() {
       {active === "generation" && isAdmin && <AdminVoicePanel />}
       {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
       {active === "credits_gratuits" && isAdmin && <AdminFreeVideoPanel />}
+      {active === "modeles" && isAdmin && <AdminModelSwitchesPanel />}
       {active === "promos" && isAdmin && <AdminPromoPanel />}
       {active === "monetise" && isAdmin && <AdminMonetizePanel />}
       {active === "formations" && isAdmin && <AdminFormationsPanel />}
