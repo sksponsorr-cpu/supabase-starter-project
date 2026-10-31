@@ -24,6 +24,8 @@ import { ProfilePicker } from "@/components/samflash/ProfilePicker";
 import { useSellerMode } from "@/lib/seller-mode";
 import { WelcomeGate } from "@/components/samflash/WelcomeGate";
 import { PlansSheet } from "@/components/samflash/PlansSheet";
+import { NotificationBell } from "@/components/samflash/NotificationBell";
+import { NotificationGate } from "@/components/samflash/NotificationGate";
 import { useGenerations, type Generation } from "@/hooks/useGenerations";
 import { PendingCard } from "@/components/samflash/PendingCard";
 import { TrialGift } from "@/components/samflash/TrialGift";
@@ -223,6 +225,8 @@ function AppFeedInner() {
 
       <div className={`flex-1 transition-all flex flex-col overflow-x-hidden ${isCollapsed ? "md:pl-16" : "md:pl-60"}`}>
         <TrialGift visible={!!session} />
+        {session && <div className="fixed right-3 top-3 z-40"><NotificationBell /></div>}
+        {session && <NotificationGate />}
 
         {welcomeMessage && (
           <div className="mx-auto mt-4 max-w-2xl px-4 w-full animate-fade-in">
@@ -409,14 +413,9 @@ function AppFeedInner() {
             title={RECREATE_TEMPLATE.title}
             busy={recreateBusy}
             error={recreateError}
-            qualities={variantsFor("clone")
-              .filter((v) => v.provider === "seedance" && v.model === "bytedance/seedance-2-5")
-              .map((v) => {
-                const oldCost = Math.ceil(jobCost(v, RECREATE_TEMPLATE.seconds));
-                return { id: v.id, label: v.mode ?? v.label, oldCost, cost: oldCost - 10 };
-              })}
+            cost={jobCost(variantsFor("clone").find((v) => v.id === "sd25-720")!, RECREATE_TEMPLATE.seconds)}
             onClose={() => setRecreateOpen(false)}
-            onRecreate={(photos, roles, qualityId) => {
+            onRecreate={(photos, roles) => {
               setRecreateBusy(true);
               setRecreateError(null);
               void (async () => {
@@ -440,13 +439,12 @@ function AppFeedInner() {
                   const res = await startJob({
                     data: {
                       tool: "clone",
-                      variant: qualityId,
+                      variant: "sd25-720",
                       imageUrl: urls[0],
                       imageUrls: urls,
                       mediaUrl: RECREATE_TEMPLATE.videoUrl,
                       prompt,
                       seconds: RECREATE_TEMPLATE.seconds,
-                      templateId: RECREATE_TEMPLATE.id,
                       orientation: "image",
                     },
                   });
@@ -456,8 +454,7 @@ function AppFeedInner() {
                       setRecreateOpen(false);
                       setPlansOpen(true);
                     } else {
-                      // Message d'abonnement : même texte pour tous les utilisateurs, avec ou sans crédits.
-                      setRecreateError("Votre abonnement est bien actif, mais la génération est momentanément indisponible.\n\nVos crédits ne sont pas décomptés.\nRéessayez un peu plus tard. Si le problème dure, contactez-nous.");
+                      setRecreateError(res.message);
                     }
                     return;
                   }
