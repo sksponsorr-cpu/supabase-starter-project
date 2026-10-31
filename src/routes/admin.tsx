@@ -117,6 +117,7 @@ import { Loader2 as GenLoader } from "lucide-react";
 import { ImageIcon as GenerationIcon } from "lucide-react";
 import { AdminFreeCreditsPanel } from "@/components/samflash/AdminFreeCreditsPanel";
 import { AdminModelSwitchesPanel } from "@/components/samflash/AdminModelSwitchesPanel";
+import { AdminNotificationsPanel } from "@/components/samflash/AdminNotificationsPanel";
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
@@ -693,6 +694,7 @@ function AdminPage() {
   { id: "generation", label: "Génération", icon: GenerationIcon, show: isAdmin },
   { id: "credits_gratuits", label: "Crédits gratuits", icon: MaintenanceIcon, show: isAdmin },
   { id: "modeles", label: "Modèles", icon: MaintenanceIcon, show: isAdmin },
+  { id: "notifications", label: "Notifications", icon: MaintenanceIcon, show: isAdmin },
   { id: "promos", label: "Codes promo", icon: Tag, show: isAdmin },
   { id: "pricing", label: "Tarifs", icon: Tag, show: canPrices },
   { id: "team", label: "Équipe", icon: Users, show: isAdmin },
@@ -1910,6 +1912,7 @@ function AdminPage() {
       {active === "credits_gratuits" && isAdmin && <AdminFreeCreditsPanel />}
       {active === "credits_gratuits" && isAdmin && <AdminFreeVideoPanel />}
       {active === "modeles" && isAdmin && <AdminModelSwitchesPanel />}
+      {active === "notifications" && isAdmin && <AdminNotificationsPanel />}
       {active === "promos" && isAdmin && <AdminPromoPanel />}
       {active === "monetise" && isAdmin && <AdminMonetizePanel />}
       {active === "formations" && isAdmin && <AdminFormationsPanel />}
