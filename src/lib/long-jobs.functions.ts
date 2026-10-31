@@ -19,6 +19,9 @@ export const launchLongVideo = createServerFn({ method: "POST" })
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
+    const { modelBlockMessage } = await import("@/lib/model-switches.server");
+    const blocked = data.modelId ? await modelBlockMessage(data.modelId) : null;
+    if (blocked) return { ok: false as const, message: blocked };
     const res = await startLongJob({ userId: context.userId, ...data });
     if (!res.ok) return { ok: false as const, message: res.message };
     return { ok: true as const, jobId: res.jobId };
