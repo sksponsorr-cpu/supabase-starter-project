@@ -256,12 +256,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     const row = rowFor(dbId);
     return row ? includedCredits(row, false) : 0;
   };
-  // À adapter à la devise du pays choisi, comme le reste de cette page.
+  // Prix de référence en euros ; le montant exact dans la devise du pays s'affiche dans le détail.
   const priceTextFor = (dbId: string) => {
+    if (dbId === "custom") return "Vous choisissez";
     const row = rowFor(dbId);
-    return row
-      ? `${Math.round(row.amount_eur * 655.957).toLocaleString("fr-FR")} FCFA / mois`
-      : "Prix sur demande";
+    return row ? `${row.amount_eur.toLocaleString("fr-FR")} € / mois` : "Prix sur demande";
   };
 
   useEffect(() => {
@@ -478,7 +477,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         <div className="mt-6">
           <PlansCards
             selectedId={active}
-            onSelect={(id) => setActive(id as PlanId)}
+            onSelect={(id) => {
+              setActive(id as PlanId);
+              requestAnimationFrame(() =>
+                document.getElementById("plan-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+              );
+            }}
             plans={PLANS.map((p) => ({
               id: p.id,
               name: p.label,
@@ -521,7 +525,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="mt-4 space-y-3 rounded-3xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+        <div id="plan-detail" className="mt-4 space-y-3 rounded-3xl border border-border bg-card/50 p-4 backdrop-blur-xl">
           {/* Pays : détecté au premier passage, modifiable */}
           {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
             <p className="text-xs text-muted-foreground">
