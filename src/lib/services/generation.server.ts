@@ -384,7 +384,9 @@ export async function runGeneration(
     }
   }
   if (creditCost === null && !isAdmin) {
-  if (isVideo) {
+  // Pas de limite quotidienne en secondes : seuls les crédits limitent la création.
+  const enforceDailySeconds = false;
+  if (isVideo && enforceDailySeconds) {
     // Pipeline strict : abonnement valide + solde de secondes suffisant,
     // vérifiés en base avant tout appel au moteur de génération.
     const { data: reserved, error: reserveError } = await supabaseAdmin.rpc(
