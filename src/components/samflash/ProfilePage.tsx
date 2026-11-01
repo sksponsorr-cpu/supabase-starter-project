@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getProfile, saveMyProfile } from "@/lib/profiles.functions";
 
 type Profile = {
+  waiting: { id: string; kind: string; title: string; createdAt: string }[];
   id: string;
   name: string;
   bio: string;
@@ -71,6 +72,19 @@ export function ProfilePage({ userId, onSeeOffers }: { userId: string; onSeeOffe
         </section>
       ) : (
         profile.bio && <p className="text-sm">{profile.bio}</p>
+      )}
+
+      {profile.isMe && profile.waiting.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">En attente de validation</h2>
+          {profile.waiting.map((r) => (
+            <article key={r.id} className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{r.kind} · En attente</p>
+              <h3 className="mt-1 font-semibold">{r.title}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Visible après validation par l'équipe Sam flash.</p>
+            </article>
+          ))}
+        </section>
       )}
 
       <section className="space-y-3">
