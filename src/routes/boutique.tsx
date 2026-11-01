@@ -38,12 +38,15 @@ function BoutiquePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const refresh = async () => {
     try {
       const res = await load();
       if (!res.ok) return setNeedsLogin(true);
       if (res.shop) setShop({ name: res.shop.name, description: res.shop.description, phone: res.shop.phone, address: res.shop.address, logo_url: res.shop.logo_url });
+      if (res.shop && (res.shop as { user_id?: string }).user_id) setShareId((res.shop as { user_id: string }).user_id);
       setProducts(res.products as Product[]);
     } catch {
       setNeedsLogin(true);
@@ -100,6 +103,28 @@ function BoutiquePage() {
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary"><Store className="h-6 w-6" /></div>
         <h1 className="text-xl font-bold">Ma boutique</h1>
       </header>
+
+      {shareId && (
+        <section className="space-y-2 rounded-2xl border border-white/10 p-4">
+          <h2 className="text-sm font-semibold">Lien de ma boutique</h2>
+          <p className="break-all text-xs text-muted-foreground">{`${typeof window !== "undefined" ? window.location.origin : ""}/magasin?id=${shareId}`}</p>
+          <button
+            type="button"
+            onClick={async () => {
+              const link = `${window.location.origin}/magasin?id=${shareId}`;
+              if (navigator.share) await navigator.share({ title: shop.name || "Ma boutique", url: link }).catch(() => undefined);
+              else {
+                await navigator.clipboard.writeText(link);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }
+            }}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            {copied ? "Lien copié" : "Partager ma boutique"}
+          </button>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Informations</h2>
