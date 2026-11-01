@@ -53,10 +53,15 @@ export const getGenerationAccess = createServerFn({ method: "POST" })
       .object({
         mediaType: z.enum(["image", "video"]).default("video"),
         seconds: z.number().int().min(0).max(60).default(0),
+        model: z.string().nullable().optional(),
+        resolution: z.enum(["480p", "720p", "1080p"]).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { checkGenerationAccess } = await import("@/lib/services/access.server");
-    return await checkGenerationAccess(context.userId, data.mediaType, data.seconds);
+    return await checkGenerationAccess(context.userId, data.mediaType, data.seconds, {
+      model: data.model ?? null,
+      resolution: data.resolution,
+    });
   });
