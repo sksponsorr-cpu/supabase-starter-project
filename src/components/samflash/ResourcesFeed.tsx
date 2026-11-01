@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listResources, toggleLike, listComments, addComment } from "@/lib/resources.functions";
+import { getDownloadUrl } from "@/lib/resources.members.functions";
 
 type Item = {
   id: string;
@@ -16,6 +17,7 @@ type Item = {
   likes: number;
   comments: number;
   likedByMe: boolean;
+  files: { id: string; name: string; mime: string; size: number }[];
 };
 
 const CATEGORIES: { id: string; label: string }[] = [
@@ -114,6 +116,14 @@ function Post({ item, unlocked, onSeeOffers, onChanged }: { item: Item; unlocked
 
       {open && canRead && <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-black/40 p-3 text-sm">{item.body}</pre>}
 
+      {item.files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {item.files.map((f) => (
+            <DownloadButton key={f.id} fileId={f.id} name={f.name} unlocked={unlocked} onSeeOffers={onSeeOffers} />
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {canRead || item.preview ? (
           <button onClick={() => setOpen(!open)} className="rounded-full border border-white/15 px-3 py-1 text-sm">
@@ -184,5 +194,26 @@ function Comments({ resourceId, onPosted }: { resourceId: string; onPosted: () =
         </div>
       )}
     </div>
+  );
+}
+
+function DownloadButton({ fileId, name, unlocked, onSeeOffers }: { fileId: string; name: string; unlocked: boolean; onSeeOffers: () => void }) {
+  const get = useServerFn(getDownloadUrl);
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    if (!unlocked) return onSeeOffers();
+    setBusy(true);
+    try {
+      const r = await get({ data: { fileId } });
+      if (r.url) window.open(r.url, "_blank", "noopener");
+      else if (r.message) window.alert(r.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button onClick={onClick} disabled={busy} className="rounded-full border border-white/15 px-3 py-1 text-sm">
+      {unlocked ? `Télécharger · ${name}` : "Réservé aux abonnés"}
+    </button>
   );
 }
