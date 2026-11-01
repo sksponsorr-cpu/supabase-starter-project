@@ -139,6 +139,22 @@ export async function checkGenerationAccess(
   );
 
   if (!isSubscribed) {
+    // Gratuit : une seule vidéo au total, par compte.
+    if (mediaType === "video") {
+      const { count } = await supabaseAdmin
+        .from("generations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("media_type", "video");
+      if ((count ?? 0) >= 1) {
+        return {
+          ...base,
+          allowed: false,
+          code: "subscription_required",
+          message: "Votre vidéo gratuite a déjà été utilisée. Abonnez-vous ou achetez des crédits pour continuer.",
+        };
+      }
+    }
     await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
     const { data: wallet } = await supabaseAdmin
       .from("profiles")
@@ -168,21 +184,18 @@ export async function checkGenerationAccess(
 
   // Abonnés : contrôle du solde de crédits
   {
-    // Coût du modèle choisi (Veo, Grok, Seedance) ; à défaut, le coût générique.
-    const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
-    const resolution = opts?.resolution === "1080p" || opts?.resolution === "480p" ? opts!.resolution : "720p";
-    const modelCost = mediaType === "video" && opts?.model && isPricedModel(opts!.model)
-      ? generationCreditsFor(opts!.model, resolution as never, seconds)
-      : null;
-    const cost = modelCost ?? creditCostFor(mediaType, seconds, resolution, await getCreditConfig());
-    // Solde dépensable : lots de crédits non expirés (même source que spend_credits).
-    const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
-    if (Number(spendable ?? 0) < cost) {
+    const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
+    const { data: wallet } = await supabaseAdmin
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", userId)
+      .maybeSingle();
+    if ((wallet?.credits_balance ?? 0) < cost) {
       return {
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: `Crédits insuffisants : ${cost} requis, ${Number(spendable ?? 0)} disponibles. Rechargez votre compte pour continuer.`,
+        message: "Crédits insuffisants. Rechargez votre compte pour continuer.",
       };
     }
   }
@@ -202,4 +215,4 @@ export async function checkGenerationAccess(
   }
 
   return { ...base, allowed: true, code: "ok", message: null };
-  }
+}
