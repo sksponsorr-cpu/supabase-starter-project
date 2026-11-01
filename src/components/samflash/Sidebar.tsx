@@ -199,7 +199,7 @@ export function Sidebar({ onOpenSettings, onOpenPlans }: { onOpenSettings: () =>
           >
             <span
               aria-hidden
-              className="absolute inset-[-100%]"
+              className="pointer-events-none absolute inset-[-100%]"
               style={{
                 background: "conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary)) 90deg, transparent 180deg)",
                 animation: "sfSpin 3s linear infinite",
