@@ -169,17 +169,14 @@ export async function checkGenerationAccess(
   // Abonnés : contrôle du solde de crédits
   {
     const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
-    const { data: wallet } = await supabaseAdmin
-      .from("profiles")
-      .select("credits_balance")
-      .eq("id", userId)
-      .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < cost) {
+    // Solde dépensable : lots de crédits non expirés (même source que spend_credits).
+    const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
+    if (Number(spendable ?? 0) < cost) {
       return {
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Crédits insuffisants. Rechargez votre compte pour continuer.",
+        message: `Crédits insuffisants : ${cost} requis, ${Number(spendable ?? 0)} disponibles. Rechargez votre compte pour continuer.`,
       };
     }
   }
