@@ -22,10 +22,10 @@ export function CreditEstimate({
   if (!planType || planType === "free") {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="font-semibold">Votre vidéo gratuite</p>
+        <p className="font-semibold">Gratuit : 10 crédits par jour</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Vous pouvez créer une vidéo gratuite de {videoSeconds} secondes avec Veo ou Grok Imagine.
-          Pour créer davantage, choisissez une offre.
+          Vos crédits se renouvellent chaque jour. Vidéos de 6 secondes maximum, avec Veo 3.1 (8 crédits)
+          ou Grok Imagine (3 crédits). Seedance est réservé aux abonnés.
         </p>
         <button onClick={onSeeOffers} className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
           Voir les offres
