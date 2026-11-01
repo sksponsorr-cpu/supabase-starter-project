@@ -121,6 +121,8 @@ import { AdminNotificationsPanel } from "@/components/samflash/AdminNotification
 import { AdminFreeVideoPanel } from "@/components/samflash/AdminFreeVideoPanel";
 import { AdminPromoPanel } from "@/components/samflash/AdminPromoPanel";
 import { AdminMonetizePanel } from "@/components/samflash/AdminMonetizePanel";
+import { AdminResourcesPanel } from "@/components/samflash/AdminResourcesPanel";
+import { BookOpen as ResourcesIcon } from "lucide-react";
 import { AdminSellerCardsPanel } from "@/components/samflash/AdminSellerCardsPanel";
 import { adminRemoveCredits } from "@/lib/admin-credit-adjust.functions";
 import { AdminFormationsPanel } from "@/components/samflash/AdminFormationsPanel";
@@ -709,6 +711,7 @@ function AdminPage() {
   { id: "moderation", label: "Modération", icon: ShieldCheck, show: canModerate },
   { id: "content", label: "Créations", icon: Images, show: isAdmin },
   { id: "monetise", label: "Monétisation", icon: Wallet, show: isAdmin },
+  { id: "ressources", label: "Ressources", icon: ResourcesIcon, show: isAdmin },
   { id: "formations", label: "Formations", icon: Video, show: isAdmin },
   { id: "vendeur_cartes", label: "Espace vendeur", icon: Video, show: isAdmin },
   { id: "payouts", label: "Développeurs", icon: Wallet, show: isAdmin },
@@ -1915,6 +1918,7 @@ function AdminPage() {
       {active === "notifications" && isAdmin && <AdminNotificationsPanel />}
       {active === "promos" && isAdmin && <AdminPromoPanel />}
       {active === "monetise" && isAdmin && <AdminMonetizePanel />}
+      {active === "ressources" && isAdmin && <AdminResourcesPanel />}
       {active === "formations" && isAdmin && <AdminFormationsPanel />}
       {active === "vendeur_cartes" && isAdmin && <AdminSellerCardsPanel />}
 
