@@ -7,10 +7,11 @@ self.addEventListener("push", (event) => {
     // Charge utile non JSON : on garde le message par défaut.
   }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
+    self.registration.showNotification(data.title || "Sam flash", {
       body: data.body,
+      // Logo Sam flash affiché dans la notification (en couleur).
+      // Pas de « badge » : Android le transforme en carré blanc dans la barre du haut.
       icon: "/favicon-512x512.png",
-      badge: "/favicon-32x32.png",
       data: { url: data.url || "/" },
     }),
   );
