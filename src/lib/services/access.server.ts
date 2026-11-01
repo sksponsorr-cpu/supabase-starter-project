@@ -168,7 +168,13 @@ export async function checkGenerationAccess(
 
   // Abonnés : contrôle du solde de crédits
   {
-    const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
+    // Coût du modèle choisi (Veo, Grok, Seedance) ; à défaut, le coût générique.
+    const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
+    const resolution = opts?.resolution === "1080p" || opts?.resolution === "480p" ? opts!.resolution : "720p";
+    const modelCost = mediaType === "video" && opts?.model && isPricedModel(opts!.model)
+      ? generationCreditsFor(opts!.model, resolution as never, seconds)
+      : null;
+    const cost = modelCost ?? creditCostFor(mediaType, seconds, resolution, await getCreditConfig());
     // Solde dépensable : lots de crédits non expirés (même source que spend_credits).
     const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
     if (Number(spendable ?? 0) < cost) {
@@ -196,4 +202,4 @@ export async function checkGenerationAccess(
   }
 
   return { ...base, allowed: true, code: "ok", message: null };
-}
+  }
