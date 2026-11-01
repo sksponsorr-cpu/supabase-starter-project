@@ -260,8 +260,9 @@ function CheckoutFeedback() {
 }
 
 export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClose: () => void; initialPlan?: string; detailOnly?: boolean }) {
-  const navigate = useNavigate();
   const [active, setActive] = useState<PlanId>((initialPlan as PlanId) ?? "light");
+  const navigate = useNavigate();
+  const [viewDetail, setViewDetail] = useState(!!initialPlan || detailOnly);
   const [planQuotes, setPlanQuotes] = useState<Record<string, { amountLocal: number; currency: string } | null>>({});
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [prices, setPrices] = useState<PriceRow[]>([]);
@@ -551,6 +552,7 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
         <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         </div>
+        <div id="plans-top" />
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="motion-apple inline-flex items-center gap-3 text-3xl font-semibold tracking-tight md:text-4xl">
             Sam flash
@@ -562,7 +564,7 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
           <p className="mt-2 text-xl font-medium text-foreground/90 md:text-2xl">{plan.tagline}</p>
         </div>
 
-        {!checkoutOpen && !detailOnly && (
+        {!viewDetail && (
         <div className="mt-6">
           <PlansCards
             selectedId={active}
@@ -571,7 +573,8 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
                 toast.success("Vos 10 crédits gratuits sont disponibles dans Créer.");
                 return;
               }
-              void navigate({ to: "/abonnements/$plan", params: { plan: id } });
+              setActive(id as PlanId);
+              void navigate({ to: "/abonnements", search: { plan: id } });
             }}
             plans={[
             {
@@ -634,8 +637,16 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
         )}
 
         <div id="plan-detail" className="mt-4 space-y-3 rounded-3xl border border-border bg-card/50 p-4 backdrop-blur-xl">
-          {checkoutOpen && (
-            <button type="button" onClick={() => setCheckoutOpen(false)} className="text-sm text-muted-foreground">
+          {viewDetail && (
+            <button
+              type="button"
+              onClick={() => {
+                setCheckoutOpen(false);
+                if (initialPlan) void navigate({ to: "/abonnements", search: {} });
+                else setViewDetail(false);
+              }}
+              className="text-sm text-muted-foreground"
+            >
               ← Retour aux offres
             </button>
           )}
@@ -848,7 +859,7 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
                   : "…"}
           </p>
         </div>
-        {(checkoutOpen || detailOnly) && <CheckoutFeedback />}
+        {viewDetail && <CheckoutFeedback />}
 
         <button
           type="button"
