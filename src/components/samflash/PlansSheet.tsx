@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PlansCards } from "@/components/samflash/PlansCards";
 import { useServerFn } from "@tanstack/react-start";
 import { listCountries, listPrices, quotePrice, CREDIT_MIN, CREDIT_MAX, type PriceRow } from "@/lib/payments.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,9 +86,11 @@ const PLANS: Plan[] = [
     tagline: <>Tous les outils IA dans un seul abonnement</>,
     features: [
       { icon: Check, title: "110 crédits par mois" },
+      { icon: Check, title: "Veo 3.1 : 8 crédits par vidéo, quelle que soit la durée (4, 6 ou 8 s), en 720p" },
+      { icon: Check, title: "Grok Imagine : 19 crédits pour une vidéo de 30 s en 720p" },
+      { icon: Check, title: "Grok Imagine : 11 crédits pour une vidéo de 30 s en 480p" },
       { icon: Check, title: "22 vidéos" },
       { icon: Check, title: "Modèles : Grok Imagine, Seedance 2.0, Seedance 2.5, Veo 3.1, Google Omni" },
-      { icon: Check, title: "Vidéos jusqu'à 1 minute" },
       { icon: Check, title: "Clonage vidéo" },
       { icon: Check, title: "Avatar AI" },
       { icon: Check, title: "ChatGPT", soon: true },
@@ -105,9 +108,11 @@ const PLANS: Plan[] = [
     tagline: <>Le plus de crédits, sans limite de qualité</>,
     features: [
       { icon: Check, title: "400 crédits payés + 50 crédits offerts chaque mois" },
+      { icon: Check, title: "Veo 3.1 : 8 crédits par vidéo, quelle que soit la durée (4, 6 ou 8 s), en 720p" },
+      { icon: Check, title: "Grok Imagine : 19 crédits pour une vidéo de 30 s en 720p" },
+      { icon: Check, title: "Grok Imagine : 11 crédits pour une vidéo de 30 s en 480p" },
       { icon: Check, title: "Environ 90 vidéos" },
       { icon: Check, title: "Modèles : Grok Imagine, Seedance 2.0, Seedance 2.5, Veo 3.1, Google Omni" },
-      { icon: Check, title: "Vidéos jusqu'à 3 minutes" },
       { icon: Check, title: "Vidéo 1080p, générations prioritaires" },
       { icon: Check, title: "Clonage vidéo" },
       { icon: Check, title: "Avatar AI" },
@@ -244,6 +249,20 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const minCredits = CREDIT_MIN;
   const maxCredits = CREDIT_MAX;
   const sliderValue = credits ?? baseCredits;
+
+  // Prix et crédits de chaque offre, pour les cartes (même source que le détail ci-dessous).
+  const rowFor = (dbId: string) => prices.find((r) => r.id === dbId && r.tier !== "credits");
+  const creditsFor = (dbId: string) => {
+    const row = rowFor(dbId);
+    return row ? includedCredits(row, false) : 0;
+  };
+  // À adapter à la devise du pays choisi, comme le reste de cette page.
+  const priceTextFor = (dbId: string) => {
+    const row = rowFor(dbId);
+    return row
+      ? `${Math.round(row.amount_eur * 655.957).toLocaleString("fr-FR")} FCFA / mois`
+      : "Prix sur demande";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -456,28 +475,25 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="mt-2 text-xl font-medium text-foreground/90 md:text-2xl">{plan.tagline}</p>
         </div>
 
-        <div className="relative mx-auto mt-6 flex w-full max-w-sm flex-col sm:flex-row md:max-w-md rounded-3xl sm:rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
-          {/* Indicateur glissant : se déplace jusqu'à l'onglet choisi */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1 top-1 bottom-1 rounded-full bg-secondary shadow-[var(--shadow-glow)] transition-transform duration-500 ease-out sm:rounded-full"
-            style={{
-              width: `calc((100% - 0.5rem) / ${PLANS.length})`,
-              transform: `translateX(${Math.max(0, PLANS.findIndex((p) => p.id === active)) * 100}%)`,
-            }}
+        <div className="mt-6">
+          <PlansCards
+            selectedId={active}
+            onSelect={(id) => setActive(id as PlanId)}
+            plans={PLANS.map((p) => ({
+              id: p.id,
+              name: p.label,
+              priceLabel: priceTextFor(p.dbId),
+              creditsLabel: `${creditsFor(p.dbId)} crédits inclus par mois`,
+              features:
+                p.id === "pro"
+                  ? ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", "Tous les modèles"]
+                  : p.id === "custom"
+                    ? ["Vous choisissez vos crédits", "Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Sans engagement mensuel"]
+                    : ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", "Crédits inclus chaque mois"],
+              highlighted: p.id === "pro",
+              cta: p.id === "custom" ? "Choisir mes crédits" : undefined,
+            }))}
           />
-          {PLANS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setActive(p.id)}
-              className={`relative z-10 flex-1 rounded-full py-2.5 px-2 text-[13px] sm:text-[15px] font-medium transition-colors duration-300 active:scale-95 ${
-                active === p.id ? "text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
         </div>
 
         {/* Choix de la période */}
@@ -740,11 +756,10 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 <span className="ml-2 text-base font-medium text-muted-foreground">FCFA</span>
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {Number(trialRow?.credits_fixed ?? 40)} crédits · pack ponctuel, sans abonnement
+                {Number(trialRow?.credits_fixed ?? 100)} crédits · pack ponctuel, sans abonnement
               </p>
               <ul className="mt-5 space-y-3">
                 {[
-                  `Soit ${Math.floor(Number(trialRow?.credits_fixed ?? 40) / (samCreditsFor("grok-imagine", "480p", 6) ?? 1))} vidéos Grok Imagine`,
                   "Pour tester sans vous engager",
                   "Paiement par Mobile Money",
                 ].map((t, i) => (
@@ -780,7 +795,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             productLabel="Offre d'essai"
             period="monthly"
             countryCode={countryCode}
-            credits={Number(trialRow?.credits_fixed ?? 40)}
+            credits={Number(trialRow?.credits_fixed ?? 100)}
             onClose={() => setTrialCheckout(false)}
           />
         )}
