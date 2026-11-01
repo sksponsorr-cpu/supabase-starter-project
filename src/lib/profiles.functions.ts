@@ -37,12 +37,23 @@ export const getProfile = createServerFn({ method: "POST" })
       .eq("published", true)
       .order("created_at", { ascending: false });
 
+    const isMe = profile.id === context.userId;
+    const { data: waiting } = isMe
+      ? await supabaseAdmin
+          .from("resources")
+          .select("id, kind, title, created_at")
+          .eq("author_id", data.id)
+          .eq("published", false)
+          .order("created_at", { ascending: false })
+      : { data: [] as { id: string; kind: string; title: string; created_at: string }[] };
+
     return {
+      waiting: (waiting ?? []).map((r) => ({ id: r.id as string, kind: r.kind as string, title: r.title as string, createdAt: r.created_at as string })),
       id: profile.id,
       name: nameOf(profile),
       bio: profile.bio ?? "",
       avatarUrl: profile.avatar_url,
-      isMe: profile.id === context.userId,
+      isMe,
       publications: (pubs ?? []).map((r) => ({
         id: r.id as string,
         category: r.category as string,
