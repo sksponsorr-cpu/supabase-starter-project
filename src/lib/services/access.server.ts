@@ -25,7 +25,8 @@ export type AccessCode =
   | "subscription_required"
   | "video_seconds"
   | "subscription_expired"
-  | "insufficient_credits";
+  | "insufficient_credits"
+  | "queued";
 
 export type AccessResult = {
   allowed: boolean;
@@ -88,6 +89,8 @@ export async function activePlan(userId: string): Promise<{ plan: PlanType; expi
  */
 /** Coût fixe pour les comptes gratuits : 10 crédits par vidéo, images gratuites. */
 export const FREE_VIDEO_CREDITS = 10;
+const FREE_USER_CONCURRENT = 2;
+const FREE_GLOBAL_CONCURRENT = 3;
 export function freeCreditCost(mediaType: "image" | "video"): number {
   return mediaType === "video" ? FREE_VIDEO_CREDITS : 0;
 }
@@ -139,36 +142,62 @@ export async function checkGenerationAccess(
   );
 
   if (!isSubscribed) {
-    // Gratuit : une seule vidéo au total, par compte.
     if (mediaType === "video") {
-      const { count } = await supabaseAdmin
-        .from("generations")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("media_type", "video");
-      if ((count ?? 0) >= 1) {
-        return {
-          ...base,
-          allowed: false,
-          code: "subscription_required",
-          message: "Votre vidéo gratuite a déjà été utilisée. Abonnez-vous ou achetez des crédits pour continuer.",
-        };
+      if (seconds > 6) {
+        return { ...base, allowed: false, code: "subscription_required", message: "Avec votre compte gratuit, les vidéos sont limitées à 6 secondes. Passez à une offre pour aller plus loin." };
+      }
+      const freeModels = ["veo-3-1", "grok-imagine"];
+      if (opts?.model && !freeModels.includes(opts.model)) {
+        return { ...base, allowed: false, code: "subscription_required", message: "Seedance est réservé aux abonnés. Avec votre compte gratuit, choisissez Veo 3.1 ou Grok Imagine." };
       }
     }
-    await supabaseAdmin.rpc("claim_free_credits", { p_user: userId, p_ip_hash: clientIpHash() });
-    const { data: wallet } = await supabaseAdmin
-      .from("profiles")
-      .select("credits_balance")
-      .eq("id", userId)
-      .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < freeCreditCost(mediaType)) {
+    // Crédits gratuits du jour : 10 crédits, renouvelés chaque jour.
+    await supabaseAdmin.rpc("ensure_daily_free_credits", { p_user: userId, p_amount: 10 });
+    const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
+    const resolution = opts?.resolution === "1080p" || opts?.resolution === "480p" ? opts!.resolution : "720p";
+    const cost = mediaType === "video" && opts?.model && isPricedModel(opts!.model)
+      ? generationCreditsFor(opts!.model, resolution as never, 6)
+      : freeCreditCost(mediaType);
+    const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
+    if (Number(spendable ?? 0) < cost) {
       return {
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Pour générer des vidéos avec le modèle de votre choix, passez au forfait supérieur. Vous bénéficiez de 50 crédits offerts dès votre premier achat. Vous pouvez aussi contacter notre support pour obtenir votre code promo.",
+        message: `Crédits gratuits insuffisants : ${cost} requis, ${Number(spendable ?? 0)} disponibles aujourd'hui. Vos crédits se renouvellent demain, ou passez à une offre.`,
       };
     }
+    // File d'attente gratuite : 2 générations en cours par compte, 3 en même temps sur la plateforme.
+    const since = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    const { count: activeUser } = await supabaseAdmin
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "en_attente")
+      .gte("created_at", since);
+    if ((activeUser ?? 0) >= FREE_USER_CONCURRENT) {
+      return {
+        ...base,
+        allowed: false,
+        code: "subscription_required",
+        message: "Vous avez déjà 2 générations en cours. Patientez, ou passez à une offre pour en lancer davantage.",
+      };
+    }
+    const { count: activeAll } = await supabaseAdmin
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "en_attente")
+      .gte("created_at", since);
+    if ((activeAll ?? 0) >= FREE_GLOBAL_CONCURRENT) {
+      const position = (activeAll ?? 0) - FREE_GLOBAL_CONCURRENT + 1;
+      return {
+        ...base,
+        allowed: false,
+        code: "queued",
+        message: `File d'attente : position ${position}. Nouvelle tentative automatique dans quelques secondes.`,
+      };
+    }
+
     return { ...base, allowed: true, code: "ok", message: null };
   }
 
