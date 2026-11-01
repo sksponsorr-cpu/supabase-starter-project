@@ -442,10 +442,14 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         data: {
           mediaType: mode,
           seconds: mode === "video" ? Number(dur.replace(/\D/g, "")) || 0 : 0,
-          model: mode === "video" && creatorSel.active ? creatorSel.modelId : null,
-          resolution: (res === "480p" ? "480p" : "720p") as "480p" | "720p",
         },
       });
+      if (!access.allowed && access.code === "queued") {
+        // File d'attente gratuite : on affiche la position, puis on réessaie automatiquement.
+        setSent(freeTitle("queued", access.message ?? "File d'attente", userPlan === "free"));
+        setTimeout(() => { void submit(); }, 10000);
+        return;
+      }
       if (!access.allowed) {
         playChime("error");
         const message =
