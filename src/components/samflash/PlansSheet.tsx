@@ -263,6 +263,9 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
   const [active, setActive] = useState<PlanId>((initialPlan as PlanId) ?? "light");
   const navigate = useNavigate();
   const [viewDetail, setViewDetail] = useState(!!initialPlan || detailOnly);
+  useEffect(() => {
+    requestAnimationFrame(() => document.getElementById("plans-top")?.scrollIntoView({ block: "start" }));
+  }, [initialPlan, viewDetail]);
   const [planQuotes, setPlanQuotes] = useState<Record<string, { amountLocal: number; currency: string } | null>>({});
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [prices, setPrices] = useState<PriceRow[]>([]);
@@ -611,7 +614,6 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
         </div>
         )}
 
-        {/* Choix de la période */}
         {yearlyAvailable && (
           <div className="relative mx-auto mt-4 flex w-full max-w-[16rem] rounded-full border border-border bg-secondary/40 p-1 backdrop-blur-xl">
             <div
