@@ -413,7 +413,11 @@ function AppFeedInner() {
             title={RECREATE_TEMPLATE.title}
             busy={recreateBusy}
             error={recreateError}
-            cost={jobCost(variantsFor("clone").find((v) => v.id === "sd25-720")!, RECREATE_TEMPLATE.seconds)}
+            qualities={(() => {
+              const v = variantsFor("clone").find((x) => x.id === "sd25-720") ?? variantsFor("clone")[0];
+              const cost = v ? jobCost(v, RECREATE_TEMPLATE.seconds) : 0;
+              return [{ id: "sd25-720", label: "720p", cost, oldCost: cost }];
+            })()}
             onClose={() => setRecreateOpen(false)}
             onRecreate={(photos, roles) => {
               setRecreateBusy(true);
