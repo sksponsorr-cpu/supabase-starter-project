@@ -19,11 +19,22 @@ export const getProfile = createServerFn({ method: "POST" })
     const { activePlan } = await import("@/lib/services/access.server");
     const { hasResourceAccess } = await import("@/lib/resources.data");
 
-    const { data: p } = await supabaseAdmin
+    let { data: p } = await supabaseAdmin
       .from("profiles")
       .select("id, display_name, email, bio, avatar_url")
       .eq("id", data.id)
       .maybeSingle();
+    // Votre propre compte n'a pas encore de ligne de profil : on la crée.
+    if (!p && data.id === context.userId) {
+      const claims = context.claims as { email?: unknown } | null;
+      const email = typeof claims?.email === "string" ? claims.email : null;
+      await supabaseAdmin.from("profiles").upsert({ id: context.userId, email }, { onConflict: "id", ignoreDuplicates: true });
+      ({ data: p } = await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name, email, bio, avatar_url")
+        .eq("id", data.id)
+        .maybeSingle());
+    }
     if (!p) return null;
     const profile = p as ProfileRow;
 
