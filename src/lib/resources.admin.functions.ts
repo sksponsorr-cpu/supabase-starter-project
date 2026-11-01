@@ -40,9 +40,10 @@ export const adminSaveResource = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { id, ...fields } = data;
+    const withAuthor = { ...fields, author_id: context.userId };
     const { error } = id
-      ? await supabaseAdmin.from("resources").update(fields).eq("id", id)
-      : await supabaseAdmin.from("resources").insert(fields);
+      ? await supabaseAdmin.from("resources").update(withAuthor).eq("id", id)
+      : await supabaseAdmin.from("resources").insert(withAuthor);
     return { ok: !error, message: error?.message ?? null };
   });
 

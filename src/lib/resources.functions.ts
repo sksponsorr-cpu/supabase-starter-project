@@ -18,6 +18,12 @@ export const listResources = createServerFn({ method: "POST" })
     const { data: rows } = await q;
     const ids = (rows ?? []).map((r) => r.id as string);
 
+    const authorIds = [...new Set((rows ?? []).map((r) => r.author_id as string | null).filter(Boolean) as string[])];
+    const { data: authors } = authorIds.length
+      ? await supabaseAdmin.from("profiles").select("id, display_name, email").in("id", authorIds)
+      : { data: [] as { id: string; display_name: string | null; email: string | null }[] };
+    const authorName = new Map((authors ?? []).map((a) => [a.id, a.display_name?.trim() || (a.email ? a.email.split("@")[0] : "Membre")]));
+
     const { data: likes } = ids.length
       ? await supabaseAdmin.from("resource_likes").select("resource_id, user_id").in("resource_id", ids)
       : { data: [] as { resource_id: string; user_id: string }[] };
@@ -44,6 +50,8 @@ export const listResources = createServerFn({ method: "POST" })
           kind: r.kind as string,
           title: r.title as string,
           summary: r.summary as string,
+          authorId: (r.author_id as string | null) ?? null,
+          authorName: r.author_id ? (authorName.get(r.author_id as string) ?? "Membre") : "Sam flash",
           body: canRead && unlocked ? (r.body as string) : null,
           preview: !!r.preview,
           createdAt: r.created_at as string,
