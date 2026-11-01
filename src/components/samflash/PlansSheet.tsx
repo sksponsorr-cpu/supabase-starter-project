@@ -335,18 +335,17 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
   // Prix de chaque carte : devis serveur de l'offre elle-même, dans la devise du pays (frais 2,5 % retirés pour l'affichage).
   const priceTextFor = (dbId: string) => {
     if (dbId === "custom") return "Vous choisissez";
+    // Pas d'affichage en euros avant le devis : on attend le montant dans la devise du pays.
     const q = planQuotes[dbId];
-    if (q) {
-      return `${formatLocalAmount(Math.round(q.amountLocal / 1.025), q.currency)} / ${period === "yearly" ? "an" : "mois"}`;
-    }
-    const row = rowFor(dbId);
-    return row ? `${row.amount_eur.toLocaleString("fr-FR")} € / ${period === "yearly" ? "an" : "mois"}` : "Prix sur demande";
+    if (!q) return "Chargement du prix…";
+    return `${formatLocalAmount(Math.round(q.amountLocal / 1.025), q.currency)} / ${period === "yearly" ? "an" : "mois"}`;
   };
 
   // Devis des trois offres, pour afficher leur prix exact sur les cartes.
   useEffect(() => {
     if (!pricesLoaded || !countryCode) return;
     let cancelled = false;
+    setPlanQuotes({});
     PLANS.filter((p) => p.id !== "custom").forEach((p) => {
       const row = rowFor(p.dbId);
       if (!row) return;
