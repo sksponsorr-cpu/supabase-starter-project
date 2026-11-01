@@ -31,7 +31,7 @@ export function PlansCards({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {plans.map((plan) => {
         const selected = selectedId === plan.id;
         return (
