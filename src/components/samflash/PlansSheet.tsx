@@ -560,13 +560,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
             plans={[
             {
               id: "essai",
-              name: "Essai gratuit",
+              name: "Gratuit",
               priceLabel: "0 FCFA",
-              creditsLabel: "10 crédits offerts à l'inscription",
+              creditsLabel: "10 crédits par jour, renouvelés chaque jour",
               features: [
+                "Vidéos de 6 secondes maximum",
+                "Veo 3.1 : 8 crédits par vidéo",
+                "Grok Imagine : 3 crédits par vidéo",
+                "Seedance réservé aux abonnés",
+                "File d'attente pour les comptes gratuits",
                 "Sans paiement, sans carte",
-                "Une vidéo Veo 3.1 ou Grok Imagine",
-                "Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p",
               ],
               cta: "Commencer gratuitement",
             },
