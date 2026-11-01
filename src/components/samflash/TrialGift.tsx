@@ -5,6 +5,7 @@ import { detectCountry } from "@/lib/country.functions";
 import { listPrices, type PriceRow } from "@/lib/payments.functions";
 import { CheckoutSheet } from "@/components/samflash/CheckoutSheet";
 import { samCreditsFor } from "@/lib/creator-pricing";
+import { getGenerationAccess } from "@/lib/device.functions";
 
 /** Cadeau flottant « Offre d'essai Sam Flash » : présente le pack d'essai puis mène au paiement. */
 export function TrialGift({ visible = true }: { visible?: boolean }) {
@@ -14,6 +15,16 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
   const [checkout, setCheckout] = useState(false);
   const detect = useServerFn(detectCountry);
   const [countryCode, setCountryCode] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
+  const getAccess = useServerFn(getGenerationAccess);
+
+  // L'offre d'essai ne s'adresse qu'aux comptes gratuits.
+  useEffect(() => {
+    if (!visible) return;
+    getAccess({ data: { mediaType: "image", seconds: 0 } })
+      .then((r) => setPlan((r as { planType?: string }).planType ?? "free"))
+      .catch(() => setPlan("free"));
+  }, [getAccess, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -25,16 +36,16 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
   useEffect(() => {
     if (!visible) return;
     fetchPrices({})
-      .then((rows) => setTrialRow((rows as PriceRow[]).find((r) => r.id === "pack_essai") ?? null))
+      .then((rows) => setTrialRow((rows as PriceRow[]).find((r) => r.id === "pack_essai_2j") ?? null))
       .catch(() => undefined);
   }, [fetchPrices, visible]);
 
-  if (!visible) return null;
+  if (!visible || (plan !== null && plan !== "free")) return null;
 
   const amount =
     (trialRow as { amount_fcfa?: number | null } | null)?.amount_fcfa ??
-    (trialRow ? Math.round(trialRow.amount_eur * 655.957) : 2000);
-  const credits = Number(trialRow?.credits_fixed ?? 40);
+    (trialRow ? Math.round(trialRow.amount_eur * 655.957) : 1000);
+  const credits = Number(trialRow?.credits_fixed ?? 100);
 
   return (
     <>
