@@ -67,7 +67,7 @@ export function PlansCards({
             <button
               type="button"
               onClick={() => onSelect(plan.id)}
-              className={`mt-5 w-full rounded-full px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90 ${
+              className={`mt-5 w-full rounded-full px-4 py-3 text-sm font-semibold transition-transform duration-200 hover:scale-[1.02] active:scale-95 animate-pulse ${
                 selected || plan.highlighted
                   ? "bg-primary text-primary-foreground"
                   : "border border-white/20 text-foreground"
