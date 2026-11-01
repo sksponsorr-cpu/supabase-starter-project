@@ -218,18 +218,20 @@ export async function checkGenerationAccess(
   {
     const cost = await exactCreditCost({ mediaType, model: price?.model ?? null, resolution: price?.resolution, seconds });
     const sellerWallet = price?.wallet === "seller";
+    // Solde réellement dépensable : somme des lots de crédits non expirés (même source que spend_credits).
     const { data: wallet } = sellerWallet
       ? await supabaseAdmin.from("seller_wallets").select("balance").eq("user_id", userId).maybeSingle()
-      : await supabaseAdmin.from("profiles").select("credits_balance").eq("id", userId).maybeSingle();
+      : { data: null };
+    const creatorAvailable = sellerWallet ? 0 : Number((await supabaseAdmin.rpc("spendable_credits", { p_user: userId })).data ?? 0);
     const available = sellerWallet
       ? Number((wallet as { balance?: number } | null)?.balance ?? 0)
-      : Number((wallet as { credits_balance?: number } | null)?.credits_balance ?? 0);
+      : creatorAvailable;
     if (available < cost) {
       return {
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Crédits insuffisants. Rechargez votre compte pour continuer.",
+        message: `Crédits insuffisants : ${cost} requis, ${available} disponibles. Rechargez votre compte pour continuer.`,
       };
     }
   }
