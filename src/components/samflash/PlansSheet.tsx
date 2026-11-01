@@ -282,8 +282,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     credits: number;
   } | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const [trialOpen, setTrialOpen] = useState(false);
-  const [trialCheckout, setTrialCheckout] = useState(false);
   const [activating, setActivating] = useState(false);
   const [promo, setPromo] = useState<{ enabled: boolean; prices: Record<string, number | null> }>({
     enabled: false,
@@ -299,7 +297,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const activatePromo = useServerFn(activatePromoOffer);
 
   const plan = PLANS.find((p) => p.id === active) ?? PLANS[0];
-  const trialRow = prices.find((p) => p.id === "pack_essai");
   // Seules les offres d'abonnement sont affichées ici (les recharges sont retirées).
   const price = prices.find((p) => p.id === plan.dbId && p.tier !== "credits");
   const yearlyAvailable = price?.amount_eur_yearly !== null && price?.amount_eur_yearly !== undefined;
@@ -321,7 +318,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     const c = creditsFor(dbId);
     const line = (label: string, model: PricedModel, res: PricedResolution) => {
       const cost = samCreditsFor(model, res, 6) ?? 1;
-      return `${label} : jusqu'à ${Math.floor(c / cost)} vidéos · ${res}`;
+      return `${label} : jusqu'à ${Math.floor(c / cost)} vidéos de 6 s · ${res}`;
     };
     return [
       line("Grok Imagine", "grok-imagine", "480p"),
@@ -331,11 +328,16 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     ];
   };
 
-  // Prix de référence en euros ; le montant exact dans la devise du pays s'affiche dans le détail.
+  // Prix des cartes dans la devise du pays choisi, déduit du devis serveur (frais de 2,5 % retirés).
+  const localRate = quote && price ? quote.amountLocal / (price.amount_eur * 1.025) : null;
   const priceTextFor = (dbId: string) => {
     if (dbId === "custom") return "Vous choisissez";
     const row = rowFor(dbId);
-    return row ? `${row.amount_eur.toLocaleString("fr-FR")} € / mois` : "Prix sur demande";
+    if (!row) return "Prix sur demande";
+    if (localRate && quote) {
+      return `${formatLocalAmount(Math.round(row.amount_eur * localRate), quote.currency)} / mois`;
+    }
+    return `${row.amount_eur.toLocaleString("fr-FR")} € / mois`;
   };
 
   useEffect(() => {
@@ -528,15 +530,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         </div>
         {(
-          <button
-            type="button"
-            onClick={() => setTrialOpen(true)}
-            className="sf-bob relative mx-auto mt-1 inline-flex items-center gap-2 self-center overflow-hidden rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition-transform active:scale-95 disabled:opacity-60"
-          >
-            <Gift className="h-4 w-4" />
-            Offre d'essai Grok
-            <span className="sf-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-          </button>
         )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="motion-apple inline-flex items-center gap-3 text-3xl font-semibold tracking-tight md:text-4xl">
@@ -554,26 +547,44 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <PlansCards
             selectedId={active}
             onSelect={(id) => {
+              if (id === "essai") {
+                toast.success("Vos 10 crédits gratuits sont disponibles dans Créer.");
+                return;
+              }
               setActive(id as PlanId);
-              setCheckoutOpen(true);
+              setCheckoutOpen(false);
               requestAnimationFrame(() =>
                 document.getElementById("plan-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }),
               );
             }}
-            plans={PLANS.map((p) => ({
+            plans={[
+            {
+              id: "essai",
+              name: "Essai gratuit",
+              priceLabel: "0 FCFA",
+              creditsLabel: "10 crédits offerts à l'inscription",
+              features: [
+                "Sans paiement, sans carte",
+                "Une vidéo Veo 3.1 ou Grok Imagine",
+                "Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p",
+              ],
+              cta: "Commencer gratuitement",
+            },
+            ...PLANS.map((p) => ({
               id: p.id,
               name: p.label,
               priceLabel: priceTextFor(p.dbId),
               creditsLabel: `${creditsFor(p.dbId)} crédits inclus par mois`,
               features:
                 p.id === "custom"
-                  ? ["Vous choisissez vos crédits", ...videosLines(p.dbId), "Sans engagement mensuel"]
+                  ? ["Vous choisissez vos crédits", "Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", ...videosLines(p.dbId), "Sans engagement mensuel"]
                   : p.id === "pro"
-                    ? [...videosLines(p.dbId), "Tous les modèles"]
-                    : [...videosLines(p.dbId), "Crédits inclus chaque mois"],
+                    ? ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", ...videosLines(p.dbId), "Tous les modèles"]
+                    : ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", ...videosLines(p.dbId), "Crédits inclus chaque mois"],
               highlighted: p.id === "pro",
               cta: p.id === "custom" ? "Choisir mes crédits" : undefined,
-            }))}
+            })),
+          ]}
           />
         </div>
         )}
@@ -829,67 +840,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           {activating ? "Activation…" : promoFree ? "Activer l'offre de lancement (offerte)" : plan.cta}
         </button>
 
-        {trialOpen && (
-          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 p-4 backdrop-blur-md sm:items-center animate-in fade-in duration-300">
-            <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-primary/40 bg-card p-6 shadow-[var(--shadow-glow)] animate-in zoom-in-95 slide-in-from-bottom-4 duration-500">
-              <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/30 blur-3xl" />
-              <button
-                type="button"
-                onClick={() => setTrialOpen(false)}
-                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground"
-                aria-label="Fermer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <span className="sf-bob inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-                <Gift className="h-7 w-7" />
-              </span>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Offre d'essai</p>
-              <p className="mt-1 text-4xl font-semibold tabular-nums">
-                {trialRow ? (((trialRow as { amount_fcfa?: number | null }).amount_fcfa ?? Math.round(trialRow.amount_eur * 655.957))).toLocaleString("fr-FR") : "2 000"}
-                <span className="ml-2 text-base font-medium text-muted-foreground">FCFA</span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {Number(trialRow?.credits_fixed ?? 100)} crédits · pack ponctuel, sans abonnement
-              </p>
-              <ul className="mt-5 space-y-3">
-                {[
-                  "Pour tester sans vous engager",
-                  "Paiement par Mobile Money",
-                ].map((t, i) => (
-                  <li
-                    key={t}
-                    style={{ animationDelay: `${150 + i * 90}ms` }}
-                    className="flex items-center gap-3 text-[15px] font-medium animate-in fade-in slide-in-from-left-4 fill-mode-both duration-500"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
-                      <Check className="h-4 w-4" />
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => {
-                  setTrialOpen(false);
-                  setTrialCheckout(true);
-                }}
-                className="mt-6 w-full rounded-full bg-foreground py-4 text-[17px] font-semibold text-background transition-transform active:scale-[0.98]"
-              >
-                Continuer vers le paiement
-              </button>
-            </div>
-          </div>
-        )}
-
-        {trialCheckout && (
-          <CheckoutSheet
-            productId="pack_essai"
-            productLabel="Offre d'essai"
-            period="monthly"
-            countryCode={countryCode}
-            credits={Number(trialRow?.credits_fixed ?? 100)}
             onClose={() => setTrialCheckout(false)}
           />
         )}
