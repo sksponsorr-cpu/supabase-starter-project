@@ -40,7 +40,8 @@ export function TrialGift({ visible = true }: { visible?: boolean }) {
       .catch(() => undefined);
   }, [fetchPrices, visible]);
 
-  if (!visible || (plan !== null && plan !== "free")) return null;
+  // Essai payant retiré : l'essai gratuit est présenté dans les abonnements.
+  return null;
 
   const amount =
     (trialRow as { amount_fcfa?: number | null } | null)?.amount_fcfa ??
