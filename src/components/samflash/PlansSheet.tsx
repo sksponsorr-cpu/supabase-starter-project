@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { submitReview } from "@/lib/feedback.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { PlansCards } from "@/components/samflash/PlansCards";
@@ -258,8 +259,10 @@ function CheckoutFeedback() {
   );
 }
 
-export function PlansSheet({ onClose }: { onClose: () => void }) {
-  const [active, setActive] = useState<PlanId>("light");
+export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClose: () => void; initialPlan?: string; detailOnly?: boolean }) {
+  const navigate = useNavigate();
+  const [active, setActive] = useState<PlanId>((initialPlan as PlanId) ?? "light");
+  const [planQuotes, setPlanQuotes] = useState<Record<string, { amountLocal: number; currency: string } | null>>({});
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [pricesLoaded, setPricesLoaded] = useState(false);
@@ -329,16 +332,36 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   };
 
   // Prix des cartes dans la devise du pays choisi, déduit du devis serveur (frais de 2,5 % retirés).
-  const localRate = quote && price ? quote.amountLocal / (price.amount_eur * 1.025) : null;
+  // Prix de chaque carte : devis serveur de l'offre elle-même, dans la devise du pays (frais 2,5 % retirés pour l'affichage).
   const priceTextFor = (dbId: string) => {
     if (dbId === "custom") return "Vous choisissez";
-    const row = rowFor(dbId);
-    if (!row) return "Prix sur demande";
-    if (localRate && quote) {
-      return `${formatLocalAmount(Math.round(row.amount_eur * localRate), quote.currency)} / mois`;
+    const q = planQuotes[dbId];
+    if (q) {
+      return `${formatLocalAmount(Math.round(q.amountLocal / 1.025), q.currency)} / ${period === "yearly" ? "an" : "mois"}`;
     }
-    return `${row.amount_eur.toLocaleString("fr-FR")} € / mois`;
+    const row = rowFor(dbId);
+    return row ? `${row.amount_eur.toLocaleString("fr-FR")} € / ${period === "yearly" ? "an" : "mois"}` : "Prix sur demande";
   };
+
+  // Devis des trois offres, pour afficher leur prix exact sur les cartes.
+  useEffect(() => {
+    if (!pricesLoaded || !countryCode) return;
+    let cancelled = false;
+    PLANS.filter((p) => p.id !== "custom").forEach((p) => {
+      const row = rowFor(p.dbId);
+      if (!row) return;
+      fetchQuote({ data: { productId: row.id, countryCode, period } })
+        .then((q) => {
+          if (cancelled || !q.ok) return;
+          setPlanQuotes((prev) => ({ ...prev, [p.dbId]: { amountLocal: Number(q.amountLocal), currency: String(q.currency) } }));
+        })
+        .catch(() => undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricesLoaded, countryCode, period, prices]);
 
   useEffect(() => {
     let cancelled = false;
@@ -540,7 +563,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="mt-2 text-xl font-medium text-foreground/90 md:text-2xl">{plan.tagline}</p>
         </div>
 
-        {!checkoutOpen && (
+        {!checkoutOpen && !detailOnly && (
         <div className="mt-6">
           <PlansCards
             selectedId={active}
@@ -549,11 +572,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                 toast.success("Vos 10 crédits gratuits sont disponibles dans Créer.");
                 return;
               }
-              setActive(id as PlanId);
-              setCheckoutOpen(false);
-              requestAnimationFrame(() =>
-                document.getElementById("plan-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-              );
+              void navigate({ to: "/abonnements/$plan", params: { plan: id } });
             }}
             plans={[
             {
@@ -830,7 +849,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                   : "…"}
           </p>
         </div>
-        {checkoutOpen && <CheckoutFeedback />}
+        {(checkoutOpen || detailOnly) && <CheckoutFeedback />}
 
         <button
           type="button"
