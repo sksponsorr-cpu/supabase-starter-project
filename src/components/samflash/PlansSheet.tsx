@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlansCards } from "@/components/samflash/PlansCards";
+import { submitReview } from "@/lib/feedback.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { PlansCards } from "@/components/samflash/PlansCards";
 import { listCountries, listPrices, quotePrice, CREDIT_MIN, CREDIT_MAX, type PriceRow } from "@/lib/payments.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { activatePromoOffer, getPromoSettings, PROMO_DAYS } from "@/lib/promo.functions";
@@ -198,6 +199,65 @@ function manualCountry(): string | null {
   return window.localStorage.getItem("sf_country_manual");
 }
 
+function CheckoutFeedback() {
+  const send = useServerFn(submitReview);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await send({ data: { stars, comment: comment.trim() || undefined } });
+      setSent(true);
+    } catch {
+      setError("Impossible d'envoyer votre avis pour le moment.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card/50 p-4 space-y-3">
+      <p className="font-semibold">Votre avis avant d'acheter</p>
+      <p className="text-sm text-muted-foreground">Qu'est-ce qui vous aiderait à vous décider ?</p>
+      <div className="flex gap-1" role="radiogroup" aria-label="Note">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setStars(n)}
+            aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
+            className={`text-2xl ${n <= stars ? "text-amber-400" : "text-muted-foreground"}`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        maxLength={1000}
+        rows={3}
+        placeholder="Votre avis, ou ce qui vous manque pour acheter…"
+        className="w-full rounded-xl border border-border bg-background/60 p-3 text-sm"
+      />
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      <button
+        type="button"
+        disabled={busy || stars === 0 || sent}
+        onClick={submit}
+        className="rounded-full border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
+      >
+        {sent ? "Merci pour votre avis" : busy ? "Envoi…" : "Envoyer mon avis"}
+      </button>
+    </div>
+  );
+}
+
 export function PlansSheet({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState<PlanId>("light");
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -222,7 +282,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     credits: number;
   } | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [trialOpen, setTrialOpen] = useState(false);
   const [trialCheckout, setTrialCheckout] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -249,6 +308,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
   const minCredits = CREDIT_MIN;
   const maxCredits = CREDIT_MAX;
   const sliderValue = credits ?? baseCredits;
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // Prix et crédits de chaque offre, pour les cartes (même source que le détail ci-dessous).
   const rowFor = (dbId: string) => prices.find((r) => r.id === dbId && r.tier !== "credits");
@@ -256,6 +316,21 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
     const row = rowFor(dbId);
     return row ? includedCredits(row, false) : 0;
   };
+  // Nombre de vidéos par modèle pour les crédits de l'offre (vidéo de 6 s, même tarif que le détail).
+  const videosLines = (dbId: string) => {
+    const c = creditsFor(dbId);
+    const line = (label: string, model: PricedModel, res: PricedResolution) => {
+      const cost = samCreditsFor(model, res, 6) ?? 1;
+      return `${label} : jusqu'à ${Math.floor(c / cost)} vidéos · ${res}`;
+    };
+    return [
+      line("Grok Imagine", "grok-imagine", "480p"),
+      line("Seedance 2.0", "seedance-2", "480p"),
+      line("Seedance 2.5", "seedance-2-5", "480p"),
+      line("Veo 3.1", "veo-3-1", "720p"),
+    ];
+  };
+
   // Prix de référence en euros ; le montant exact dans la devise du pays s'affiche dans le détail.
   const priceTextFor = (dbId: string) => {
     if (dbId === "custom") return "Vous choisissez";
@@ -474,11 +549,13 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="mt-2 text-xl font-medium text-foreground/90 md:text-2xl">{plan.tagline}</p>
         </div>
 
+        {!checkoutOpen && (
         <div className="mt-6">
           <PlansCards
             selectedId={active}
             onSelect={(id) => {
               setActive(id as PlanId);
+              setCheckoutOpen(true);
               requestAnimationFrame(() =>
                 document.getElementById("plan-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }),
               );
@@ -489,16 +566,17 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
               priceLabel: priceTextFor(p.dbId),
               creditsLabel: `${creditsFor(p.dbId)} crédits inclus par mois`,
               features:
-                p.id === "pro"
-                  ? ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", "Tous les modèles"]
-                  : p.id === "custom"
-                    ? ["Vous choisissez vos crédits", "Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Sans engagement mensuel"]
-                    : ["Veo 3.1 : 8 crédits par vidéo, toute durée (4, 6 ou 8 s), 720p", "Grok Imagine : 19 crédits pour 30 s en 720p", "Grok Imagine : 11 crédits pour 30 s en 480p", "Crédits inclus chaque mois"],
+                p.id === "custom"
+                  ? ["Vous choisissez vos crédits", ...videosLines(p.dbId), "Sans engagement mensuel"]
+                  : p.id === "pro"
+                    ? [...videosLines(p.dbId), "Tous les modèles"]
+                    : [...videosLines(p.dbId), "Crédits inclus chaque mois"],
               highlighted: p.id === "pro",
               cta: p.id === "custom" ? "Choisir mes crédits" : undefined,
             }))}
           />
         </div>
+        )}
 
         {/* Choix de la période */}
         {yearlyAvailable && (
@@ -526,6 +604,11 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         )}
 
         <div id="plan-detail" className="mt-4 space-y-3 rounded-3xl border border-border bg-card/50 p-4 backdrop-blur-xl">
+          {checkoutOpen && (
+            <button type="button" onClick={() => setCheckoutOpen(false)} className="text-sm text-muted-foreground">
+              ← Retour aux offres
+            </button>
+          )}
           {/* Pays : détecté au premier passage, modifiable */}
           {detected && !countries.some((c) => c.code === detected) && !manualCountry() && (
             <p className="text-xs text-muted-foreground">
@@ -719,6 +802,12 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground">
             {period === "yearly" && yearly ? "Total pour 12 mois" : "Total par mois"}
           </p>
+          {quote && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Sous-total {formatLocalAmount(Math.round(quote.amountLocal / 1.025), quote.currency)} · frais de paiement 2,5 % :{" "}
+              {formatLocalAmount(quote.amountLocal - Math.round(quote.amountLocal / 1.025), quote.currency)}
+            </p>
+          )}
           <p className="mt-1 text-3xl font-semibold tracking-tight">
             {quoteBusy && !quote
               ? "…"
@@ -729,6 +818,7 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
                   : "…"}
           </p>
         </div>
+        {checkoutOpen && <CheckoutFeedback />}
 
         <button
           type="button"
