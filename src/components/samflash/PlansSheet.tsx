@@ -529,8 +529,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
         <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="sf-blob absolute -left-16 top-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         </div>
-        {(
-        )}
         <div key={`hdr-${plan.id}`} className="mt-2 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="motion-apple inline-flex items-center gap-3 text-3xl font-semibold tracking-tight md:text-4xl">
             Sam flash
@@ -843,9 +841,6 @@ export function PlansSheet({ onClose }: { onClose: () => void }) {
           {activating ? "Activation…" : promoFree ? "Activer l'offre de lancement (offerte)" : plan.cta}
         </button>
 
-            onClose={() => setTrialCheckout(false)}
-          />
-        )}
 
         {checkoutOpen && price && (
           <CheckoutSheet
