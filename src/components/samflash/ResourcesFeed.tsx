@@ -8,6 +8,8 @@ type Item = {
   kind: string;
   title: string;
   summary: string;
+  authorId: string | null;
+  authorName: string;
   body: string | null;
   preview: boolean;
   createdAt: string;
@@ -99,7 +101,14 @@ function Post({ item, unlocked, onSeeOffers, onChanged }: { item: Item; unlocked
 
   return (
     <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.kind}</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+        {item.kind} · par{" "}
+        {item.authorId ? (
+          <a href={`/profil?id=${item.authorId}`} className="font-semibold text-foreground underline">{item.authorName}</a>
+        ) : (
+          <span className="font-semibold text-foreground">{item.authorName}</span>
+        )}
+      </p>
       <h3 className="mt-1 font-semibold">{item.title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>
 
