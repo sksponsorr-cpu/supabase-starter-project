@@ -24,6 +24,16 @@ export const listResources = createServerFn({ method: "POST" })
       : { data: [] as { id: string; display_name: string | null; email: string | null }[] };
     const authorName = new Map((authors ?? []).map((a) => [a.id, a.display_name?.trim() || (a.email ? a.email.split("@")[0] : "Membre")]));
 
+    const { data: fileRows } = ids.length
+      ? await supabaseAdmin.from("resource_files").select("id, resource_id, name, mime, size").in("resource_id", ids)
+      : { data: [] as { id: string; resource_id: string; name: string; mime: string; size: number }[] };
+    const filesOf = new Map<string, { id: string; name: string; mime: string; size: number }[]>();
+    for (const f of fileRows ?? []) {
+      const list = filesOf.get(f.resource_id) ?? [];
+      list.push({ id: f.id, name: f.name, mime: f.mime, size: Number(f.size) });
+      filesOf.set(f.resource_id, list);
+    }
+
     const { data: likes } = ids.length
       ? await supabaseAdmin.from("resource_likes").select("resource_id, user_id").in("resource_id", ids)
       : { data: [] as { resource_id: string; user_id: string }[] };
@@ -58,6 +68,7 @@ export const listResources = createServerFn({ method: "POST" })
           likes: likeCount.get(r.id as string) ?? 0,
           comments: commentCount.get(r.id as string) ?? 0,
           likedByMe: likedByMe.has(r.id as string),
+          files: filesOf.get(r.id as string) ?? [],
         };
       }),
     };
