@@ -674,7 +674,8 @@ export function PlansSheet({ onClose, initialPlan, detailOnly = false }: { onClo
           )}
 
           {/* Forfait fixe : crédits imposés */}
-          {price && plan.id !== "custom" && (
+          {/* Détail des crédits et des vidéos : seulement pour l'offre annuelle (le mensuel est déjà affiché sur les cartes). */}
+          {price && plan.id !== "custom" && period === "yearly" && (
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Crédits inclus par mois</p>
