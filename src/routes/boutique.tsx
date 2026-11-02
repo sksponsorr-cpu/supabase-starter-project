@@ -6,6 +6,7 @@ import { getShopOverview, saveShop, saveProduct, deleteProduct } from "@/lib/sho
 import { presignAiUpload } from "@/lib/ai-tools.functions";
 import { toast } from "@/lib/toast";
 import { AiProductCreator } from "@/components/samflash/AiProductCreator";
+import { SuggestDescriptionButton } from "@/components/samflash/SuggestDescriptionButton";
 
 export const Route = createFileRoute("/boutique")({
   head: () => ({ meta: [{ title: "Créer ma boutique — Sam flash 2.0" }] }),
@@ -256,6 +257,7 @@ function ProductForm({
         <input className={field} placeholder="Prix (ex. 15 000 FC)" maxLength={60} value={price} onChange={(e) => setPrice(e.target.value)} />
         <input className={field} placeholder="Catégorie" maxLength={80} value={category} onChange={(e) => setCategory(e.target.value)} />
         <textarea className={field} rows={3} placeholder="Description" maxLength={800} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <SuggestDescriptionButton name={name} category={category} imageUrl={imageUrl} onSuggested={(d) => setDescription(d)} />
         <button type="button" disabled={busy} onClick={() => void submit()} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">
           {busy ? "Enregistrement…" : "Enregistrer le produit"}
         </button>
