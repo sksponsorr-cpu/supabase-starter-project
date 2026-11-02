@@ -458,6 +458,7 @@ export async function runGeneration(
     storagePath: string | null;
     status: string;
     errorMessage: string | null;
+    providerTaskId?: string | null;
   }) => {
     const { data: inserted } = await supabaseAdmin
       .from("generations")
@@ -474,6 +475,7 @@ export async function runGeneration(
         duration_seconds: fields.status === "ready" ? seconds : 0,
         status: fields.status,
         error_message: fields.errorMessage,
+        provider_task_id: fields.providerTaskId ?? null,
       })
       .select("id")
       .single();
@@ -549,6 +551,7 @@ const r2 = await import("@/lib/services/r2.server");
         storagePath: null,
         status: "pending",
         errorMessage: `fal:${payloadStr}`,
+        providerTaskId: outcome.requestId,
       });
 
       return { ok: true, id, status: "pending", seconds };
@@ -690,13 +693,14 @@ export async function finalizePendingRow(
   }
 
   if (result.status === "error") {
+    console.error("[generation] échec fournisseur", row.id, result.error);
     return failPendingRow(row, userId, sanitizeGenerationError(result.error));
   }
 
   // status === "completed"
   const stored = result.bytes
     ? await storeFinalMedia(userId, result.bytes, result.contentType)
-    : { mediaUrl: result.mediaUrl, storagePath: null as string | null };
+    : await storeRemoteMedia(userId, result.mediaUrl);
   if (!stored.mediaUrl) {
     return failPendingRow(row, userId, "Média généré mais inaccessible. Vos crédits ne sont pas décomptés.");
   }
@@ -731,4 +735,142 @@ export async function finalizePendingRow(
   }
 
   return { ok: true, status: "ready", mediaUrl: stored.mediaUrl };
+}
+
+
+/** Copie un média distant chez nous. Si la copie échoue, on garde l'URL fournisseur. */
+async function storeRemoteMedia(
+  userId: string,
+  url: string | null,
+): Promise<{ mediaUrl: string | null; storagePath: string | null }> {
+  if (!url) return { mediaUrl: null, storagePath: null };
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return await storeFinalMedia(userId, bytes, res.headers.get("content-type") ?? "video/mp4");
+  } catch (e) {
+    console.error("[generation] copie du média impossible, URL fournisseur conservée", e);
+    return { mediaUrl: url, storagePath: null };
+  }
+}
+
+/**
+ * Vidéos perdues : marquées en échec (délai dépassé) alors que le fournisseur a fini.
+ * Elles sont livrées sans être recréditées, car le remboursement a déjà eu lieu.
+ */
+export async function recoverLostKieGenerations(): Promise<{ checked: number; recovered: number; waiting: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: rows } = await supabaseAdmin
+    .from("generations")
+    .select("id, user_id, duration, provider_task_id")
+    .eq("status", "error")
+    .eq("media_type", "video")
+    .not("provider_task_id", "is", null)
+    .gte("created_at", since)
+    .limit(30);
+
+  const out = { checked: 0, recovered: 0, waiting: 0 };
+  for (const row of (rows ?? []) as { id: string; user_id: string; duration: string | null; provider_task_id: string }[]) {
+    out.checked++;
+    const r = await checkKieStatus(row.provider_task_id);
+    if (r.status !== "completed" || !r.mediaUrl) {
+      out.waiting++;
+      continue;
+    }
+    const stored = await storeRemoteMedia(row.user_id, r.mediaUrl);
+    if (!stored.mediaUrl) {
+      out.waiting++;
+      continue;
+    }
+    const { data: claimed } = await supabaseAdmin
+      .from("generations")
+      .update({
+        status: "ready",
+        media_url: stored.mediaUrl,
+        storage_path: stored.storagePath,
+        error_message: null,
+        duration_seconds: secondsFor({ mediaType: "video", duration: row.duration ?? "5" } as GenerationInput),
+      })
+      .eq("id", row.id)
+      .eq("status", "error")
+      .select("id");
+    if (claimed?.length) out.recovered++;
+  }
+  return out;
+}
+
+/** Point d'entrée planifié : termine les créations en attente et récupère les vidéos perdues. */
+export async function runGenerationRecovery() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const before = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: pending } = await supabaseAdmin
+    .from("generations")
+    .select("*")
+    .eq("status", "pending")
+    .like("error_message", "fal:%")
+    .lt("created_at", before)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  let ready = 0;
+  let failed = 0;
+  let waiting = 0;
+  for (const row of pending ?? []) {
+    const r = await finalizePendingRow(row as never, row.user_id);
+    if (r.ok && r.status === "ready") ready += 1;
+    else if (r.ok && r.status === "error") failed += 1;
+    else waiting += 1;
+  }
+  const lost = await recoverLostKieGenerations();
+  return { pending: { checked: pending?.length ?? 0, ready, failed, waiting }, lost };
+}
+
+/**
+ * Récupère une génération précise (owner) : en attente → finalisation ; en échec avec identifiant
+ * fournisseur → livraison si le fournisseur a terminé, sans recréditer.
+ */
+export async function recoverGenerationById(
+  id: string,
+): Promise<{ ok: true; outcome: "ready" | "pending" | "failed" | "unrecoverable"; message: string } | { ok: false; message: string }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row } = await supabaseAdmin.from("generations").select("*").eq("id", id).maybeSingle();
+  if (!row) return { ok: false, message: "Génération introuvable." };
+
+  if (row.status === "pending") {
+    const r = await finalizePendingRow(row as never, row.user_id);
+    if (!r.ok) return { ok: false, message: r.error };
+    if (r.status === "ready") return { ok: true, outcome: "ready", message: "Vidéo récupérée." };
+    if (r.status === "error") return { ok: true, outcome: "failed", message: r.error };
+    return { ok: true, outcome: "pending", message: "Toujours en cours chez le fournisseur." };
+  }
+
+  if (row.status === "error" && row.media_type === "video") {
+    if (!row.provider_task_id) {
+      return { ok: true, outcome: "unrecoverable", message: "Pas d'identifiant fournisseur : génération trop ancienne pour être retrouvée." };
+    }
+    const r = await checkKieStatus(row.provider_task_id);
+    if (r.status === "error") return { ok: true, outcome: "failed", message: r.error };
+    if (r.status === "pending") return { ok: true, outcome: "pending", message: "Toujours en cours chez le fournisseur." };
+    const stored = await storeRemoteMedia(row.user_id, r.mediaUrl);
+    if (!stored.mediaUrl) return { ok: true, outcome: "pending", message: "Résultat reçu mais copie impossible. Réessaie." };
+    const { data: claimed } = await supabaseAdmin
+      .from("generations")
+      .update({
+        status: "ready",
+        media_url: stored.mediaUrl,
+        storage_path: stored.storagePath,
+        error_message: null,
+        duration_seconds: secondsFor({ mediaType: "video", duration: row.duration ?? "5" } as GenerationInput),
+      })
+      .eq("id", row.id)
+      .eq("status", "error")
+      .select("id");
+    return claimed?.length
+      ? { ok: true, outcome: "ready", message: "Vidéo récupérée et ajoutée à tes créations." }
+      : { ok: false, message: "Cette génération a déjà été mise à jour." };
+  }
+
+  return { ok: true, outcome: "failed", message: row.error_message ?? "Aucune récupération possible." };
 }
