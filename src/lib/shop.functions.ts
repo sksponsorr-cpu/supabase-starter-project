@@ -109,7 +109,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       .insert({ ...values, user_id: context.userId })
       .select("*")
       .single();
-    if (error) return { ok: false as const, message: "Le produit n'a pas pu être enregistré. Réessaie." };
+    if (error) { console.error("[saveProduct]", error); return { ok: false as const, message: `Le produit n'a pas pu être enregistré : ${error.message}` }; }
     return { ok: true as const, product: row };
   });
 

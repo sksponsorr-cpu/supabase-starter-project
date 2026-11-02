@@ -58,7 +58,10 @@ export const startVoiceOff = createServerFn({ method: "POST" })
     const json = (await res.json().catch(() => null)) as { code?: number; data?: { taskId?: string } } | null;
     const taskId = json?.data?.taskId;
     if (!res.ok || json?.code !== 200 || !taskId) {
-      return { ok: false as const, message: "La voix n'a pas pu démarrer. Tes crédits ne sont pas décomptés." };
+      // Message réel renvoyé par KIE (solde, clé, modèle…) pour savoir exactement ce qui bloque.
+      const reason = (json as { msg?: string } | null)?.msg ?? `HTTP ${res.status}`;
+      console.error("[voice-off] KIE refuse la voix :", res.status, json);
+      return { ok: false as const, message: `La voix n'a pas pu démarrer (${reason}). Tes crédits ne sont pas décomptés.` };
     }
     await db.from("profiles").update({ credits_balance: balance - cost }).eq("id", context.userId);
     return { ok: true as const, taskId, cost };

@@ -90,3 +90,47 @@ export const draftProductFromLink = createServerFn({ method: "POST" })
     if (!parsed) return { ok: false as const, message: "L'IA n'a pas pu lire ce produit depuis ce lien.", draft: null };
     return { ok: true as const, message: null, draft: { ...parsed, imageUrl } as Draft };
   });
+
+/**
+ * Suggestion de description uniquement : texte seulement, l'image du produit n'est jamais modifiée.
+ */
+export const suggestDescription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string; category: string; imageUrl: string | null }) =>
+    z
+      .object({
+        name: z.string().trim().min(2).max(120),
+        category: z.string().trim().max(80),
+        imageUrl: z.string().url().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    let images: { mimeType: "image/jpeg" | "image/png" | "image/webp"; data: string }[] = [];
+    if (data.imageUrl) {
+      try {
+        const r = await fetch(data.imageUrl);
+        const type = (r.headers.get("content-type") ?? "").split(";")[0];
+        if (r.ok && ["image/jpeg", "image/png", "image/webp"].includes(type)) {
+          const buf = Buffer.from(await r.arrayBuffer());
+          if (buf.length < 6_000_000) images = [{ mimeType: type as "image/jpeg", data: buf.toString("base64") }];
+        }
+      } catch {
+        images = [];
+      }
+    }
+    const res = await analyzeWithGemini({
+      prompt:
+        `${PROMPT_RULES}\n\nProduit : ${data.name}${data.category ? ` (catégorie : ${data.category})` : ""}.` +
+        " Rédige seulement la description (2 à 4 phrases). Réponds en JSON avec la seule clé « description ».",
+      images,
+    });
+    if (!res.ok) return { ok: false as const, message: res.message, description: "" };
+    const m = res.text.match(/\{[\s\S]*\}/);
+    try {
+      const j = m ? (JSON.parse(m[0]) as { description?: string }) : null;
+      return { ok: true as const, message: null, description: (j?.description ?? res.text).trim().slice(0, 800) };
+    } catch {
+      return { ok: true as const, message: null, description: res.text.trim().slice(0, 800) };
+    }
+  });
