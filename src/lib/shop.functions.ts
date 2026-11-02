@@ -24,6 +24,8 @@ const shopInput = z.object({
   description: z.string().trim().max(800).default(""),
   phone: z.string().trim().max(40).default(""),
   address: z.string().trim().max(200).default(""),
+  category: z.string().trim().max(80).default(""),
+  country: z.string().trim().max(80).default(""),
   logoUrl: imageUrl,
 });
 
@@ -33,6 +35,9 @@ const productInput = z.object({
   price: z.string().trim().max(60).default(""),
   description: z.string().trim().max(800).default(""),
   category: z.string().trim().max(80).default(""),
+  // Optionnels : une modification sans ces champs (ex. ancien formulaire) ne touche pas au stock.
+  stock: z.number().int().min(0, "Le stock ne peut pas être négatif.").max(100000).optional(),
+  isActive: z.boolean().optional(),
   imageUrl,
 });
 
@@ -68,6 +73,8 @@ export const saveShop = createServerFn({ method: "POST" })
           description: data.description,
           phone: data.phone,
           address: data.address,
+          category: data.category,
+          country: data.country,
           logo_url: data.logoUrl ?? null,
           updated_at: new Date().toISOString(),
         },
@@ -89,6 +96,8 @@ export const saveProduct = createServerFn({ method: "POST" })
       price: data.price,
       description: data.description,
       category: data.category,
+      ...(data.stock !== undefined ? { stock: data.stock } : {}),
+      ...(data.isActive !== undefined ? { is_active: data.isActive } : {}),
       image_url: data.imageUrl ?? null,
       updated_at: new Date().toISOString(),
     };
@@ -106,7 +115,7 @@ export const saveProduct = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await d
       .from("shop_products")
-      .insert({ ...values, user_id: context.userId })
+      .insert({ stock: 0, is_active: true, ...values, user_id: context.userId })
       .select("*")
       .single();
     if (error) { console.error("[saveProduct]", error); return { ok: false as const, message: `Le produit n'a pas pu être enregistré : ${error.message}` }; }

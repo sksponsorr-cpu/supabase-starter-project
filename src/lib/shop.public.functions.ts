@@ -8,13 +8,13 @@ export const getPublicShop = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: shop } = await supabaseAdmin
       .from("shops")
-      .select("name, description, phone, address, logo_url")
+      .select("name, description, phone, address, logo_url, category, country")
       .eq("user_id", data.id)
       .maybeSingle();
     if (!shop) return null;
     const { data: products } = await supabaseAdmin
       .from("shop_products")
-      .select("id, name, price, description, category, image_url")
+      .select("id, name, price, description, category, image_url, stock, is_active")
       .eq("user_id", data.id)
       .order("created_at", { ascending: false });
     return {
@@ -22,14 +22,23 @@ export const getPublicShop = createServerFn({ method: "GET" })
       description: (shop.description as string) ?? "",
       phone: (shop.phone as string) ?? "",
       address: (shop.address as string) ?? "",
+      category: ((shop as Record<string, unknown>).category as string) ?? "",
+      country: ((shop as Record<string, unknown>).country as string) ?? "",
       logoUrl: (shop.logo_url as string | null) ?? null,
-      products: (products ?? []).map((p) => ({
-        id: p.id as string,
-        name: p.name as string,
-        price: (p.price as string) ?? "",
-        description: (p.description as string) ?? "",
-        category: (p.category as string) ?? "",
-        imageUrl: (p.image_url as string | null) ?? null,
-      })),
+      products: (products ?? [])
+        .filter((p) => (p as Record<string, unknown>).is_active !== false)
+        .map((p) => {
+          const row = p as Record<string, unknown>;
+          return {
+            id: p.id as string,
+            name: p.name as string,
+            price: (p.price as string) ?? "",
+            description: (p.description as string) ?? "",
+            category: (p.category as string) ?? "",
+            imageUrl: (p.image_url as string | null) ?? null,
+            stock: typeof row.stock === "number" ? (row.stock as number) : 0,
+            inStock: ((row.stock as number) ?? 0) > 0,
+          };
+        }),
     };
   });
