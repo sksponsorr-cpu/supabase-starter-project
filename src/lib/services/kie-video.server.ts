@@ -28,7 +28,29 @@ export async function createGrokVideoTask(input: {
 }): Promise<{ ok: true; taskId: string } | { ok: false; message: string }> {
   const key = process.env.KIE_API_KEY ?? "";
   if (!key) return { ok: false, message: "Service vidéo indisponible." };
-  if (input.duration < 1 || input.duration > 15) return { ok: false, message: "Durée entre 1 et 15 secondes." };
+  // Au-delà de 15 s, le modèle 1.5 Preview ne suffit pas : on bascule sur les modèles Grok 30 s.
+  if (input.duration > 15) {
+    if (input.duration > 30) return { ok: false, message: "Durée entre 1 et 30 secondes." };
+    const aspect = input.aspectRatio && input.aspectRatio !== "auto" ? input.aspectRatio : "16:9";
+    if (input.imageUrls.length > 0) {
+      return createGrokImagineTask({
+        prompt: input.prompt,
+        imageUrls: input.imageUrls,
+        resolution: input.resolution,
+        duration: input.duration,
+        aspectRatio: aspect as "16:9" | "9:16" | "1:1" | "3:2" | "2:3",
+        callBackUrl: input.callBackUrl,
+      });
+    }
+    return createGrokTextToVideoTask({
+      prompt: input.prompt,
+      aspectRatio: aspect,
+      resolution: input.resolution,
+      duration: input.duration,
+      callBackUrl: input.callBackUrl,
+    });
+  }
+  if (input.duration < 1) return { ok: false, message: "Durée entre 1 et 30 secondes." };
 
   const body: Record<string, unknown> = {
     model: GROK_VIDEO_MODEL,
@@ -139,6 +161,48 @@ export async function createGrokImagineTask(input: {
     return { ok: true, taskId };
   } catch (error) {
     console.error("[kie-grok] createTask impossible", error);
+    return { ok: false, message: "La génération n'a pas pu démarrer." };
+  }
+}
+
+
+/** Grok Imagine Text to Video (grok-imagine/text-to-video) : jusqu'à 30 secondes, sans image de départ. */
+export async function createGrokTextToVideoTask(input: {
+  prompt: string;
+  aspectRatio: string;
+  resolution: GrokResolution;
+  duration: number;
+  callBackUrl?: string;
+}): Promise<{ ok: true; taskId: string } | { ok: false; message: string }> {
+  const key = process.env.KIE_API_KEY ?? "";
+  if (!key) return { ok: false, message: "Service vidéo indisponible." };
+  const body: Record<string, unknown> = {
+    model: "grok-imagine/text-to-video",
+    input: {
+      prompt: input.prompt.slice(0, 4096),
+      aspect_ratio: input.aspectRatio,
+      mode: "normal",
+      duration: String(Math.round(input.duration)),
+      resolution: input.resolution.toLowerCase(),
+    },
+  };
+  if (input.callBackUrl) body.callBackUrl = input.callBackUrl;
+
+  try {
+    const res = await fetch(`${BASE}/createTask`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    const taskId = json?.data?.taskId as string | undefined;
+    if (!res.ok || json.code !== 200 || !taskId) {
+      console.error("[kie-grok-t2v] createTask", res.status, JSON.stringify(json).slice(0, 400));
+      return { ok: false, message: "La génération n'a pas pu démarrer." };
+    }
+    return { ok: true, taskId };
+  } catch (error) {
+    console.error("[kie-grok-t2v] createTask impossible", error);
     return { ok: false, message: "La génération n'a pas pu démarrer." };
   }
 }
