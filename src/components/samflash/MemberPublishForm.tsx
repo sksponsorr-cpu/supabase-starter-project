@@ -28,7 +28,7 @@ export function MemberPublishForm({ onDone }: { onDone: () => void }) {
     try {
       const kind = category === "prompts" ? "prompt" : category === "niches" ? "niche" : category === "skills" ? "skill" : category === "actu" ? "article" : "formation";
       const r = await submit({ data: { category, kind, title, summary, body } });
-      if (!r.ok || !r.id) throw new Error("Publication impossible.");
+      if (!r.ok || !r.id) throw new Error("Publication impossible : vérifiez que le SQL des publications a bien été exécuté.");
       for (const f of files) {
         const u = await upload({ data: { resourceId: r.id, name: f.name, mime: f.type, size: f.size } });
         if (!u.ok) throw new Error(u.message);
@@ -60,7 +60,7 @@ export function MemberPublishForm({ onDone }: { onDone: () => void }) {
       <input
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm"
+        accept="image/*,application/pdf,video/mp4,video/webm,text/plain,text/markdown,application/json,application/zip,.md,.txt,.json,.zip,.doc,.docx,.xlsx"
         onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 5))}
         className="text-sm"
       />

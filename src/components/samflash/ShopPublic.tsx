@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { MessageCircle, Phone, ShieldCheck, Truck, Clock, Share2, ArrowLeft, ChevronDown } from "lucide-react";
 import { getPublicShop } from "@/lib/shop.public.functions";
+import { OrderForm } from "@/components/samflash/OrderForm";
 
 type Shop = NonNullable<Awaited<ReturnType<typeof getPublicShop>>>;
 type Product = Shop["products"][number];
@@ -33,6 +34,7 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [filter, setFilter] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [orderOf, setOrderOf] = useState<Product | null>(null);
 
   useEffect(() => {
     void fetchShop({ data: { id } }).then((s) => setShop(s));
@@ -88,9 +90,9 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
             <h1 className="text-3xl font-extrabold leading-tight tracking-tight">{item.name}</h1>
             {item.price && <p className="text-3xl font-black text-blue-700">{item.price}</p>}
             {wa && (
-              <a href={waLink(`Bonjour, je veux commander « ${item.name} » sur ${shop.name}.`)} target="_blank" rel="noopener" className="sf-shine flex items-center justify-center gap-2 rounded-full bg-blue-700 py-4 text-sm font-bold text-white shadow-lg shadow-blue-700/30">
-                <MessageCircle className="h-4 w-4" /> Commander sur WhatsApp
-              </a>
+              <button onClick={() => setOrderOf(item)} className="sf-shine flex w-full items-center justify-center gap-2 rounded-full bg-blue-700 py-4 text-sm font-bold text-white shadow-lg shadow-blue-700/30">
+                <MessageCircle className="h-4 w-4" /> Commander
+              </button>
             )}
             <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
               <div className="rounded-2xl bg-slate-50 p-3"><Truck className="mx-auto mb-1 h-4 w-4 text-blue-700" />Livraison confirmée</div>
@@ -118,6 +120,7 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
     <div className="min-h-screen bg-white pb-28 text-slate-900">
       <style>{STYLE}</style>
       {Header}
+      {orderOf && wa && <OrderForm shopUserId={id} shopName={shop.name} waPhone={wa} product={{ id: orderOf.id, name: orderOf.name, price: orderOf.price }} onClose={() => setOrderOf(null)} />}
 
       {/* Accueil : fond flouté d'un produit, logo qui flotte */}
       <section className="relative isolate overflow-hidden px-6 py-16 text-center text-white">
@@ -215,9 +218,9 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
                 <a href={`/magasin?id=${id}&produit=${p.id}`}><h3 className="line-clamp-2 text-sm font-bold leading-snug">{p.name}</h3></a>
                 {p.price && <p className="text-base font-black text-blue-700">{p.price}</p>}
                 {wa && (
-                  <a href={waLink(`Bonjour, je suis intéressé par « ${p.name} » sur ${shop.name}.`)} target="_blank" rel="noopener" className="mt-2 flex items-center justify-center gap-1.5 rounded-full bg-blue-700 py-2 text-xs font-bold text-white">
+                  <button onClick={() => setOrderOf(p)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-700 py-2 text-xs font-bold text-white">
                     <MessageCircle className="h-3.5 w-3.5" /> Commander
-                  </a>
+                  </button>
                 )}
               </div>
             </article>

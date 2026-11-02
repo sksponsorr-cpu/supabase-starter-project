@@ -3,6 +3,7 @@ import { CommunityFeed } from "@/components/samflash/CommunityFeed";
 import { MembersGrid, VideosGrid } from "@/components/samflash/CommunityLists";
 import { MemberPublishForm } from "@/components/samflash/MemberPublishForm";
 import { CommunityProfile } from "@/components/samflash/CommunityProfile";
+import { CommunityComposer } from "@/components/samflash/CommunityComposer";
 
 type Tab = "fil" | "videos" | "membres";
 
@@ -28,16 +29,11 @@ export function CommunityPage({ onSeeOffers }: { onSeeOffers: () => void }) {
       <section className="rounded-xl border border-white/10 bg-[#18191a] p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-bold">S</div>
-          <button onClick={() => setPublishing(!publishing)} className="flex-1 rounded-full bg-[#3a3b3c] px-4 py-2.5 text-left text-sm text-muted-foreground">
-            Quoi de neuf ? Partagez une ressource…
-          </button>
+          <button onClick={() => setPublishing(true)} className="flex-1 rounded-full bg-[#3a3b3c] px-4 py-2.5 text-left text-sm text-muted-foreground">Quoi de neuf ? Partagez une ressource…</button>
         </div>
-        {publishing && (
-          <div className="mt-4">
-            <MemberPublishForm onDone={() => { setReload((n) => n + 1); setPublishing(false); }} />
-          </div>
-        )}
       </section>
+
+      {publishing && <CommunityComposer onClose={() => setPublishing(false)} onDone={() => setReload((n) => n + 1)} />}
 
       {/* Onglets */}
       <nav className="sticky top-0 z-10 grid grid-cols-3 rounded-xl border border-white/10 bg-[#18191a] text-sm font-semibold">
