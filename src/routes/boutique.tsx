@@ -5,6 +5,7 @@ import { Store, Plus, Trash2, Pencil } from "lucide-react";
 import { getShopOverview, saveShop, saveProduct, deleteProduct } from "@/lib/shop.functions";
 import { presignAiUpload } from "@/lib/ai-tools.functions";
 import { toast } from "@/lib/toast";
+import { AiProductCreator } from "@/components/samflash/AiProductCreator";
 
 export const Route = createFileRoute("/boutique")({
   head: () => ({ meta: [{ title: "Créer ma boutique — Sam flash 2.0" }] }),
@@ -146,6 +147,7 @@ function BoutiquePage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
+      <AiProductCreator onSaved={refresh} />
           <h2 className="text-sm font-semibold">Mes produits ({products.length})</h2>
           <button type="button" onClick={() => setEditing("new")} className="flex items-center gap-1 text-sm font-semibold text-primary"><Plus className="h-4 w-4" /> Ajouter</button>
         </div>
