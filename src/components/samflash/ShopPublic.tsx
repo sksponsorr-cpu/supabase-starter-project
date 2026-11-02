@@ -88,9 +88,9 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
             <a href={`/magasin?id=${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700"><ArrowLeft className="h-4 w-4" /> Retour à la boutique</a>
             {item.category && <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{item.category}</p>}
             <h1 className="text-3xl font-extrabold leading-tight tracking-tight">{item.name}</h1>
-            {item.price && <p className="text-3xl font-black text-blue-700">{item.price}</p>}
+            {item.price && <p className="text-3xl font-black text-blue-700">{item.price}</p>} {item.inStock ? <p className="text-sm font-semibold text-emerald-700">En stock · {item.stock} disponible{item.stock > 1 ? "s" : ""}</p> : <p className="text-sm font-semibold text-red-600">Rupture de stock</p>}
             {wa && (
-              <button onClick={() => setOrderOf(item)} className="sf-shine flex w-full items-center justify-center gap-2 rounded-full bg-blue-700 py-4 text-sm font-bold text-white shadow-lg shadow-blue-700/30">
+              <button disabled={!item.inStock} onClick={() => setOrderOf(item)} className="sf-shine disabled:opacity-40 flex w-full items-center justify-center gap-2 rounded-full bg-blue-700 py-4 text-sm font-bold text-white shadow-lg shadow-blue-700/30">
                 <MessageCircle className="h-4 w-4" /> Commander
               </button>
             )}
@@ -216,9 +216,9 @@ export function ShopPublic({ id, produit }: { id: string; produit?: string }) {
               <div className="space-y-1.5 p-3">
                 {p.category && <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{p.category}</p>}
                 <a href={`/magasin?id=${id}&produit=${p.id}`}><h3 className="line-clamp-2 text-sm font-bold leading-snug">{p.name}</h3></a>
-                {p.price && <p className="text-base font-black text-blue-700">{p.price}</p>}
+                {p.price && <p className="text-base font-black text-blue-700">{p.price}</p>} {p.inStock ? <p className="text-[11px] font-semibold text-emerald-700">En stock</p> : <p className="text-[11px] font-semibold text-red-600">Rupture de stock</p>}
                 {wa && (
-                  <button onClick={() => setOrderOf(p)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-700 py-2 text-xs font-bold text-white">
+                  <button disabled={!p.inStock} onClick={() => setOrderOf(p)} className="mt-2 disabled:opacity-40 flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-700 py-2 text-xs font-bold text-white">
                     <MessageCircle className="h-3.5 w-3.5" /> Commander
                   </button>
                 )}
