@@ -7,7 +7,16 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const BUCKET = "resources";
 const MAX_FILES = 5;
 const MAX_SIZE = 100 * 1024 * 1024; // 100 Mo (vidéos)
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4", "video/webm"];
+const ALLOWED = [
+  "image/jpeg", "image/png", "image/webp",
+  "application/pdf",
+  "video/mp4", "video/webm",
+  // Compétences (skills) : fichiers de travail
+  "text/plain", "text/markdown", "application/json", "application/zip", "application/x-zip-compressed",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
+const MAX_FILES_TOTAL = 5;
 
 /** Crée une ressource du membre. Elle n'est visible qu'après validation par l'administrateur. */
 export const submitMemberResource = createServerFn({ method: "POST" })
@@ -48,12 +57,12 @@ export const requestUpload = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!ALLOWED.includes(data.mime)) return { ok: false as const, message: "Type de fichier non autorisé (image, PDF, vidéo)." };
+    if (!ALLOWED.includes(data.mime)) return { ok: false as const, message: `Type de fichier non autorisé : ${data.mime || "inconnu"}.` };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: res } = await supabaseAdmin.from("resources").select("author_id").eq("id", data.resourceId).maybeSingle();
     if (!res || res.author_id !== context.userId) return { ok: false as const, message: "Publication introuvable." };
     const { count } = await supabaseAdmin.from("resource_files").select("id", { count: "exact", head: true }).eq("resource_id", data.resourceId);
-    if ((count ?? 0) >= MAX_FILES) return { ok: false as const, message: `Maximum ${MAX_FILES} fichiers par publication.` };
+    if ((count ?? 0) >= MAX_FILES_TOTAL) return { ok: false as const, message: `Maximum ${MAX_FILES_TOTAL} fichiers par publication.` };
 
     const safe = data.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${context.userId}/${data.resourceId}/${crypto.randomUUID()}-${safe}`;
