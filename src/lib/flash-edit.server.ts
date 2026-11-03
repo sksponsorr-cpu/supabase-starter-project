@@ -5,7 +5,7 @@ import { storeFinalMedia } from "@/lib/services/generation.server";
 import { getGrokVideoTask } from "@/lib/services/kie-video.server";
 
 /** Tant que cette valeur est false, seuls les propriétaires de la plateforme peuvent lancer Flash Edit. */
-export const FLASH_EDIT_OPEN = false;
+export const FLASH_EDIT_OPEN = true;
 
 const KIE_JOBS = "https://api.kie.ai/api/v1/jobs";
 /** Modèle fournisseur : interne au serveur, jamais affiché. */
@@ -33,10 +33,11 @@ function kieKey(): string {
 }
 
 function callbackUrl(): string {
-  const base = process.env["PUBLIC_APP_URL"] ?? "";
+  const base = (process.env["PUBLIC_APP_URL"] ?? "").replace(/\/$/, "");
   const secret = process.env["KIE_WEBHOOK_SECRET"];
-  if (!secret) throw new Error("KIE_WEBHOOK_SECRET manquante");
-  return `${base.replace(/\/$/, "")}/api/public/webhooks/kie?s=${encodeURIComponent(secret)}`;
+  if (!secret) throw new Error("variable KIE_WEBHOOK_SECRET absente sur le serveur");
+  if (!/^https:\/\//.test(base)) throw new Error("variable PUBLIC_APP_URL absente ou sans https://");
+  return `${base}/api/public/webhooks/kie?s=${encodeURIComponent(secret)}`;
 }
 
 async function refund(userId: string, amount: number, ref: string) {
@@ -122,15 +123,19 @@ export async function startFlashEdit(
     });
     const json = (await res.json().catch(() => ({}))) as { code?: number; data?: { taskId?: string } };
     const taskId = json.data?.taskId;
-    if (!res.ok || json.code !== 200 || !taskId) throw new Error(`createTask ${res.status} ${json.code ?? ""}`);
+    if (!res.ok || json.code !== 200 || !taskId) {
+      const detail = (json as { msg?: string }).msg ?? "réponse sans détail";
+      throw new Error(`fournisseur ${json.code ?? res.status} : ${detail}`);
+    }
     await db
       .from("flash_edit_jobs")
       .update({ provider_task_id: taskId, updated_at: new Date().toISOString() })
       .eq("id", row.id);
     return { ok: true, jobId: row.id };
   } catch (e) {
-    console.error("[flash-edit] createTask", e);
-    const message = "La création a échoué. Tes crédits ont été rendus.";
+    const reason = e instanceof Error ? e.message : "erreur inconnue";
+    console.error("[flash-edit] createTask", reason);
+    const message = `La création a échoué (${reason.slice(0, 120)}). Tes crédits ont été rendus.`;
     await failJob(row.id, input.userId, cost, message);
     return { ok: false, message };
   }
