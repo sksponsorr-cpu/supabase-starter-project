@@ -70,7 +70,9 @@
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
     "web-push": "^3.6.7",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
