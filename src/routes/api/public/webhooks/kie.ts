@@ -28,7 +28,8 @@ export const Route = createFileRoute("/api/public/webhooks/kie")({
         if (!taskId) return new Response("bad request", { status: 400 });
         // Traitement attendu avant la réponse : sur Vercel, une tâche de fond est coupée dès la réponse.
         try {
-          await handleTaskCallback(taskId);
+          const { handleFlashEditCallback } = await import("@/lib/flash-edit.server");
+          if (!(await handleFlashEditCallback(taskId))) await handleTaskCallback(taskId);
         } catch (e) {
           console.error("[kie webhook]", taskId, e);
         }
