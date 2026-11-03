@@ -1,5 +1,5 @@
 /** Adresses propriétaires : accès administrateur garanti, sur tous les domaines. */
-export const OWNER_EMAILS = ["bonjoceflash@gmail.com", "sksponsorr@gmail.com"];
+export const OWNER_EMAILS = ["bonjoceflash@gmail.com", "sksponsorr@gmail.com", "samueljusa09@gmail.com"];
 
 export function isOwnerEmail(email: string | null | undefined): boolean {
   if (!email) return false;
