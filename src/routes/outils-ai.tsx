@@ -16,7 +16,7 @@ export const Route = createFileRoute("/outils-ai")({
   component: ToolsPage,
 });
 
-type ToolId = "clonage-video";
+type ToolId = "clonage-video" | "flash-edit";
 
 type Tool = {
   id: ToolId;
@@ -38,6 +38,15 @@ const TOOLS: Tool[] = [
     price: "À partir de 0,9 crédit / seconde",
     openToAll: true,
   },
+  {
+    id: "flash-edit",
+    name: "Flash Edit",
+    logo: "/tools/flash-edit.png",
+    description: "Modifiez une vidéo avec une consigne : angles de caméra, couleurs, personnages de référence.",
+    price: "Selon la durée et la résolution, affiché avant lancement",
+    // Réservé aux comptes autorisés tant que la génération n'est pas branchée.
+    openToAll: false,
+  },
 ];
 
 /** Lien vers la bonne page selon l'outil. */
@@ -45,6 +54,13 @@ function OpenLink({ id, className, children }: { id: ToolId; className?: string;
   if (id === "clonage-video") {
     return (
       <Link to="/clonage-video" className={className}>
+        {children}
+      </Link>
+    );
+  }
+  if (id === "flash-edit") {
+    return (
+      <Link to="/flash-edit" className={className}>
         {children}
       </Link>
     );
