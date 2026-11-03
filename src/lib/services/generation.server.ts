@@ -625,7 +625,7 @@ async function failPendingRow(
   return { ok: true, status: "error", error: message };
 }
 
-async function storeFinalMedia(
+export async function storeFinalMedia(
   userId: string,
   bytes: Uint8Array,
   contentType: string,
@@ -761,7 +761,7 @@ async function storeRemoteMedia(
  */
 export async function recoverLostKieGenerations(): Promise<{ checked: number; recovered: number; waiting: number }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { data: rows } = await supabaseAdmin
     .from("generations")
     .select("id, user_id, duration, provider_task_id")
