@@ -44,8 +44,7 @@ const TOOLS: Tool[] = [
     logo: "/tools/flash-edit.png",
     description: "Modifiez une vidéo avec une consigne : angles de caméra, couleurs, personnages de référence.",
     price: "Selon la durée et la résolution, affiché avant lancement",
-    // Réservé aux comptes autorisés tant que la génération n'est pas branchée.
-    openToAll: false,
+    openToAll: true,
   },
 ];
 
