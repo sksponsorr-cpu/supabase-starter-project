@@ -86,6 +86,13 @@ function FlashEditPage() {
     void loadJobs();
   }, []);
 
+  // Tant qu'une modification est en cours, on relit la liste toutes les 5 secondes.
+  useEffect(() => {
+    if (!jobs.some((j) => j.status === "running")) return;
+    const id = setInterval(() => void loadJobs(), 5000);
+    return () => clearInterval(id);
+  }, [jobs]);
+
   const onPickVideo = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
     e.target.value = "";
@@ -375,20 +382,42 @@ function FlashEditPage() {
           <h2 className="text-lg font-semibold text-blue-900">Mes modifications</h2>
           {jobs.length === 0 && <p className="text-sm text-slate-500">Aucune modification pour l'instant.</p>}
           <ul className="space-y-3">
-            {jobs.map((job) => (
-              <li key={job.id} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-blue-100">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{job.prompt.slice(0, 120)}</p>
-                  <span className="text-xs text-slate-500">{statusLabel(job)}</span>
-                </div>
-                {job.error_message && <p className="mt-2 text-xs text-red-600">{job.error_message}</p>}
-                {job.status === "done" && job.result_url && (
-                  <a href={job.result_url} target="_blank" rel="noopener" className="mt-2 inline-block text-sm font-semibold text-blue-700 underline">
-                    Ouvrir la vidéo
-                  </a>
-                )}
-              </li>
-            ))}
+            {jobs.map((job) => {
+              const minutes = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000));
+              const running = job.status === "running";
+              return (
+                <li key={job.id} className="space-y-3 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-blue-100">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{job.prompt.slice(0, 120)}</p>
+                    <span className={`text-xs font-medium ${running ? "text-blue-600" : job.status === "done" ? "text-emerald-600" : "text-red-600"}`}>
+                      {statusLabel(job)}
+                    </span>
+                  </div>
+
+                  {running && (
+                    <div className="space-y-2">
+                      <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                        <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-blue-500 to-sky-400" />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        En cours depuis {minutes < 1 ? "moins d'une minute" : `${minutes} min`}. La page se met à jour seule.
+                      </p>
+                    </div>
+                  )}
+
+                  {job.error_message && <p className="text-xs text-red-600">{job.error_message}</p>}
+
+                  {job.status === "done" && job.result_url && (
+                    <div className="space-y-2">
+                      <video src={job.result_url} controls playsInline className="w-full rounded-2xl bg-black" />
+                      <a href={job.result_url} target="_blank" rel="noopener" className="inline-block text-sm font-semibold text-blue-700 underline">
+                        Ouvrir la vidéo
+                      </a>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       </div>
