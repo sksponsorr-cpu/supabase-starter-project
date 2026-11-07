@@ -196,7 +196,7 @@ export async function createPaymentLink(
     mobile: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
     phone_number: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
     description: input.description,
-    pass_digital_charge: true,
+    pass_digital_charge: false,
     ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
   };
 
