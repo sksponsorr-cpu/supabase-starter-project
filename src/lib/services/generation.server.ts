@@ -460,7 +460,7 @@ export async function runGeneration(
     errorMessage: string | null;
     providerTaskId?: string | null;
   }) => {
-    const { data: inserted } = await supabaseAdmin
+    const { data: inserted, error: insertError } = await supabaseAdmin
       .from("generations")
       .insert({
         user_id: userId,
@@ -479,6 +479,10 @@ export async function runGeneration(
       })
       .select("id")
       .single();
+    if (insertError) {
+      console.error("[GENERATION-PERSIST] insertion échouée:", insertError.message);
+      return null;
+    }
     return inserted?.id ?? null;
   };
 
@@ -524,6 +528,7 @@ const r2 = await import("@/lib/services/r2.server");
       if (!mediaUrl) throw new Error("Média indisponible : aucun crédit n'a été débité");
 
       const id = await persist({ mediaUrl, storagePath, status: "ready", errorMessage: null });
+      if (!id) throw new Error("Enregistrement de la génération impossible");
 
       if (id) {
         await supabaseAdmin.from("community_gallery").insert({
@@ -553,6 +558,7 @@ const r2 = await import("@/lib/services/r2.server");
         errorMessage: `fal:${payloadStr}`,
         providerTaskId: outcome.requestId,
       });
+      if (!id) throw new Error("Enregistrement de la génération impossible");
 
       return { ok: true, id, status: "pending", seconds };
     }
