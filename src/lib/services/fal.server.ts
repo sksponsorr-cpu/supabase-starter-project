@@ -126,7 +126,11 @@ export function sanitizeGenerationError(rawError: unknown): string {
     return "La génération a pris trop de temps. Réessayez. Vos crédits ne sont pas décomptés.";
   }
 
-  // 4. Toute autre erreur
+  // 4. Toute autre erreur : on affiche le motif du fournisseur (tronqué), pour pouvoir le diagnostiquer.
+  const reason = message.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (reason) {
+    return `Le fournisseur a refusé la génération : ${reason}. Vos crédits ne sont pas décomptés.`;
+  }
   return "Une erreur est survenue pendant la génération. Réessayez. Vos crédits ne sont pas décomptés.";
 }
 
