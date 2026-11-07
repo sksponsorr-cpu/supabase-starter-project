@@ -65,7 +65,49 @@ async function launch(userId: string, input: Record<string, unknown>, cost: numb
   return { status: "started", cost_credits: cost, ...rest };
 }
 
+const UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+const UPLOAD_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/** Enregistre une photo envoyée en base64 et renvoie un lien public valable 7 jours. */
+async function storeReferenceImage(userId: string, mimeRaw: unknown, dataRaw: unknown): Promise<{ url: string } | { error: string }> {
+  const mime = str(mimeRaw, 20);
+  const ext = UPLOAD_EXT[mime];
+  if (!ext) return { error: "Format non pris en charge. Utilise JPEG, PNG ou WEBP." };
+  const raw = str(dataRaw, 12_000_000).replace(/^data:[^,]*,/, "");
+  if (!raw) return { error: "Aucune image reçue." };
+  const buffer = Buffer.from(raw, "base64");
+  if (buffer.length === 0) return { error: "Image illisible." };
+  if (buffer.length > UPLOAD_MAX_BYTES) return { error: "Image trop lourde (8 Mo maximum)." };
+  const path = `${userId}/refs/${crypto.randomUUID()}.${ext}`;
+  const sb = await db();
+  const { error: upErr } = await sb.storage.from("generations").upload(path, buffer, { contentType: mime });
+  if (upErr) return { error: `Envoi impossible : ${upErr.message}` };
+  const { data: signed, error: signErr } = await sb.storage.from("generations").createSignedUrl(path, 60 * 60 * 24 * 7);
+  if (signErr || !signed?.signedUrl) return { error: "Lien impossible à créer." };
+  return { url: signed.signedUrl };
+}
+
+export const UPLOAD_TOOL: McpTool = {
+  name: "upload_reference_image",
+  description:
+    "Envoie une photo de référence depuis la conversation (fichier encodé en base64) et renvoie un lien public. Utilise ensuite ce lien dans generate_video (image_url ou image_urls) ou generate_image.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      data_base64: { type: "string", description: "Contenu du fichier image encodé en base64 (sans préfixe data:)." },
+      mime_type: { type: "string", enum: ["image/jpeg", "image/png", "image/webp"] },
+    },
+    required: ["data_base64", "mime_type"],
+  },
+  run: async (userId, args) => {
+    const stored = await storeReferenceImage(userId, args.mime_type, args.data_base64);
+    if ("error" in stored) return stored;
+    return { url: stored.url, expires_in_days: 7 };
+  },
+};
+
 export const MCP_TOOLS: McpTool[] = [
+  UPLOAD_TOOL,
   {
     name: "get_balance",
     description: "Solde de crédits Sam Flash de l'utilisateur.",
@@ -193,6 +235,19 @@ export const MCP_TOOLS: McpTool[] = [
           maxItems: 3,
           description: "Liens publics de 1 à 3 photos de personnages, dans l'ordre du prompt (Seedance uniquement).",
         },
+        images_base64: {
+          type: "array",
+          maxItems: 3,
+          description: "Photos envoyées directement dans la conversation (1 à 3, dans l'ordre du prompt). Chaque élément : { data_base64, mime_type }. Remplace image_url / image_urls.",
+          items: {
+            type: "object",
+            properties: {
+              data_base64: { type: "string" },
+              mime_type: { type: "string", enum: ["image/jpeg", "image/png", "image/webp"] },
+            },
+            required: ["data_base64", "mime_type"],
+          },
+        },
       },
       required: ["prompt", "model"],
     },
@@ -213,7 +268,16 @@ export const MCP_TOOLS: McpTool[] = [
         ? args.image_urls.filter((u): u is string => typeof u === "string").map((u) => u.trim().slice(0, 2000)).filter(Boolean).slice(0, 3)
         : [];
       const single = str(args.image_url, 2000);
-      const images = list.length > 0 ? list : single ? [single] : [];
+      const uploaded: string[] = [];
+      if (Array.isArray(args.images_base64)) {
+        for (const item of args.images_base64.slice(0, 3)) {
+          const it = (item ?? {}) as Json;
+          const stored = await storeReferenceImage(userId, it.mime_type, it.data_base64);
+          if ("error" in stored) return { error: stored.error };
+          uploaded.push(stored.url);
+        }
+      }
+      const images = uploaded.length > 0 ? uploaded : list.length > 0 ? list : single ? [single] : [];
       if (images.length > 1 && !model.id.startsWith("seedance")) {
         return { error: `${model.label} accepte une seule photo. Plusieurs photos : utilise Seedance 2.5.` };
       }
