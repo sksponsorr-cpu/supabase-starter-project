@@ -1,581 +1,282 @@
-import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { z } from "zod";
-import {
-  SUPPORTED_COUNTRIES,
-  findCountry,
-  normalizeMobile,
-  operatorPrefixes,
-} from "@/lib/payments/countries";
+/**
+ * Service SwyChr / AccountPe — serveur uniquement.
+ * La clé `SWYCHR_API_KEY` est lue à l'exécution et n'est jamais exposée au client.
+ */
 
-/** Origine publique du site : domaine de production, sinon hôte de la requête. */
-const PRODUCTION_ORIGIN = "https://sam-flash.lat";
+const BASE_URL = "https://api.accountpe.com";
 
-async function resolvePublicOrigin(): Promise<string> {
-  const configured = process.env["PUBLIC_SITE_URL"];
-  if (configured) return configured.replace(/\/+$/, "");
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const request = getRequest();
-    const host =
-      request?.headers.get("x-forwarded-host") ?? request?.headers.get("host") ?? "";
-    const proto = request?.headers.get("x-forwarded-proto") ?? "https";
-    // Les hôtes d'aperçu protégés renvoient 401 aux appels externes (webhooks).
-    const isPreview =
-      host.includes("id-preview") || host.includes("localhost") || host.startsWith("127.");
-    if (host && !isPreview) return `${proto}://${host}`;
-  } catch {
-    // Hors contexte de requête : on retombe sur le domaine de production.
-  }
-  return PRODUCTION_ORIGIN;
-}
-
-export type PriceRow = {
-  id: string;
+export type PayoutMethod = {
+  /** Identifiant à renvoyer dans `payment_method` (ex: MTN, ORANGE). */
+  code: string;
   label: string;
-  tier: string;
-  amount_eur: number;
-  amount_eur_yearly: number | null;
-  active: boolean;
-  sort_order: number;
-  credits_rate: number | null;
-  credits_bonus: number;
-  credits_fixed: number | null;
-  images_free: number | null;
+  /** Format attendu du numéro (ex: "2376XXXXXXXX"). */
+  mobileFormat: string | null;
+  /** Longueur attendue du numéro, déduite du format quand l'API ne la fournit pas. */
+  length: number | null;
+  prefix: string | null;
 };
 
-export type BillingPeriod = "monthly" | "yearly";
+type ApiResult<T> = { ok: true; data: T } | { ok: false; message: string; status?: number };
 
-/** Liste publique des offres et de leur prix en euros. */
-/** Bornes du curseur de crédits (abonnements uniquement). */
-export const CREDIT_MIN = 50;
-export const CREDIT_MAX = 5000;
-
-/** Taux officiel fixe : 655,957 FCFA = 1 €. Les prix sont saisis en FCFA. */
-const FCFA_PER_EUR = 655.957;
-
-/** Vérifie un code promo (table promo_codes gérée depuis l'administration) et renvoie le montant après réduction. */
-async function applyPromoCode(
-  code: string | undefined,
-  baseEur: number,
-): Promise<{ ok: true; amountEur: number; percent: number; discountEur: number } | { ok: false; message: string }> {
-  if (!code || !code.trim()) return { ok: true, amountEur: baseEur, percent: 0, discountEur: 0 };
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await (supabaseAdmin as unknown as AnyClient)
-    .from("promo_codes")
-    .select("discount_percent, discount_eur, starts_at, ends_at, max_uses, used_count, active")
-    .eq("code", code.trim().toUpperCase())
-    .maybeSingle();
-  const now = Date.now();
-  const valid =
-    data &&
-    data.active === true &&
-    (!data.starts_at || new Date(data.starts_at).getTime() <= now) &&
-    (!data.ends_at || new Date(data.ends_at).getTime() > now) &&
-    (data.max_uses == null || Number(data.used_count ?? 0) < Number(data.max_uses));
-  if (!valid) return { ok: false, message: "Code promo invalide ou expiré." };
-  const percent = Number(data.discount_percent ?? 0);
-  const fixed = Number(data.discount_eur ?? 0);
-  const discountEur =
-    percent > 0 ? Math.round(baseEur * percent) / 100 : Math.min(Math.max(fixed, 0), baseEur);
-  if (discountEur <= 0) return { ok: false, message: "Code promo invalide ou expiré." };
-  return {
-    ok: true,
-    amountEur: Math.round((baseEur - discountEur) * 100) / 100,
-    percent,
-    discountEur: Math.round(discountEur * 100) / 100,
-  };
+function apiKey(): string | null {
+  return process.env["SWYCHR_API_KEY"] ?? null;
 }
 
-/** Sur mesure : montant en euros = nombre de crédits × prix d'un crédit (amount_fcfa de la ligne « custom »). */
-function customAmountEur(price: { amount_fcfa?: unknown }, credits?: number): number | null {
-  const unit = Number(price.amount_fcfa ?? 0);
-  if (!credits || credits < CREDIT_MIN || credits > CREDIT_MAX || unit <= 0) return null;
-  return Math.round((credits * unit * 100) / FCFA_PER_EUR) / 100;
+export function isSwychrConfigured(): boolean {
+  return Boolean(process.env["SWYCHR_API_KEY"]);
 }
 
-/** Convertit un prix en FCFA (base) en prix en euros pour le calcul et la conversion locale. */
-function toEurOffer<T extends { amount_fcfa?: unknown; amount_fcfa_yearly?: unknown; amount_eur?: unknown; amount_eur_yearly?: unknown }>(row: T) {
-  const fcfa = row.amount_fcfa === null || row.amount_fcfa === undefined ? null : Number(row.amount_fcfa);
-  const fcfaY = row.amount_fcfa_yearly === null || row.amount_fcfa_yearly === undefined ? null : Number(row.amount_fcfa_yearly);
-  return {
-    ...row,
-    amount_eur: fcfa !== null ? fcfa / FCFA_PER_EUR : Number(row.amount_eur ?? 0),
-    amount_eur_yearly: fcfaY !== null ? fcfaY / FCFA_PER_EUR : row.amount_eur_yearly == null ? null : Number(row.amount_eur_yearly),
-  };
-}
+async function callSwychr(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<ApiResult<Record<string, unknown>>> {
+  const key = apiKey();
+  if (!key) return { ok: false, message: "Clé API SwyChr non configurée côté serveur." };
 
-export const listPrices = createServerFn({ method: "GET" }).handler(async (): Promise<PriceRow[]> => {
-  const { publicSupabase } = await import("@/lib/payments/public-client.server");
-  const { data } = await publicSupabase()
-    .from("product_prices")
-    .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, active, sort_order, credits_rate, credits_bonus, credits_fixed, images_free")
-    .eq("active", true)
-    .order("sort_order", { ascending: true });
-  return (data ?? []).map((row) => toEurOffer(row)).map((row) => ({
-    ...row,
-    amount_eur: Number(row.amount_eur),
-    amount_eur_yearly: row.amount_eur_yearly === null ? null : Number(row.amount_eur_yearly),
-    credits_rate: row.credits_rate === null || row.credits_rate === undefined ? null : Number(row.credits_rate),
-    credits_bonus: Number(row.credits_bonus ?? 0),
-    credits_fixed: row.credits_fixed === null || row.credits_fixed === undefined ? null : Number(row.credits_fixed),
-    images_free: row.images_free === null || row.images_free === undefined ? null : Number(row.images_free),
-  }));
-});
-
-/** Pays SwyChr pris en charge. */
-export const listCountries = createServerFn({ method: "GET" }).handler(async () => SUPPORTED_COUNTRIES);
-
-/** Moyens de paiement disponibles pour un pays. */
-export const listPaymentMethods = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { countryCode: string }) =>
-    z.object({ countryCode: z.string().length(2) }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const country = findCountry(data.countryCode);
-    if (!country) return { ok: false as const, message: "Pays non pris en charge." };
-
-    const { fetchPayoutMethods } = await import("@/lib/services/swychr.server");
-    const result = await fetchPayoutMethods(country.code);
-    if (!result.ok) return { ok: false as const, message: result.message };
-    // RDC : seuls Airtel, Orange et M-Pesa sont conservés (Afrimoney retiré).
-    const methods =
-      country.code === "CD"
-        ? result.data.filter((m) =>
-            ["airtel", "orange", "mpesa", "m-pesa", "vodacom"].some((k) =>
-              `${m.label} ${m.code}`.toLowerCase().includes(k),
-            ),
-          )
-        : result.data;
-    return { ok: true as const, methods };
-  });
-
-/** Devis : conversion du prix EUR vers la devise locale du pays choisi. */
-export const quotePrice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string; countryCode: string; period?: string; credits?: number; promoCode?: string }) =>
-    z
-      .object({
-        productId: z.string().min(1),
-        countryCode: z.string().length(2),
-        period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(0).max(100000).optional(),
-        promoCode: z.string().max(40).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const country = findCountry(data.countryCode);
-    if (!country) return { ok: false as const, message: "Pays non pris en charge." };
-
-    const { data: priceRaw } = await context.supabase
-      .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
-      .eq("id", data.productId)
-      .eq("active", true)
-      .maybeSingle();
-    const price = priceRaw ? toEurOffer(priceRaw) : null;
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
-
-    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
-    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const baseEur =
-      customEur ??
-      (data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur));
-    const promo = await applyPromoCode(data.promoCode, baseEur);
-    if (!promo.ok) return { ok: false as const, message: promo.message };
-    const amountEur = promo.amountEur;
-
-    const { convertFromEur } = await import("@/lib/services/fx.server");
-    const conv = await convertFromEur(amountEur, country.currency, country.zeroDecimal);
-    if (!conv.ok) return { ok: false as const, message: conv.message };
-
-    // Frais SwyChr ajoutés pour que le total affiché corresponde au prélèvement réel.
-    const { addPaymentFees } = await import("@/lib/payments/fees");
-    const fees = addPaymentFees(conv.amount, country.zeroDecimal);
-
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Api-Key": key,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
     return {
-      ok: true as const,
-      label: price.label,
-      period: data.period,
-      amountEur,
-      amountFcfa: Math.round(amountEur * FCFA_PER_EUR),
-      amountLocal: fees.total,
-      discountPercent: promo.percent,
-      discountEur: promo.discountEur,
-      baseAmountLocal: fees.base,
-      feeLocal: fees.fee,
-      currency: country.currency,
-      rate: conv.rate,
+      ok: false,
+      message: error instanceof Error ? error.message : "SwyChr injoignable.",
     };
-  });
+  }
 
-/** Crée la commande en base puis génère le lien de paiement SwyChr. */
-export const startPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        productId: z.string().min(1).max(40),
-        countryCode: z.string().length(2),
-        paymentMethod: z.string().min(1).max(60),
-        mobile: z.string().min(6).max(20),
-        fullName: z.string().min(2).max(80),
-        period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(0).max(100000).optional(),
-        promoCode: z.string().max(40).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const country = findCountry(data.countryCode);
-    if (!country) return { ok: false as const, message: "Pays non pris en charge." };
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try {
+    json = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    json = {};
+  }
 
-    // L'e-mail est toujours celui du compte connecté.
-    const email = typeof context.claims["email"] === "string" ? context.claims["email"] : null;
-    if (!email) return { ok: false as const, message: "Adresse e-mail du compte introuvable." };
+  if (!res.ok) {
+    const message =
+      (typeof json["message"] === "string" && json["message"]) ||
+      (typeof json["error"] === "string" && json["error"]) ||
+      text.slice(0, 300) ||
+      `Erreur SwyChr (${res.status})`;
+    return { ok: false, message, status: res.status };
+  }
 
-    const { data: priceRaw } = await context.supabase
-      .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
-      .eq("id", data.productId)
-      .eq("active", true)
-      .maybeSingle();
-    const price = priceRaw ? toEurOffer(priceRaw) : null;
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
+  return { ok: true, data: json };
+}
 
-    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
-    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const baseEur =
-      customEur ??
-      (data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur));
-    const promo = await applyPromoCode(data.promoCode, baseEur);
-    if (!promo.ok) return { ok: false as const, message: promo.message };
-    const amountEur = promo.amountEur;
+function digitsLength(format: string | null): number | null {
+  if (!format) return null;
+  const digits = format.replace(/[^0-9Xx]/g, "");
+  return digits.length > 0 ? digits.length : null;
+}
 
-    const { local: mobileLocal, international: mobile } = normalizeMobile(data.mobile, country);
-    if (mobileLocal.length < 8) return { ok: false as const, message: "Numéro de téléphone invalide." };
+/** POST /api/payout/payout_methods — moyens de paiement disponibles pour un pays. */
+export async function fetchPayoutMethods(
+  countryCode: string,
+): Promise<ApiResult<PayoutMethod[]>> {
+  const result = await callSwychr("/api/payout/payout_methods", { country_code: countryCode });
+  if (!result.ok) return result;
 
-    const { fetchPayoutMethods } = await import("@/lib/services/swychr.server");
-    const methodsResult = await fetchPayoutMethods(country.code);
-    if (!methodsResult.ok) return { ok: false as const, message: methodsResult.message };
-    const selectedMethod = methodsResult.data.find(
-      (method) => method.code.toLowerCase() === data.paymentMethod.toLowerCase(),
+  const raw = result.data;
+  const container =
+    raw["data"] && typeof raw["data"] === "object" && !Array.isArray(raw["data"])
+      ? (raw["data"] as Record<string, unknown>)
+      : raw;
+
+  const list =
+    (Array.isArray(container["payment_methods"]) && (container["payment_methods"] as unknown[])) ||
+    (Array.isArray(container["methods"]) && (container["methods"] as unknown[])) ||
+    (Array.isArray(raw["data"]) && (raw["data"] as unknown[])) ||
+    [];
+
+  const methods: PayoutMethod[] = list.map((entry) => {
+    if (typeof entry === "string") {
+      return { code: entry, label: entry, mobileFormat: null, length: null, prefix: null };
+    }
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const code = String(
+      item["payment_method"] ?? item["method"] ?? item["code"] ?? item["name"] ?? "",
     );
-    if (!selectedMethod) {
-      return { ok: false as const, message: "Ce moyen de paiement n’est plus disponible." };
-    }
-    if (
-      selectedMethod.length !== null &&
-      mobileLocal.length !== selectedMethod.length &&
-      mobile.length !== selectedMethod.length
-    ) {
-      return {
-        ok: false as const,
-        message: `Le numéro ${selectedMethod.label} doit contenir ${selectedMethod.length} chiffres.`,
-      };
-    }
-    const expectedPrefixes = operatorPrefixes(country.code, selectedMethod.label);
-    if (expectedPrefixes && !expectedPrefixes.some((prefix) => mobileLocal.startsWith(prefix))) {
-      return {
-        ok: false as const,
-        message: `Ce numéro ne correspond pas au réseau ${selectedMethod.label}.`,
-      };
-    }
-
-
-    const { convertFromEur } = await import("@/lib/services/fx.server");
-    const conv = await convertFromEur(amountEur, country.currency, country.zeroDecimal);
-    if (!conv.ok) return { ok: false as const, message: conv.message };
-
-    const { addPaymentFees } = await import("@/lib/payments/fees");
-    const fees = addPaymentFees(conv.amount, country.zeroDecimal);
-    const totalLocal = fees.total;
-
-    const transactionId = crypto.randomUUID();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { error: insertError } = await supabaseAdmin.from("orders").insert({
-      transaction_id: transactionId,
-      user_id: context.userId,
-      product_id: price.id,
-      tier: price.tier,
-      status: "en_attente",
-      period: data.period,
-      amount_eur: amountEur,
-      amount_local: totalLocal,
-      currency: country.currency,
-      exchange_rate: conv.rate,
-      country_code: country.code,
-      payment_method: selectedMethod.code,
-      mobile,
-      customer_name: data.fullName,
-      customer_email: email,
-      credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
-    });
-    if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
-
-    // URL de callback transmise au prestataire : le jeton HMAC authentifie l'appel.
-    const { callbackToken } = await import("@/lib/payments/token.server");
-    // L'aperçu authentifié renvoie 401 aux appels externes : on utilise le
-    // domaine public réel (sam-flash.lat en production).
-    const callbackOrigin = await resolvePublicOrigin();
-    const callbackUrl = `${callbackOrigin}/api/public/webhooks/payment-success?transaction_id=${transactionId}&token=${callbackToken(transactionId)}`;
-
-    const { createPaymentLink } = await import("@/lib/services/swychr.server");
-    const result = await createPaymentLink({
-      countryCode: country.code,
-      paymentMethod: selectedMethod.code,
-      name: data.fullName,
-      transactionId,
-      // SwyChr ajoute lui-même les frais lorsque `pass_digital_charge` est actif.
-      // Envoyer le montant de base évite de facturer ces frais deux fois.
-      amount: fees.base,
-      currency: country.currency,
-      email,
-      mobile,
-      description: `Abonnement ${price.label} (${data.period === "yearly" ? "annuel" : "mensuel"}) — Sam flash 2.0`,
-      callbackUrl,
-    });
-
-    if (!result.ok) {
-      await supabaseAdmin
-        .from("orders")
-        .update({ status: "echouee", error_message: result.message })
-        .eq("transaction_id", transactionId);
-      return { ok: false as const, message: result.message };
-    }
-
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        provider_response: result.data.raw as never,
-        payment_link: result.data.paymentLink,
-        provider_transaction_id: result.data.providerTransactionId,
-      })
-      .eq("transaction_id", transactionId);
-
+    const mobileFormat =
+      typeof item["mobile_format"] === "string" ? (item["mobile_format"] as string) : null;
+    const rawLength = item["applicable_mobileno_length"] ?? item["length"];
+    const parsedLength =
+      typeof rawLength === "number"
+        ? rawLength
+        : typeof rawLength === "string" && rawLength.trim() !== "" && !Number.isNaN(Number(rawLength))
+          ? Number(rawLength)
+          : null;
     return {
-      ok: true as const,
-      transactionId,
-      paymentLink: result.data.paymentLink,
-      amountLocal: totalLocal,
-      baseAmountLocal: fees.base,
-      feeLocal: fees.fee,
-      currency: country.currency,
+      code,
+      label: String(item["name"] ?? item["label"] ?? code),
+      mobileFormat,
+      length: parsedLength ?? digitsLength(mobileFormat),
+      prefix: typeof item["prefix"] === "string" ? (item["prefix"] as string) : null,
     };
   });
 
+
+  return { ok: true, data: methods.filter((m) => m.code.length > 0) };
+}
+
+export type PaymentLinkInput = {
+  countryCode: string;
+  paymentMethod: string;
+  name: string;
+  transactionId: string;
+  amount: number;
+  currency: string;
+  email: string;
+  mobile: string;
+  description: string;
+  callbackUrl?: string;
+};
 
 /**
- * Paiement par carte bancaire (Chariow) : enregistre la commande puis renvoie
- * l'adresse de la page de paiement sécurisée, avec les métadonnées du compte.
+ * Correspondance universelle nom d'opérateur -> clé réseau attendue par SwyChr.
+ * Utilisée pour tous les pays actifs (RDC, Cameroun, Sénégal, Guinée, etc.).
  */
-export const startCardPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        productId: z.string().min(1).max(40),
-        fullName: z.string().min(2).max(80),
-        period: z.enum(["monthly", "yearly"]).default("monthly"),
-        credits: z.number().int().min(0).max(100000).optional(),
-        promoCode: z.string().max(40).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const email = typeof context.claims["email"] === "string" ? context.claims["email"] : null;
-    if (!email) return { ok: false as const, message: "Adresse e-mail du compte introuvable." };
+const NETWORK_KEYS: { match: string[]; key: string }[] = [
+  { match: ["airtel"], key: "airtel" },
+  { match: ["mpesa", "m-pesa", "vodacom"], key: "mpesa" },
+  { match: ["orange"], key: "orange" },
+  { match: ["mtn"], key: "mtn" },
+  { match: ["moov"], key: "moov" },
+  { match: ["wave"], key: "wave" },
+  { match: ["free"], key: "free" },
+  { match: ["touchcash", "touch cash"], key: "touchcash" },
+  { match: ["africell"], key: "africell" },
+  { match: ["afrimoney"], key: "afrimoney" },
+];
 
-    const { data: priceRaw } = await context.supabase
-      .from("product_prices")
-      .select("id, label, tier, amount_eur, amount_eur_yearly, amount_fcfa, amount_fcfa_yearly, credits_fixed")
-      .eq("id", data.productId)
-      .eq("active", true)
-      .maybeSingle();
-    const price = priceRaw ? toEurOffer(priceRaw) : null;
-    if (!price) return { ok: false as const, message: "Offre introuvable." };
+export function networkKey(method: string): string {
+  const value = method.toLowerCase();
+  const rule = NETWORK_KEYS.find((r) => r.match.some((m) => value.includes(m)));
+  return rule ? rule.key : value;
+}
 
-    const customEur = price.id === "custom" ? customAmountEur(price, data.credits) : null;
-    if (price.id === "custom" && customEur === null) return { ok: false as const, message: "Nombre de crédits invalide." };
-    const baseEur =
-      customEur ??
-      (data.period === "yearly" && price.amount_eur_yearly !== null
-        ? Number(price.amount_eur_yearly)
-        : Number(price.amount_eur));
-    const promo = await applyPromoCode(data.promoCode, baseEur);
-    if (!promo.ok) return { ok: false as const, message: promo.message };
-    const amountEur = promo.amountEur;
+/** Devises sans sous-unité : le montant doit être un entier. */
+const ZERO_DECIMAL_CURRENCIES = new Set(["CDF", "XAF", "XOF", "GNF", "RWF", "BIF", "UGX"]);
 
-    const { planTypeFor } = await import("@/lib/plans");
-    const planType = planTypeFor(price.id, data.period);
+export type PaymentLink = {
+  paymentLink: string;
+  providerTransactionId: string | null;
+  providerId: string | null;
+  raw: Record<string, unknown>;
+};
 
-    const transactionId = crypto.randomUUID();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+/**
+ * POST /api/payin/create_payment_links — crée un lien de paiement hébergé.
+ * Le client est ensuite redirigé vers ce lien pour finaliser le paiement.
+ */
+export async function createPaymentLink(
+  input: PaymentLinkInput,
+): Promise<ApiResult<PaymentLink>> {
+  const payload: Record<string, unknown> = {
+    country_code: input.countryCode,
+    payment_method: input.paymentMethod,
+    network: networkKey(input.paymentMethod),
+    operator: networkKey(input.paymentMethod),
+    name: input.name,
+    transaction_id: input.transactionId,
+    // CDF/XAF/XOF/GNF… : aucun centime accepté par les passerelles mobile money.
+    amount: ZERO_DECIMAL_CURRENCIES.has(input.currency.toUpperCase())
+      ? Math.ceil(input.amount)
+      : Math.round(input.amount * 100) / 100,
+    currency: input.currency,
+    email: input.email,
+    // Format international strict, sans « + », sans espace, sans 0 initial.
+    mobile: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
+    phone_number: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
+    description: input.description,
+    pass_digital_charge: false,
+    ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
+  };
 
-    const { error: insertError } = await supabaseAdmin.from("orders").insert({
-      transaction_id: transactionId,
-      user_id: context.userId,
-      product_id: price.id,
-      tier: price.tier,
-      status: "en_attente",
-      period: data.period,
-      provider: "chariow",
-      amount_eur: amountEur,
-      amount_local: amountEur,
-      currency: "EUR",
-      exchange_rate: 1,
-      country_code: "EU",
-      payment_method: "card",
-      mobile: "-",
-      customer_name: data.fullName,
-      customer_email: email,
-      credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
-    });
-    if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
+  const missing = [
+    "country_code",
+    "payment_method",
+    "name",
+    "transaction_id",
+    "amount",
+    "currency",
+    "email",
+    "phone_number",
+  ].filter((key) => payload[key] === undefined || payload[key] === null || payload[key] === "");
+  if (missing.length > 0) {
+    console.error("[swychr] champs manquants dans le payload:", missing);
+    return { ok: false, message: `Données de paiement incomplètes : ${missing.join(", ")}.` };
+  }
 
-    const publicOrigin = await resolvePublicOrigin();
-    const { createCardCheckout } = await import("@/lib/services/chariow.server");
-    const result = await createCardCheckout({
-      productId: price.id,
-      period: data.period,
-      planType,
-      label: price.label,
-      amountEur,
-      transactionId,
-      userId: context.userId,
-      email,
-      fullName: data.fullName,
-      successUrl: `${publicOrigin}/checkout/success?transaction_id=${transactionId}`,
-      callbackUrl: `${publicOrigin}/api/public/webhooks/chariow`,
-    });
+  console.log("[swychr] create_payment_links payload:", JSON.stringify(payload));
 
-    if (!result.ok) {
-      await supabaseAdmin
-        .from("orders")
-        .update({ status: "echouee", error_message: result.message })
-        .eq("transaction_id", transactionId);
-      return { ok: false as const, message: result.message };
-    }
+  const result = await callSwychr("/api/payin/create_payment_links", payload);
+  if (!result.ok) {
+    console.error("[swychr] create_payment_links erreur:", result.status ?? "-", result.message);
+    return result;
+  }
+  console.log("[swychr] create_payment_links réponse:", JSON.stringify(result.data));
 
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        payment_link: result.data.url,
-        provider_session_id: result.data.sessionId,
-      })
-      .eq("transaction_id", transactionId);
 
-    return { ok: true as const, transactionId, checkoutUrl: result.data.url, amountEur };
+  const raw = result.data;
+  const status = typeof raw["status"] === "number" ? (raw["status"] as number) : 200;
+  const data =
+    raw["data"] && typeof raw["data"] === "object" && !Array.isArray(raw["data"])
+      ? (raw["data"] as Record<string, unknown>)
+      : {};
+
+  const link =
+    (typeof data["payment_link"] === "string" && data["payment_link"]) ||
+    (typeof data["payment_url"] === "string" && data["payment_url"]) ||
+    (typeof data["checkout_url"] === "string" && data["checkout_url"]) ||
+    (typeof data["url"] === "string" && data["url"]) ||
+    null;
+
+  if (status >= 400 || !link) {
+    const message =
+      (typeof raw["message"] === "string" && raw["message"]) ||
+      "Impossible de créer le lien de paiement.";
+    console.error("[swychr] création refusée:", status, message);
+    return { ok: false, message };
+  }
+
+  return {
+    ok: true,
+    data: {
+      paymentLink: link,
+      providerTransactionId:
+        typeof data["transaction_id"] === "string" ? (data["transaction_id"] as string) : null,
+      providerId: data["id"] != null ? String(data["id"]) : null,
+      raw,
+    },
+  };
+}
+
+export type LinkStatus = { status: string | null; raw: Record<string, unknown> };
+
+/** POST /api/payin/payment_link_status — statut courant d'un lien de paiement. */
+export async function fetchPaymentLinkStatus(
+  transactionId: string,
+): Promise<ApiResult<LinkStatus>> {
+  const result = await callSwychr("/api/payin/payment_link_status", {
+    transaction_id: transactionId,
   });
+  if (!result.ok) return result;
 
-/** Statut d'une commande : vérifié chez le prestataire puis renvoyé au client. */
-export const getOrderStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { transactionId: string }) =>
-    z.object({ transactionId: z.string().uuid() }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const PAID = ["paid", "success", "successful", "succeeded", "completed", "complete", "settled"];
-    const FAILED = ["failed", "failure", "cancelled", "canceled", "expired", "declined", "rejected"];
+  const raw = result.data;
+  const outer = (raw["data"] ?? {}) as Record<string, unknown>;
+  const inner = (outer["data"] ?? outer) as Record<string, unknown>;
+  const attributes = (inner["attributes"] ?? inner) as Record<string, unknown>;
+  const status =
+    typeof attributes["status"] === "string" ? (attributes["status"] as string) : null;
 
-    const { data: order } = await context.supabase
-      .from("orders")
-      .select(
-        "transaction_id, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, payment_link, product_id, period",
-      )
-      .eq("transaction_id", data.transactionId)
-      .maybeSingle();
-    if (!order) return { ok: false as const, message: "Commande introuvable." };
+  return { ok: true, data: { status, raw } };
+}
 
-    const getOrderPlanLabel = (productId?: string | null, tier?: string | null) => {
-      if (productId === "heavy" || tier === "superhearly" || tier === "superhearly_monthly") return "Super Grok Heavy";
-      if (productId === "plus" || tier === "super_grok_plus") return "Super Grok Plus";
-      return "Super Grok";
-    };
-
-    const planLabel = getOrderPlanLabel(order.product_id, order.tier);
-
-    if (order.status !== "en_attente") {
-      return { ok: true as const, order: { ...order, planLabel } };
-    }
-
-    const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
-    const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
-    if (!remote.ok || !remote.data.status) {
-      return { ok: true as const, order: { ...order, planLabel } };
-    }
-
-    const normalized = remote.data.status?.toLowerCase() ?? "";
-    let next: "payee" | "echouee" | null = null;
-    if (PAID.includes(normalized)) next = "payee";
-    else if (FAILED.includes(normalized)) next = "echouee";
-    if (!next) return { ok: true as const, order: { ...order, planLabel } };
-
-    const { applyOrderOutcome } = await import("@/lib/payments/webhook.server");
-    await applyOrderOutcome(order.transaction_id, next, remote.data.status, remote.data.raw);
-
-    return {
-      ok: true as const,
-      order: { ...order, status: next, provider_message: remote.data.status, planLabel },
-    };
-  });
-
-
-
-/** Statut d'une commande sans connexion : le numéro de transaction (UUID) sert de preuve. */
-export const getPublicOrderStatus = createServerFn({ method: "POST" })
-  .inputValidator((input: { transactionId: string }) =>
-    z.object({ transactionId: z.string().uuid() }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const PAID = ["paid", "success", "successful", "succeeded", "completed", "complete", "settled"];
-    const FAILED = ["failed", "failure", "cancelled", "canceled", "expired", "declined", "rejected"];
-
-    const { data: order } = await supabaseAdmin
-      .from("orders")
-      .select(
-        "transaction_id, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, product_id, period",
-      )
-      .eq("transaction_id", data.transactionId)
-      .maybeSingle();
-    if (!order) return { ok: false as const, message: "Commande introuvable." };
-
-    const planLabel =
-      order.product_id === "plus" || order.product_id === "pro" || order.tier === "super_grok_plus"
-        ? "Sam Flash Pro"
-        : order.product_id === "base" || order.product_id === "light" || order.tier === "super_grok_monthly"
-          ? "Sam Flash Light"
-          : "Sam Flash";
-
-    if (order.status !== "en_attente") {
-      return { ok: true as const, order: { ...order, planLabel } };
-    }
-
-    const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
-    const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
-    if (!remote.ok || !remote.data.status) {
-      return { ok: true as const, order: { ...order, planLabel } };
-    }
-
-    const normalized = remote.data.status?.toLowerCase() ?? "";
-    let next: "payee" | "echouee" | null = null;
-    if (PAID.includes(normalized)) next = "payee";
-    else if (FAILED.includes(normalized)) next = "echouee";
-    if (!next) return { ok: true as const, order: { ...order, planLabel } };
-
-    const { applyOrderOutcome } = await import("@/lib/payments/webhook.server");
-    await applyOrderOutcome(order.transaction_id, next, remote.data.status, remote.data.raw);
-
-    return {
-      ok: true as const,
-      order: { ...order, status: next, provider_message: remote.data.status, planLabel },
-    };
-  });
