@@ -317,7 +317,6 @@ export const startPayment = createServerFn({ method: "POST" })
       customer_name: data.fullName,
       customer_email: email,
       credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
-      promo_code: promo.discountEur > 0 && data.promoCode ? data.promoCode.trim().toUpperCase() : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
@@ -334,7 +333,7 @@ export const startPayment = createServerFn({ method: "POST" })
       paymentMethod: selectedMethod.code,
       name: data.fullName,
       transactionId,
-      // Le montant envoyé = le total affiché au client (base + frais), sans frais ajoutés par le prestataire.
+      // Montant envoyé = total affiché (base + frais), entier. SWYCD n'ajoute aucun frais (pass_digital_charge: false).
       amount: fees.total,
       currency: country.currency,
       email,
@@ -437,7 +436,6 @@ export const startCardPayment = createServerFn({ method: "POST" })
       customer_name: data.fullName,
       customer_email: email,
       credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
-      promo_code: promo.discountEur > 0 && data.promoCode ? data.promoCode.trim().toUpperCase() : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
 
