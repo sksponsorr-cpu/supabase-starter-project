@@ -196,7 +196,7 @@ export async function createPaymentLink(
     mobile: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
     phone_number: input.mobile.replace(/\D/g, "").replace(/^0+/, ""),
     description: input.description,
-    pass_digital_charge: false,
+    pass_digital_charge: true,
     ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
   };
 
@@ -268,9 +268,13 @@ export async function fetchPaymentLinkStatus(
   const result = await callSwychr("/api/payin/payment_link_status", {
     transaction_id: transactionId,
   });
-  if (!result.ok) return result;
+  if (!result.ok) {
+    console.error("[swychr] payment_link_status erreur:", transactionId, result.status ?? "-", result.message);
+    return result;
+  }
 
   const raw = result.data;
+  console.log("[swychr] payment_link_status réponse:", transactionId, JSON.stringify(raw));
   const outer = (raw["data"] ?? {}) as Record<string, unknown>;
   const inner = (outer["data"] ?? outer) as Record<string, unknown>;
   const attributes = (inner["attributes"] ?? inner) as Record<string, unknown>;
