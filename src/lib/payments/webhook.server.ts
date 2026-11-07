@@ -1,4 +1,21 @@
 import { z } from "zod";
+
+
+/**
+ * Traduit le statut renvoyé par SwyChr/Gutouch en résultat de commande.
+ * Les refus de réseau (ex. « refused », « rejected_by_operator », « insufficient_funds »)
+ * étaient auparavant ignorés : la commande restait « en_attente » indéfiniment.
+ */
+const PAID_STATUSES = ["paid", "success", "successful", "succeeded", "completed", "complete", "settled"];
+const FAILED_WORDS = ["fail", "refus", "declin", "reject", "cancel", "annul", "expir", "error", "erreur", "invalid", "insufficient", "unsuccess", "timeout", "abandon", "reversed"];
+export function classifyStatus(status: string): "payee" | "echouee" | null {
+  const s = status.toLowerCase().trim();
+  if (PAID_STATUSES.includes(s)) return "payee";
+  if (FAILED_WORDS.some((w) => s.includes(w))) return "echouee";
+  return null; // pending / processing : on attend la prochaine vérification
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { verifyCallbackToken } from "@/lib/payments/token.server";
 import { expiryFor, planTypeFor } from "@/lib/plans";
 import { isCreditProduct } from "@/lib/credits";
@@ -261,13 +278,18 @@ export async function handlePaymentWebhook(request: Request): Promise<Response> 
 
   const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
   const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? transactionId);
+  // Diagnostic : on garde la réponse brute du prestataire dans la commande.
+  await supabaseAdmin
+    .from("orders")
+    .update({ provider_response: (remote.ok ? remote.data.raw : { erreur: remote.message }) as never })
+    .eq("transaction_id", transactionId);
   if (!remote.ok || !remote.data.status) {
     if (isGet) return getRedirectResponse();
     return new Response("ok");
   }
 
   const normalized = remote.data.status.toLowerCase();
-  const confirmed = PAID.includes(normalized) ? "payee" : FAILED.includes(normalized) ? "echouee" : null;
+  const confirmed = classifyStatus(normalized);
   if (!confirmed) {
     if (isGet) return getRedirectResponse();
     return new Response("ok");
@@ -332,6 +354,11 @@ export async function handleSwychrCallback(request: Request): Promise<Response> 
     return new Response("transaction_id manquant", { status: 400 });
   }
 
+  if (!UUID_RE.test(transactionId)) {
+    if (isGet) return getRedirectResponse();
+    return new Response("transaction_id invalide", { status: 400 });
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: order } = await supabaseAdmin
     .from("orders")
@@ -353,13 +380,18 @@ export async function handleSwychrCallback(request: Request): Promise<Response> 
 
   const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
   const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
+  // Diagnostic : on garde la réponse brute du prestataire dans la commande.
+  await supabaseAdmin
+    .from("orders")
+    .update({ provider_response: (remote.ok ? remote.data.raw : { erreur: remote.message }) as never })
+    .eq("transaction_id", order.transaction_id);
   if (!remote.ok || !remote.data.status) {
     if (isGet) return getRedirectResponse();
     return new Response("ok");
   }
 
   const normalized = remote.data.status.toLowerCase();
-  const confirmed = PAID.includes(normalized) ? "payee" : FAILED.includes(normalized) ? "echouee" : null;
+  const confirmed = classifyStatus(normalized);
   if (!confirmed) {
     if (isGet) return getRedirectResponse();
     return new Response("ok");
