@@ -211,15 +211,17 @@ export async function checkGenerationAccess(
     };
   }
 
-  // Abonnés : contrôle du solde de crédits
+  // Abonnés : contrôle du solde de crédits (même barème et même source que le débit réel)
   {
-    const cost = creditCostFor(mediaType, seconds, "480p", await getCreditConfig());
-    const { data: wallet } = await supabaseAdmin
-      .from("profiles")
-      .select("credits_balance")
-      .eq("id", userId)
-      .maybeSingle();
-    if ((wallet?.credits_balance ?? 0) < cost) {
+    const { isPricedModel, generationCreditsFor } = await import("@/lib/creator-pricing");
+    const resolution = opts?.resolution === "1080p" || opts?.resolution === "480p" ? opts!.resolution : "720p";
+    const config = await getCreditConfig();
+    const cost =
+      mediaType === "video" && opts?.model && isPricedModel(opts!.model)
+        ? (generationCreditsFor(opts!.model, resolution as never, seconds) ?? creditCostFor(mediaType, seconds, resolution, config))
+        : creditCostFor(mediaType, seconds, resolution, config);
+    const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
+    if (Number(spendable ?? 0) < cost) {
       return {
         ...base,
         allowed: false,
