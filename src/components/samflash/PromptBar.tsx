@@ -442,6 +442,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         data: {
           mediaType: mode,
           seconds: (mode === "video" ? (Number(dur.replace(/\D/g, "")) || 5) : 0),
+          model: mode === "video" && creatorSel.active ? creatorSel.modelId : null,
+          resolution: (res === "1080p" || res === "480p" ? res : "720p") as "480p" | "720p" | "1080p",
         },
       });
       if (!access.allowed && access.code === "queued") {
