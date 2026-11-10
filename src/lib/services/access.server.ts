@@ -220,13 +220,13 @@ export async function checkGenerationAccess(
       mediaType === "video" && opts?.model && isPricedModel(opts!.model)
         ? (generationCreditsFor(opts!.model, resolution as never, seconds) ?? creditCostFor(mediaType, seconds, resolution, config))
         : creditCostFor(mediaType, seconds, resolution, config);
-    const { data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId });
+    const { data: spendable } = await supabaseAdmin.rpc("sync_credits_balance", { p_user: userId });
     if (Number(spendable ?? 0) < cost) {
       return {
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: `Crédits insuffisants : cette génération coûte ${cost} crédits, ton solde utilisable est de ${Number(spendable ?? 0)}. Réduis la durée ou choisis un modèle moins coûteux, ou recharge ton compte.`,
+        message: `Crédits insuffisants : cette génération (${opts?.model ?? "modèle inconnu"}, ${opts?.resolution ?? "résolution par défaut"}, ${seconds} s) coûte ${cost} crédits, ton solde utilisable est de ${Number(spendable ?? 0)}. Réduis la durée ou choisis un modèle moins coûteux, ou recharge ton compte.`,
       };
     }
   }
