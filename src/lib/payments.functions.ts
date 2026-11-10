@@ -528,7 +528,7 @@ export const getOrderStatus = createServerFn({ method: "POST" })
     const { data: order } = await context.supabase
       .from("orders")
       .select(
-        "transaction_id, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, payment_link, product_id, period",
+        "transaction_id, provider, provider_transaction_id, status, amount_local, currency, provider_message, error_message, tier, payment_link, product_id, period",
       )
       .eq("transaction_id", data.transactionId)
       .maybeSingle();
@@ -546,24 +546,40 @@ export const getOrderStatus = createServerFn({ method: "POST" })
       return { ok: true as const, order: { ...order, planLabel } };
     }
 
-    const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
-    const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
-    if (!remote.ok || !remote.data.status) {
-      return { ok: true as const, order: { ...order, planLabel } };
+    let next: "payee" | "echouee" | null = null;
+    let remoteStatus: string | null = null;
+    let remoteRaw: Record<string, unknown> = {};
+
+    if (order.provider === "saspay") {
+      // Paiement direct SasPay : statut vérifié chez SasPay (filet de sécurité du webhook).
+      if (!order.provider_transaction_id) return { ok: true as const, order: { ...order, planLabel } };
+      const { fetchSaspayStatus } = await import("@/lib/services/saspay.server");
+      const remote = await fetchSaspayStatus(order.provider_transaction_id);
+      if (!remote.ok || !remote.outcome) return { ok: true as const, order: { ...order, planLabel } };
+      next = remote.outcome;
+      remoteStatus = remote.status;
+      remoteRaw = remote.raw;
+    } else {
+      const { fetchPaymentLinkStatus } = await import("@/lib/services/swychr.server");
+      const remote = await fetchPaymentLinkStatus(order.provider_transaction_id ?? order.transaction_id);
+      if (!remote.ok || !remote.data.status) {
+        return { ok: true as const, order: { ...order, planLabel } };
+      }
+      const normalized = remote.data.status?.toLowerCase() ?? "";
+      if (PAID.includes(normalized)) next = "payee";
+      else if (FAILED.includes(normalized)) next = "echouee";
+      remoteStatus = remote.data.status;
+      remoteRaw = remote.data.raw;
     }
 
-    const normalized = remote.data.status?.toLowerCase() ?? "";
-    let next: "payee" | "echouee" | null = null;
-    if (PAID.includes(normalized)) next = "payee";
-    else if (FAILED.includes(normalized)) next = "echouee";
     if (!next) return { ok: true as const, order: { ...order, planLabel } };
 
     const { applyOrderOutcome } = await import("@/lib/payments/webhook.server");
-    await applyOrderOutcome(order.transaction_id, next, remote.data.status, remote.data.raw);
+    await applyOrderOutcome(order.transaction_id, next, remoteStatus, remoteRaw);
 
     return {
       ok: true as const,
-      order: { ...order, status: next, provider_message: remote.data.status, planLabel },
+      order: { ...order, status: next, provider_message: remoteStatus, planLabel },
     };
   });
 
