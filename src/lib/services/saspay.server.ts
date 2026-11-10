@@ -137,7 +137,7 @@ export type SaspayStatusResult =
   | { ok: false; message: string };
 
 /**
- * GET /checkout-sessions/{id}/status/ : statut vérifié auprès de SasPay.
+ * GET /payments/{id}/ : statut d’un paiement softpay, vérifié auprès de SasPay.
  * Sert de filet de sécurité quand le webhook n'est pas reçu.
  */
 export async function fetchSaspayStatus(providerId: string): Promise<SaspayStatusResult> {
@@ -146,7 +146,7 @@ export async function fetchSaspayStatus(providerId: string): Promise<SaspayStatu
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}/checkout-sessions/${encodeURIComponent(providerId)}/status/`, {
+    res = await fetch(`${BASE_URL}/payments/${encodeURIComponent(providerId)}/`, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
       cache: "no-store",
@@ -169,9 +169,10 @@ export async function fetchSaspayStatus(providerId: string): Promise<SaspayStatu
   const transactionStatus = String(json["transaction_status"] ?? "").toUpperCase();
 
   let outcome: "payee" | "echouee" | null = null;
-  if (status === "PAID" || transactionStatus === "SUCCESS") outcome = "payee";
-  else if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "DECLINED"].includes(transactionStatus) ||
-           ["FAILED", "CANCELLED", "CANCELED", "EXPIRED"].includes(status)) outcome = "echouee";
+  const PAID_VALUES = ["PAID", "SUCCESS", "SUCCESSFUL", "COMPLETED"];
+  const FAILED_VALUES = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "DECLINED", "REJECTED"];
+  if (PAID_VALUES.includes(status) || PAID_VALUES.includes(transactionStatus)) outcome = "payee";
+  else if (FAILED_VALUES.includes(status) || FAILED_VALUES.includes(transactionStatus)) outcome = "echouee";
 
   return { ok: true, outcome, status: status || transactionStatus, raw: json };
 }
