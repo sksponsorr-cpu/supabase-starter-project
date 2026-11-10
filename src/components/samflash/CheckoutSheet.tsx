@@ -150,9 +150,9 @@ export function CheckoutSheet({
       setTransactionId(res.transactionId);
       setPaymentLink(res.paymentLink);
       setStep("waiting");
-      // Une nouvelle fenêtre ouverte après l'appel réseau est souvent bloquée
-      // sur mobile. La navigation directe garantit l'ouverture de SwyChr.
-      window.location.assign(res.paymentLink);
+      // Paiement direct (SasPay) : rien à ouvrir, le client valide sur son téléphone.
+      // Paiement Swychr : navigation directe, car une fenêtre ouverte après l'appel est bloquée sur mobile.
+      if (res.paymentLink) window.location.assign(res.paymentLink);
     } catch {
       setError("Paiement impossible pour le moment.");
     } finally {
@@ -488,8 +488,9 @@ export function CheckoutSheet({
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <p className="text-lg font-semibold">Paiement en attente</p>
             <p className="max-w-xs text-sm text-muted-foreground">
-              Confirmez d’abord sur la page SwyChr qui vient de s’ouvrir, puis validez la demande
-              reçue sur votre téléphone.
+              {paymentLink
+                ? "Confirmez d’abord sur la page de paiement qui vient de s’ouvrir, puis validez la demande reçue sur votre téléphone."
+                : "Valide la demande de paiement reçue sur ton téléphone. Ton abonnement s’activera automatiquement."}
             </p>
             {statusMessage && <p className="text-xs text-muted-foreground">{statusMessage}</p>}
             {paymentLink && (
