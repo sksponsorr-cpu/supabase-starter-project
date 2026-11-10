@@ -148,6 +148,8 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
   const [promptFocused, setPromptFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  // Nom attribué à chaque photo de référence (ex. « Personne A »), parallèle à attachedImages.
+  const [imageTags, setImageTags] = useState<string[]>([]);
   const attachedImage = attachedImages[0] ?? null;
   const MAX_PHOTOS = 9;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -484,6 +486,13 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
     setText("");
     blurInput();
     playChime("send");
+    // Tagging des photos de référence : le modèle doit savoir quelle image correspond à quelle personne.
+    if (mode === "video" && creatorSel.active && creatorSel.mode === "reference_to_video" && attachedImages.length > 1) {
+      const lines = attachedImages
+        .map((_, i) => (imageTags[i] ?? "").trim() ? `Reference image ${i + 1} = ${imageTags[i].trim()}` : null)
+        .filter(Boolean);
+      if (lines.length) finalPrompt = `${lines.join(". ")}. ${finalPrompt}`;
+    }
     onStart?.({ prompt: finalPrompt, mediaType: mode });
     if (debug) console.debug("[Sam flash debug] génération", { mode, res, dur, ratio, finalPrompt });
 
@@ -736,18 +745,33 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         {attachedImages.length > 0 && (
           <div className="ml-2 mt-1 flex items-center gap-2 self-start overflow-x-auto">
             {attachedImages.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt={`Photo ${i + 1}`}
-                className="h-14 w-14 shrink-0 rounded-xl object-cover border border-border shadow-sm"
-              />
+              <div key={i} className="flex shrink-0 flex-col items-center gap-1">
+                <img
+                  src={src}
+                  alt={`Photo ${i + 1}`}
+                  className="h-14 w-14 rounded-xl object-cover border border-border shadow-sm"
+                />
+                {attachedImages.length > 1 && (
+                  <input
+                    value={imageTags[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [...imageTags];
+                      next[i] = e.target.value;
+                      setImageTags(next);
+                    }}
+                    placeholder={`Nom ${i + 1}`}
+                    maxLength={30}
+                    className="w-16 rounded-md border border-border bg-background px-1 text-center text-[11px]"
+                  />
+                )}
+              </div>
             ))}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setAttachedImages([]);
+                setImageTags([]);
                 if (fileRef.current) fileRef.current.value = "";
               }}
               className="flex h-6 shrink-0 items-center justify-center rounded-full bg-background border border-border px-2 text-xs text-muted-foreground hover:text-foreground"
