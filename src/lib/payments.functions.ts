@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { SASPAY_DIRECT_COUNTRIES } from "@/lib/payments/saspay-direct";
 import {
   SUPPORTED_COUNTRIES,
   findCountry,
@@ -316,9 +317,49 @@ export const startPayment = createServerFn({ method: "POST" })
       mobile,
       customer_name: data.fullName,
       customer_email: email,
+      provider: SASPAY_DIRECT_COUNTRIES.includes(country.code) ? "saspay" : "swychr",
       credits: price.id === "custom" ? (data.credits ?? null) : (price.id.startsWith("pack_") || price.id.startsWith("seller_pack_")) ? Number(price.credits_fixed ?? 0) || null : null,
     });
     if (insertError) return { ok: false as const, message: "Impossible d'enregistrer la commande." };
+
+    // Paiement direct SasPay (RDC, Bénin, Mali) : pas de redirection, le client valide sur son téléphone.
+    if (SASPAY_DIRECT_COUNTRIES.includes(country.code)) {
+      const { createSaspayPayment } = await import("@/lib/services/saspay.server");
+      const direct = await createSaspayPayment({
+        amount: fees.total,
+        currency: country.currency,
+        countryCode: country.code,
+        operatorLabel: selectedMethod.label,
+        description: `Abonnement ${price.label} (${data.period === "yearly" ? "annuel" : "mensuel"}) — Sam flash 2.0`,
+        name: data.fullName,
+        email,
+        phone: mobile,
+      });
+      if (!direct.ok) {
+        await supabaseAdmin
+          .from("orders")
+          .update({ status: "echouee", error_message: direct.message })
+          .eq("transaction_id", transactionId);
+        return { ok: false as const, message: direct.message };
+      }
+      await supabaseAdmin
+        .from("orders")
+        .update({
+          provider_response: direct.raw as never,
+          provider_transaction_id: direct.providerId,
+        })
+        .eq("transaction_id", transactionId);
+      return {
+        ok: true as const,
+        transactionId,
+        paymentLink: null as string | null,
+        direct: true as const,
+        amountLocal: totalLocal,
+        baseAmountLocal: fees.base,
+        feeLocal: fees.fee,
+        currency: country.currency,
+      };
+    }
 
     // URL de callback transmise au prestataire : le jeton HMAC authentifie l'appel.
     const { callbackToken } = await import("@/lib/payments/token.server");
