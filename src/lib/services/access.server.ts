@@ -220,7 +220,11 @@ export async function checkGenerationAccess(
       mediaType === "video" && opts?.model && isPricedModel(opts!.model)
         ? (generationCreditsFor(opts!.model, resolution as never, seconds) ?? creditCostFor(mediaType, seconds, resolution, config))
         : creditCostFor(mediaType, seconds, resolution, config);
-    const { data: spendable } = await supabaseAdmin.rpc("sync_credits_balance", { p_user: userId });
+    // Si la fonction de synchronisation n'est pas encore installée, on lit le solde utilisable directement.
+    let { data: spendable, error: syncError } = await supabaseAdmin.rpc("sync_credits_balance", { p_user: userId });
+    if (syncError) {
+      ({ data: spendable } = await supabaseAdmin.rpc("spendable_credits", { p_user: userId }));
+    }
     if (Number(spendable ?? 0) < cost) {
       return {
         ...base,
