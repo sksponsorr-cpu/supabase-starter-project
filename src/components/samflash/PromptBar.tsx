@@ -366,10 +366,10 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       if (!images.length || !d.prompt) return;
       setMode("video");
       setRes("720p");
-      setDur("30s");
+      setDur("5s");
       setRatio("9:16");
       setAttachedImages(images.slice(0, MAX_PHOTOS));
-      setCreatorSelection({ modelId: "seedance-2-5", mode: "reference_to_video", seconds: 30, active: true });
+      setCreatorSelection({ modelId: "seedance-2-5", mode: "reference_to_video", seconds: 5, active: true });
       setText(d.prompt);
       window.sessionStorage.removeItem("sf:clone-prefill");
       window.setTimeout(() => inputRef.current?.focus(), 150);
@@ -441,7 +441,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
       const access = await checkAccess({
         data: {
           mediaType: mode,
-          seconds: mode === "video" ? Number(dur.replace(/\D/g, "")) || 0 : 0,
+          seconds: (mode === "video" ? (Number(dur.replace(/\D/g, "")) || 5) : 0),
         },
       });
       if (!access.allowed && access.code === "queued") {
@@ -491,11 +491,11 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
         : `${t("image")} ${res} · ${ratio}…`,
     );
 
-    if (mode === "video" && longSec > 15) {
+    if (mode === "video" && (mode === "video" ? (Number(dur.replace(/\D/g, "")) || 5) : 0) > 15) {
       const r = await launchLong({
         data: {
           prompt: finalPrompt,
-          seconds: longSec,
+          seconds: (mode === "video" ? (Number(dur.replace(/\D/g, "")) || 5) : 0),
           resolution: (res === "480p" ? "480p" : "720p") as Resolution,
           modelId: creatorSel.active ? creatorSel.modelId : null,
         },
@@ -635,7 +635,7 @@ export function PromptBar({ onStart, onCancelReady, onSettled, onGenerated, onQu
 
   // Coût affiché à côté du bouton d'envoi (même calcul que celui du serveur quand le modèle est tarifé).
   const creatorSel = useCreatorSelection();
-  const costSeconds = mode === "video" ? (longSec > 15 ? longSec : Number(dur.replace(/\D/g, "")) || 5) : 0;
+  const costSeconds = (mode === "video" ? (Number(dur.replace(/\D/g, "")) || 5) : 0);
   let costCredits: number | null = null;
   try {
     if (mode === "video" && creatorSel.active && isPricedModel(creatorSel.modelId)) {
