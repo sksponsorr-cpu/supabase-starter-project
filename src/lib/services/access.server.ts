@@ -226,7 +226,7 @@ export async function checkGenerationAccess(
         ...base,
         allowed: false,
         code: "insufficient_credits",
-        message: "Crédits insuffisants. Rechargez votre compte pour continuer.",
+        message: `Crédits insuffisants : cette génération coûte ${cost} crédits, ton solde utilisable est de ${Number(spendable ?? 0)}. Réduis la durée ou choisis un modèle moins coûteux, ou recharge ton compte.`,
       };
     }
   }
