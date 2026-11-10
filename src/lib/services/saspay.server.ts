@@ -131,3 +131,47 @@ export function verifySaspaySignature(rawBody: string, signature: string, timest
   const b = Buffer.from(expected, "utf8");
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+export type SaspayStatusResult =
+  | { ok: true; outcome: "payee" | "echouee" | null; status: string; raw: Record<string, unknown> }
+  | { ok: false; message: string };
+
+/**
+ * GET /checkout-sessions/{id}/status/ : statut vérifié auprès de SasPay.
+ * Sert de filet de sécurité quand le webhook n'est pas reçu.
+ */
+export async function fetchSaspayStatus(providerId: string): Promise<SaspayStatusResult> {
+  const apiKey = process.env["SASPAY_API_KEY"];
+  if (!apiKey) return { ok: false, message: "Clé SasPay non configurée." };
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/checkout-sessions/${encodeURIComponent(providerId)}/status/`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    return { ok: false, message: "Impossible de contacter SasPay." };
+  }
+
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try {
+    json = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    json = {};
+  }
+  if (!res.ok) return { ok: false, message: `SasPay ${res.status} : statut indisponible.` };
+
+  const status = String(json["status"] ?? "").toUpperCase();
+  const transactionStatus = String(json["transaction_status"] ?? "").toUpperCase();
+
+  let outcome: "payee" | "echouee" | null = null;
+  if (status === "PAID" || transactionStatus === "SUCCESS") outcome = "payee";
+  else if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "DECLINED"].includes(transactionStatus) ||
+           ["FAILED", "CANCELLED", "CANCELED", "EXPIRED"].includes(status)) outcome = "echouee";
+
+  return { ok: true, outcome, status: status || transactionStatus, raw: json };
+}
